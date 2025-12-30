@@ -12,13 +12,13 @@ function checkSetup() {
   if (!SPREADSHEET_ID || SPREADSHEET_ID === 'YOUR_SPREADSHEET_ID_HERE' || SPREADSHEET_ID === '') {
     return {
       configured: false,
-      message: 'SPREADSHEET_ID not configured. Please create a Google Sheet and update SPREADSHEET_ID in code.gs'
+      message: 'SPREADSHEET_ID not configured. Please create a Google Sheet and update SPREADSHEET_ID in code.gs. IMPORTANT: After updating code.gs, you must create a NEW deployment (Deploy → New deployment) - saving the file is not enough!'
     };
   }
   if (ADMIN_EMAILS.includes('your_email@domain.com') || ADMIN_EMAILS.length === 0) {
     return {
       configured: false,
-      message: 'ADMIN_EMAILS not configured. Please update ADMIN_EMAILS in code.gs with your email address'
+      message: 'ADMIN_EMAILS not configured. Please update ADMIN_EMAILS in code.gs with your email address. IMPORTANT: After updating code.gs, you must create a NEW deployment (Deploy → New deployment) - saving the file is not enough!'
     };
   }
   try {
@@ -27,10 +27,39 @@ function checkSetup() {
   } catch (e) {
     return {
       configured: false,
-      message: 'Cannot access spreadsheet. Error: ' + e.toString()
+      message: 'Cannot access spreadsheet. Error: ' + e.toString() + '. Check: 1) SPREADSHEET_ID is correct, 2) You have edit access to the spreadsheet, 3) You created a NEW deployment after updating the code'
     };
   }
 } 
+
+// Diagnostic helper function to check configuration
+function getConfigurationStatus() {
+  const status = {
+    timestamp: new Date().toISOString(),
+    spreadsheetId: SPREADSHEET_ID,
+    spreadsheetIdIsPlaceholder: (SPREADSHEET_ID === 'YOUR_SPREADSHEET_ID_HERE'),
+    adminEmails: ADMIN_EMAILS,
+    adminEmailsArePlaceholder: ADMIN_EMAILS.includes('your_email@domain.com'),
+    currentUser: Session.getActiveUser().getEmail(),
+    setupCheck: checkSetup()
+  };
+  
+  try {
+    if (!status.spreadsheetIdIsPlaceholder) {
+      const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+      status.spreadsheetAccessible = true;
+      status.spreadsheetName = ss.getName();
+      status.spreadsheetUrl = ss.getUrl();
+    } else {
+      status.spreadsheetAccessible = false;
+    }
+  } catch (e) {
+    status.spreadsheetAccessible = false;
+    status.spreadsheetError = e.toString();
+  }
+  
+  return status;
+}
 
 function doGet(e) {
   // Check if setup is complete

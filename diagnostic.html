@@ -167,7 +167,62 @@
             }
         }, 1000);
         
-        // Test 5: Try to call Google Apps Script
+        // Test 5: Check configuration status
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+            addTest('Configuration Status', 'pending', 
+                'Checking configuration...');
+            
+            google.script.run
+                .withSuccessHandler(function(config) {
+                    var lastTest = testsDiv.lastChild;
+                    
+                    var configHtml = '<strong>Current Configuration:</strong><br>';
+                    configHtml += 'Spreadsheet ID: <code>' + config.spreadsheetId + '</code><br>';
+                    configHtml += 'Is Placeholder: ' + (config.spreadsheetIdIsPlaceholder ? '❌ YES (PROBLEM!)' : '✅ No') + '<br>';
+                    configHtml += 'Admin Emails: <code>' + JSON.stringify(config.adminEmails) + '</code><br>';
+                    configHtml += 'Are Placeholder: ' + (config.adminEmailsArePlaceholder ? '❌ YES (PROBLEM!)' : '✅ No') + '<br>';
+                    configHtml += 'Current User: <code>' + config.currentUser + '</code><br>';
+                    configHtml += 'Spreadsheet Accessible: ' + (config.spreadsheetAccessible ? '✅ Yes' : '❌ No') + '<br>';
+                    
+                    if (config.spreadsheetName) {
+                        configHtml += 'Spreadsheet Name: ' + config.spreadsheetName + '<br>';
+                        configHtml += 'Spreadsheet URL: <a href="' + config.spreadsheetUrl + '" target="_blank">Open Sheet</a><br>';
+                    }
+                    
+                    if (config.spreadsheetError) {
+                        configHtml += '<br><strong style="color: red;">Error accessing spreadsheet:</strong><br>';
+                        configHtml += '<code>' + config.spreadsheetError + '</code><br>';
+                    }
+                    
+                    var status = 'pass';
+                    var message = 'Configuration looks good!';
+                    
+                    if (config.spreadsheetIdIsPlaceholder) {
+                        status = 'fail';
+                        message = '❌ SPREADSHEET_ID is still set to placeholder! You need to:<br>1. Edit code.gs and set SPREADSHEET_ID to your actual Sheet ID<br>2. Create a NEW deployment (not just save the file)';
+                    } else if (!config.spreadsheetAccessible) {
+                        status = 'fail';
+                        message = '❌ Cannot access spreadsheet! Check permissions and make sure you created a NEW deployment after updating the code.';
+                    } else if (config.adminEmailsArePlaceholder) {
+                        status = 'fail';
+                        message = '❌ ADMIN_EMAILS still has placeholder values! Update code.gs and create a NEW deployment.';
+                    }
+                    
+                    lastTest.className = 'test ' + status;
+                    lastTest.innerHTML = '<h3>Configuration Status <span class="status ' + status + '">' + status.toUpperCase() + '</span></h3>' +
+                        '<p>' + message + '</p>' +
+                        '<div style="margin-top: 10px;">' + configHtml + '</div>';
+                })
+                .withFailureHandler(function(error) {
+                    var lastTest = testsDiv.lastChild;
+                    lastTest.className = 'test fail';
+                    lastTest.innerHTML = '<h3>Configuration Status <span class="status fail">FAIL</span></h3>' +
+                        '<p>Failed to retrieve configuration. Error: ' + error.message + '</p>';
+                })
+                .getConfigurationStatus();
+        }
+        
+        // Test 6: Try to call Google Apps Script
         if (typeof google !== 'undefined' && google.script && google.script.run) {
             addTest('Calling Google Apps Script', 'pending', 
                 'Attempting to call getInitialData()...');
