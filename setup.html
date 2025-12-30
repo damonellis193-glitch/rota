@@ -77,47 +77,44 @@
             <p>The Rota app is not yet configured. Please follow the steps below to complete setup.</p>
         </div>
 
-        <div class="step">
-            <h3>Step 1: Create Your Google Sheet</h3>
-            <ol>
-                <li>Go to <a href="https://sheets.google.com" target="_blank">Google Sheets</a></li>
-                <li>Create a new blank spreadsheet</li>
-                <li>Name it something like "Team Rota Database"</li>
-                <li>Copy the <strong>Spreadsheet ID</strong> from the URL:<br>
-                    <code>https://docs.google.com/spreadsheets/d/<strong style="background: #ffeb3b; padding: 2px 4px;">1a2B3c4D5e6F7g8H9i0J</strong>/edit</code><br>
-                    <small style="color: #666; margin-top: 5px; display: block;">
-                        ⬆️ Copy only the highlighted ID portion (the long string between /d/ and /edit)
-                    </small>
-                </li>
-            </ol>
+        <div class="success">
+            <h3>✅ Good News!</h3>
+            <p><strong>The spreadsheet is already configured in this repository!</strong></p>
+            <p>Spreadsheet ID: <code>1vEDieQC-FJFybCVXuynVrus04U1ZA72XMkvfrtDK5MM</code></p>
+            <p>You can skip the configuration steps and go straight to deployment!</p>
         </div>
 
         <div class="step">
-            <h3>Step 2: Update Configuration in code.gs</h3>
+            <h3>Step 1: Set Up Your Spreadsheet</h3>
             <ol>
-                <li>In the Apps Script editor, open <code>code.gs</code></li>
-                <li>Find these lines at the top:
-                    <pre style="background: #f0f0f0; padding: 10px; border-radius: 4px; margin: 10px 0;">const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE';
-const ADMIN_EMAILS = ['your_email@domain.com'];</pre>
+                <li>Open the configured Google Sheet:<br>
+                    <a href="https://docs.google.com/spreadsheets/d/1vEDieQC-FJFybCVXuynVrus04U1ZA72XMkvfrtDK5MM/edit" target="_blank">
+                        Open Team Rota Spreadsheet
+                    </a>
                 </li>
-                <li>Replace <code>YOUR_SPREADSHEET_ID_HERE</code> with your actual Spreadsheet ID from Step 1<br>
-                    <small style="color: #666; margin-top: 5px; display: block;">
-                        Example: <code style="background: #e3f2fd;">const SPREADSHEET_ID = '1a2B3c4D5e6F7g8H9i0J';</code>
-                    </small>
+                <li>Make sure you have <strong>Editor</strong> access to this spreadsheet</li>
+                <li>The app will automatically create the necessary sheets on first run</li>
+                <li>Add employees to the <strong>Employees</strong> sheet with these columns:
+                    <ul>
+                        <li><strong>Name</strong> - Employee's full name</li>
+                        <li><strong>Email</strong> - Their Google email address</li>
+                        <li><strong>Annual Allowance</strong> - Holiday days per year</li>
+                        <li><strong>Role</strong> - "Admin", "Manager", or "User"</li>
+                        <li><strong>Manager</strong> - Their manager's name (optional)</li>
+                        <li><strong>Department</strong> - Department name (optional)</li>
+                        <li><strong>CarryOver</strong> - Days carried over (optional)</li>
+                    </ul>
                 </li>
-                <li>Replace <code>your_email@domain.com</code> with your Google email address<br>
-                    <small style="color: #666; margin-top: 5px; display: block;">
-                        Example: <code style="background: #e3f2fd;">const ADMIN_EMAILS = ['alice@company.com'];</code>
-                    </small>
-                </li>
-                <li>Save the file (Ctrl+S or Cmd+S)</li>
             </ol>
+            <div class="info" style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                <strong>💡 Admin Access:</strong> Users with Role set to "Admin" in the Employees sheet will have admin access. No need to configure emails in code!
+            </div>
         </div>
 
         <div class="step">
-            <h3>Step 3: Deploy the Web App</h3>
+            <h3>Step 2: Deploy the Web App</h3>
             <ol>
-                <li>Click <strong>Deploy</strong> → <strong>New deployment</strong></li>
+                <li>In the Apps Script editor, click <strong>Deploy</strong> → <strong>New deployment</strong></li>
                 <li>Click the gear icon ⚙️ next to "Select type"</li>
                 <li>Choose <strong>Web app</strong></li>
                 <li>Configure:
@@ -134,12 +131,12 @@ const ADMIN_EMAILS = ['your_email@domain.com'];</pre>
         </div>
 
         <div class="step">
-            <h3>Step 4: Access the App</h3>
+            <h3>Step 3: Access the App</h3>
             <ol>
-                <li>Open the Web App URL you copied in Step 3</li>
+                <li>Open the Web App URL you copied in Step 2</li>
                 <li>The app will automatically create the necessary database sheets</li>
                 <li>You'll see the main app interface</li>
-                <li>Go to the Admin panel to add employees</li>
+                <li>Add employees via the Employees sheet in your Google Spreadsheet</li>
             </ol>
         </div>
 

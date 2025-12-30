@@ -18,6 +18,8 @@ A comprehensive team holiday and absence management system built for Google Apps
 
 ## Quick Start
 
+✅ **This repository is pre-configured!** The spreadsheet ID is already set, so you can deploy immediately.
+
 ### Easy Setup
 
 1. **Access the Setup Guide**: After deploying the app, visit `YOUR_WEB_APP_URL?page=setup` for step-by-step instructions.
@@ -33,22 +35,49 @@ A comprehensive team holiday and absence management system built for Google Apps
    - `index.html` - Copy from this repository
    - `diagnostic.html` - Copy from this repository
    - `setup.html` - Copy from this repository (for setup guide)
+5. Copy the contents of `appsscript.json` to the Project Settings:
+   - Click the gear icon (⚙️) on the left sidebar
+   - Scroll down to "Script Properties"
+   - Or use the "< >" icon to edit manifest file directly
 
 ### 2. Configure Spreadsheet
 
-1. Create a new Google Sheet
-2. Copy the Spreadsheet ID from the URL
-3. Update `SPREADSHEET_ID` in `code.gs`
-4. Update `ADMIN_EMAILS` in `code.gs` with your email
+⚠️ **IMPORTANT**: The spreadsheet ID is already configured in this repository! You only need to set up your spreadsheet with the correct structure.
+
+1. Open the configured Google Sheet at:
+   - Spreadsheet ID: `1vEDieQC-FJFybCVXuynVrus04U1ZA72XMkvfrtDK5MM`
+   - URL: `https://docs.google.com/spreadsheets/d/1vEDieQC-FJFybCVXuynVrus04U1ZA72XMkvfrtDK5MM/edit`
+
+2. The app will automatically create the necessary sheets on first run
+
+3. Add employees to the **Employees** sheet with these columns:
+   - Name, Email, Annual Allowance, Role, Manager, Department, CarryOver
+   - Set Role to "Admin" for users who should have admin access
+   - Set Role to "Manager" for users who can approve requests
+   - Set Role to "User" for regular employees
+
+4. Admin access is controlled by the **Employees** sheet - no need to configure emails in code!
 
 ### 3. Deploy
 
+The spreadsheet ID is already configured! Just deploy the app:
+
 1. Click **Deploy** → **New deployment**
-2. Select type: **Web app**
-3. Execute as: **Me**
-4. Who has access: **Anyone** (or your preference)
+2. Click the gear icon ⚙️ next to "Select type"
+3. Select type: **Web app**
+4. Set configuration:
+   - **Description**: Team Rota v1.0
+   - **Execute as**: **Me** (your email)
+   - **Who has access**: Choose based on your needs:
+     - **Only myself** - Only you can access
+     - **Anyone** - Public access
+     - **Anyone with Google account** - Requires Google login
+     - **Anyone within [your domain]** - Organization only
 5. Click **Deploy**
-6. Copy the Web App URL
+6. **Authorize the app** when prompted (first time only)
+7. Copy the **Web App URL** (ends with `/exec`)
+
+**Note:** The code is pre-configured with your spreadsheet ID, so you can deploy immediately!
 
 ### 4. First Run
 
@@ -59,13 +88,41 @@ A comprehensive team holiday and absence management system built for Google Apps
 
 ## Files
 
-- `code.gs` - Backend Google Apps Script code
+- `code.gs` - Backend Google Apps Script code (pre-configured with spreadsheet ID)
 - `index.html` - Main application UI
 - `diagnostic.html` - Diagnostic testing page
 - `setup.html` - Step-by-step setup guide
+- `appsscript.json` - Apps Script project manifest (OAuth scopes, timezone, etc.)
 - `README.md` - This file
 
 ## Troubleshooting
+
+**📖 The spreadsheet ID is now pre-configured in this repository!**
+
+### Permission Errors
+
+If you get "Cannot access spreadsheet" errors:
+
+1. **Check spreadsheet permissions**: 
+   - Open the Google Sheet at: https://docs.google.com/spreadsheets/d/1vEDieQC-FJFybCVXuynVrus04U1ZA72XMkvfrtDK5MM/edit
+   - Ensure the account deploying the app has **Editor** access
+   - Check: File → Share → Your email should have "Editor" role
+
+2. **Check OAuth scopes**:
+   - The `appsscript.json` file should include:
+     ```json
+     "oauthScopes": [
+       "https://www.googleapis.com/auth/spreadsheets",
+       "https://www.googleapis.com/auth/userinfo.email",
+       "https://www.googleapis.com/auth/script.send_mail"
+     ]
+     ```
+   - If you added this file, create a new deployment for it to take effect
+
+3. **Re-authorize the app**:
+   - Go to Apps Script editor
+   - Run any function (e.g., `checkSetup`)
+   - Grant permissions when prompted
 
 ### App not loading?
 

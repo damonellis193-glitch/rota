@@ -167,7 +167,54 @@
             }
         }, 1000);
         
-        // Test 5: Try to call Google Apps Script
+        // Test 5: Check configuration status
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+            addTest('Configuration Status', 'pending', 
+                'Checking configuration...');
+            
+            google.script.run
+                .withSuccessHandler(function(config) {
+                    var lastTest = testsDiv.lastChild;
+                    
+                    var configHtml = '<strong>Current Configuration:</strong><br>';
+                    configHtml += 'Spreadsheet ID: <code>' + config.spreadsheetId + '</code><br>';
+                    configHtml += 'Current User: <code>' + config.currentUser + '</code><br>';
+                    configHtml += 'Spreadsheet Accessible: ' + (config.spreadsheetAccessible ? '✅ Yes' : '❌ No') + '<br>';
+                    
+                    if (config.spreadsheetName) {
+                        configHtml += 'Spreadsheet Name: ' + config.spreadsheetName + '<br>';
+                        configHtml += 'Spreadsheet URL: <a href="' + config.spreadsheetUrl + '" target="_blank">Open Sheet</a><br>';
+                    }
+                    
+                    if (config.spreadsheetError) {
+                        configHtml += '<br><strong style="color: red;">Error accessing spreadsheet:</strong><br>';
+                        configHtml += '<code>' + config.spreadsheetError + '</code><br>';
+                    }
+                    
+                    var status = 'pass';
+                    var message = 'Configuration looks good! Spreadsheet ID is configured and accessible.';
+                    
+                    if (!config.spreadsheetAccessible) {
+                        status = 'fail';
+                        message = '❌ Cannot access spreadsheet! Check that you have Editor permissions to the spreadsheet.';
+                    }
+                    
+                    lastTest.className = 'test ' + status;
+                    lastTest.innerHTML = '<h3>Configuration Status <span class="status ' + status + '">' + status.toUpperCase() + '</span></h3>' +
+                        '<p>' + message + '</p>' +
+                        '<div style="margin-top: 10px;">' + configHtml + '</div>' +
+                        '<div style="margin-top: 10px; padding: 10px; background: #e3f2fd; border-radius: 4px;"><strong>💡 Note:</strong> Admin access is controlled by the Employees sheet. Set Role to "Admin" for admin users.</div>';
+                })
+                .withFailureHandler(function(error) {
+                    var lastTest = testsDiv.lastChild;
+                    lastTest.className = 'test fail';
+                    lastTest.innerHTML = '<h3>Configuration Status <span class="status fail">FAIL</span></h3>' +
+                        '<p>Failed to retrieve configuration. Error: ' + error.message + '</p>';
+                })
+                .getConfigurationStatus();
+        }
+        
+        // Test 6: Try to call Google Apps Script
         if (typeof google !== 'undefined' && google.script && google.script.run) {
             addTest('Calling Google Apps Script', 'pending', 
                 'Attempting to call getInitialData()...');
