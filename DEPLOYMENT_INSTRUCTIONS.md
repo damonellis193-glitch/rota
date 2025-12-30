@@ -25,6 +25,26 @@ function doGet() {
 
 If you see `.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)`, DELETE that entire line.
 
+**Note:** Your actual `doGet()` function should look like this (with the `e` parameter for URL parameters):
+
+```javascript
+function doGet(e) {
+  // Diagnostic mode: add ?page=diagnostic to URL
+  if (e && e.parameter && e.parameter.page === 'diagnostic') {
+    return HtmlService.createHtmlOutputFromFile('diagnostic')
+      .setTitle('Rota Diagnostics')
+      .setSandboxMode(HtmlService.SandboxMode.IFRAME);
+  }
+  
+  // Normal app
+  return HtmlService.createTemplateFromFile('index')
+    .evaluate()
+    .setTitle('Team Rota & Holiday Manager')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setSandboxMode(HtmlService.SandboxMode.IFRAME);
+}
+```
+
 ### Step 2: Update the HTML File
 
 1. In Google Apps Script, click on `index.html`

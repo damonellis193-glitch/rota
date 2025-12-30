@@ -107,10 +107,25 @@
             'Browser: ' + browser + '<br>User Agent: <code>' + navigator.userAgent + '</code>');
         
         // Test 3: Check for ES6 support
+        var es6Supported = false;
         try {
-            eval('const x = () => 1;');
-            addTest('ES6 Support', 'pass', 
-                'Your browser supports modern JavaScript (ES6+). This is good.');
+            // Test for arrow functions without using eval
+            es6Supported = (function() {
+                try {
+                    new Function('() => {}');
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            })();
+            
+            if (es6Supported) {
+                addTest('ES6 Support', 'pass', 
+                    'Your browser supports modern JavaScript (ES6+). This is good.');
+            } else {
+                addTest('ES6 Support', 'fail', 
+                    'Your browser may not fully support ES6. Please update your browser.');
+            }
         } catch(e) {
             addTest('ES6 Support', 'fail', 
                 'Your browser does not support ES6. Please update your browser. Error: ' + e.message);

@@ -391,11 +391,11 @@
       }
 
       // STATE
-      var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, auditLogs: [] };
-      var calendarDate = new Date();
-      var myTeamCalendarDate = new Date();
-      var expandedManagers = new Set();
-      var pollingInterval;
+      let appData = { currentUser: null, employees: [], bookings: [], schedules: {}, auditLogs: [] };
+      let calendarDate = new Date();
+      let myTeamCalendarDate = new Date();
+      let expandedManagers = new Set();
+      let pollingInterval;
 
       window.onload = function() {
         console.log('[Rota App] Window loaded, calling getInitialData...');
@@ -443,7 +443,7 @@
 
       function startPolling() {
         if (pollingInterval) clearInterval(pollingInterval);
-        pollingInterval = setInterval(function() {
+        pollingInterval = setInterval(() => {
           google.script.run.withSuccessHandler(onBackgroundDataLoaded).getInitialData();
         }, 30000);
       }
