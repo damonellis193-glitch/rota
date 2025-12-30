@@ -102,7 +102,7 @@ function getInitialData() {
     if (empData.length > 0) empData.shift(); 
     
     const employees = empData
-      .filter(r => r[0] && r[1] && r[2] != null && r[2] !== '' && r[3]) // Filter rows with required fields: name, email, allowance, role
+      .filter(r => r[0] && r[1] && r[2] && r[3]) // Filter rows with required fields: name, email, allowance, role
       .map(row => ({
         name: String(row[0]).trim(),
         email: String(row[1]).trim(),
@@ -130,7 +130,7 @@ function getInitialData() {
     if (bookData.length > 1) {
       bookData.shift(); 
       bookings = bookData
-        .filter(r => r[0] && r[1] && r[2] && r[3] && r[4] && r[6]) // Filter rows with required fields: id, email, type, dates, status
+        .filter(r => r[0] && r[1] && r[2] && r[3] && r[4] && r[6]) // Filter rows with required fields: id, email, type, dates, status (daysCount optional, defaults to 0)
         .map(row => ({
           id: String(row[0]).trim(),
           email: String(row[1]).trim(),
@@ -209,6 +209,7 @@ function getInitialData() {
     if (!result.currentUser || 
         !Array.isArray(result.employees) || 
         !Array.isArray(result.bookings) || 
+        !result.schedules || 
         typeof result.schedules !== 'object') {
       console.error('[Backend] Result validation failed - some required fields are missing or invalid');
       return { error: 'Data validation failed. One or more required fields are missing or have invalid types.' };
