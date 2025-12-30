@@ -152,6 +152,17 @@ The fix includes:
 
 If you've followed ALL steps above and still have issues:
 
+### Use the Diagnostic Page
+
+Add `?page=diagnostic` to your web app URL:
+```
+https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec?page=diagnostic
+```
+
+This will run automated tests and tell you exactly what's wrong.
+
+### Or Manual Debugging:
+
 1. Open browser console (F12)
 2. Screenshot any error messages
 3. Provide the exact steps you followed

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Rota App - Diagnostic Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #ccc;
+        }
+        .test.pass {
+            border-left-color: #4caf50;
+        }
+        .test.fail {
+            border-left-color: #f44336;
+        }
+        .test.pending {
+            border-left-color: #ff9800;
+        }
+        h1 {
+            color: #004E37;
+        }
+        .status {
+            font-weight: bold;
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .status.pass {
+            background: #4caf50;
+            color: white;
+        }
+        .status.fail {
+            background: #f44336;
+            color: white;
+        }
+        .status.pending {
+            background: #ff9800;
+            color: white;
+        }
+        pre {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Rota App Diagnostics</h1>
+    <p>This page helps diagnose issues with the Team Rota app.</p>
+    
+    <div id="tests"></div>
+    
+    <div class="info">
+        <h3>📋 Next Steps</h3>
+        <div id="next-steps"></div>
+    </div>
+
+    <script>
+        var tests = [];
+        var testsDiv = document.getElementById('tests');
+        var nextStepsDiv = document.getElementById('next-steps');
+        
+        function addTest(name, status, details) {
+            tests.push({ name: name, status: status, details: details });
+            var div = document.createElement('div');
+            div.className = 'test ' + status;
+            var statusSpan = '<span class="status ' + status + '">' + status.toUpperCase() + '</span>';
+            div.innerHTML = '<h3>' + name + ' ' + statusSpan + '</h3><p>' + details + '</p>';
+            testsDiv.appendChild(div);
+        }
+        
+        // Test 1: Check if we're in Google Apps Script
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+            addTest('Google Apps Script Environment', 'pass', 
+                'Running inside Google Apps Script environment. This is correct.');
+        } else {
+            addTest('Google Apps Script Environment', 'fail', 
+                'NOT running in Google Apps Script. You may be viewing this file directly instead of through the deployed web app. Make sure to access the deployment URL, not the script editor.');
+        }
+        
+        // Test 2: Check browser
+        var browser = 'Unknown';
+        if (navigator.userAgent.indexOf('Chrome') > -1) browser = 'Chrome';
+        else if (navigator.userAgent.indexOf('Firefox') > -1) browser = 'Firefox';
+        else if (navigator.userAgent.indexOf('Safari') > -1) browser = 'Safari';
+        else if (navigator.userAgent.indexOf('Edge') > -1) browser = 'Edge';
+        
+        addTest('Browser Detection', 'pass', 
+            'Browser: ' + browser + '<br>User Agent: <code>' + navigator.userAgent + '</code>');
+        
+        // Test 3: Check for ES6 support
+        try {
+            eval('const x = () => 1;');
+            addTest('ES6 Support', 'pass', 
+                'Your browser supports modern JavaScript (ES6+). This is good.');
+        } catch(e) {
+            addTest('ES6 Support', 'fail', 
+                'Your browser does not support ES6. Please update your browser. Error: ' + e.message);
+        }
+        
+        // Test 4: Check for console errors
+        var oldError = console.error;
+        var errors = [];
+        console.error = function() {
+            errors.push(Array.prototype.slice.call(arguments).join(' '));
+            oldError.apply(console, arguments);
+        };
+        
+        setTimeout(function() {
+            if (errors.length > 0) {
+                addTest('Console Errors', 'fail', 
+                    'Detected ' + errors.length + ' console error(s):<br><pre>' + errors.join('\n') + '</pre>');
+            } else {
+                addTest('Console Errors', 'pass', 
+                    'No console errors detected so far.');
+            }
+            
+            // Generate next steps
+            var passCount = tests.filter(function(t) { return t.status === 'pass'; }).length;
+            var failCount = tests.filter(function(t) { return t.status === 'fail'; }).length;
+            
+            if (failCount === 0) {
+                nextStepsDiv.innerHTML = '<p><strong>✅ All diagnostic tests passed!</strong></p>' +
+                    '<p>Your environment appears to be correctly configured. If you\'re still experiencing issues:</p>' +
+                    '<ol><li>Make sure you\'ve deployed a NEW version (not just saved)</li>' +
+                    '<li>Clear your browser cache completely</li>' +
+                    '<li>Try accessing in incognito/private mode</li>' +
+                    '<li>Check the main app console (F12) for any errors</li></ol>' +
+                    '<p><a href="' + window.location.origin + window.location.pathname + '">Go to main app →</a></p>';
+            } else {
+                nextStepsDiv.innerHTML = '<p><strong>⚠️ ' + failCount + ' test(s) failed.</strong></p>' +
+                    '<p>Please review the failed tests above and take the recommended actions.</p>' +
+                    '<p>Most common issue: You\'re not accessing the deployed web app URL. Make sure you\'re using the URL from Deploy → Manage deployments, not the script.google.com editor URL.</p>';
+            }
+        }, 1000);
+        
+        // Test 5: Try to call Google Apps Script
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+            addTest('Calling Google Apps Script', 'pending', 
+                'Attempting to call getInitialData()...');
+            
+            google.script.run
+                .withSuccessHandler(function(data) {
+                    var lastTest = testsDiv.lastChild;
+                    lastTest.className = 'test pass';
+                    lastTest.innerHTML = '<h3>Calling Google Apps Script <span class="status pass">PASS</span></h3>' +
+                        '<p>Successfully retrieved data from backend!</p>' +
+                        '<pre>' + JSON.stringify(data, null, 2).substring(0, 500) + '...</pre>';
+                })
+                .withFailureHandler(function(error) {
+                    var lastTest = testsDiv.lastChild;
+                    lastTest.className = 'test fail';
+                    lastTest.innerHTML = '<h3>Calling Google Apps Script <span class="status fail">FAIL</span></h3>' +
+                        '<p>Failed to retrieve data from backend. Error: ' + error.message + '</p>' +
+                        '<p><strong>Possible causes:</strong></p>' +
+                        '<ul><li>Spreadsheet ID in code.gs is incorrect</li>' +
+                        '<li>You don\'t have permission to access the spreadsheet</li>' +
+                        '<li>The getInitialData() function has an error</li></ul>';
+                })
+                .getInitialData();
+        }
+        
+        console.log('[Diagnostic] All tests initiated');
+    </script>
+</body>
+</html>

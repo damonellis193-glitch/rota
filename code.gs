@@ -6,7 +6,15 @@
 const SPREADSHEET_ID = '1vEDieQC-FJFybCVXuynVrus04U1ZA72XMkvfrtDK5MM'; // Replace with your Sheet ID
 const ADMIN_EMAILS = ['your_email@domain.com']; 
 
-function doGet() {
+function doGet(e) {
+  // Diagnostic mode: add ?page=diagnostic to URL
+  if (e && e.parameter && e.parameter.page === 'diagnostic') {
+    return HtmlService.createHtmlOutputFromFile('diagnostic')
+      .setTitle('Rota Diagnostics')
+      .setSandboxMode(HtmlService.SandboxMode.IFRAME);
+  }
+  
+  // Normal app
   return HtmlService.createTemplateFromFile('index')
     .evaluate()
     .setTitle('Team Rota & Holiday Manager')
