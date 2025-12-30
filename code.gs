@@ -3,27 +3,10 @@
  */
 
 // CONFIGURATION
-// IMPORTANT: Update these values before deploying!
-const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE'; // Replace with your Sheet ID
-const ADMIN_EMAILS = ['your_email@domain.com']; // Replace with your email address
-
-// Helper message for deployment reminders
-const DEPLOYMENT_REMINDER = 'IMPORTANT: After updating code.gs, you must create a NEW deployment (Deploy → New deployment) - saving the file is not enough!';
+const SPREADSHEET_ID = '1vEDieQC-FJFybCVXuynVrus04U1ZA72XMkvfrtDK5MM';
 
 // Quick Setup Check
 function checkSetup() {
-  if (!SPREADSHEET_ID || SPREADSHEET_ID === 'YOUR_SPREADSHEET_ID_HERE' || SPREADSHEET_ID === '') {
-    return {
-      configured: false,
-      message: 'SPREADSHEET_ID not configured. Please create a Google Sheet and update SPREADSHEET_ID in code.gs. ' + DEPLOYMENT_REMINDER
-    };
-  }
-  if (ADMIN_EMAILS.includes('your_email@domain.com') || ADMIN_EMAILS.length === 0) {
-    return {
-      configured: false,
-      message: 'ADMIN_EMAILS not configured. Please update ADMIN_EMAILS in code.gs with your email address. ' + DEPLOYMENT_REMINDER
-    };
-  }
   try {
     SpreadsheetApp.openById(SPREADSHEET_ID);
     return { configured: true, message: 'Configuration looks good!' };
@@ -40,22 +23,15 @@ function getConfigurationStatus() {
   const status = {
     timestamp: new Date().toISOString(),
     spreadsheetId: SPREADSHEET_ID,
-    spreadsheetIdIsPlaceholder: (SPREADSHEET_ID === 'YOUR_SPREADSHEET_ID_HERE'),
-    adminEmails: ADMIN_EMAILS,
-    adminEmailsArePlaceholder: ADMIN_EMAILS.includes('your_email@domain.com'),
     currentUser: Session.getActiveUser().getEmail(),
     setupCheck: checkSetup()
   };
   
   try {
-    if (!status.spreadsheetIdIsPlaceholder) {
-      const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-      status.spreadsheetAccessible = true;
-      status.spreadsheetName = ss.getName();
-      status.spreadsheetUrl = ss.getUrl();
-    } else {
-      status.spreadsheetAccessible = false;
-    }
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    status.spreadsheetAccessible = true;
+    status.spreadsheetName = ss.getName();
+    status.spreadsheetUrl = ss.getUrl();
   } catch (e) {
     status.spreadsheetAccessible = false;
     status.spreadsheetError = e.toString();
@@ -135,11 +111,10 @@ function getInitialData() {
 
     console.log('[Backend] Found ' + employees.length + ' employees');
 
-    // Check current user
+    // Check current user - admin status is determined by the Employees sheet
     let currentUser = employees.find(e => e.email === userEmail);
-    if (!currentUser && ADMIN_EMAILS.includes(userEmail)) {
-      currentUser = { name: 'Admin', email: userEmail, allowance: 25, role: 'Admin' };
-    } else if (!currentUser) {
+    if (!currentUser) {
+      // User not in the Employees sheet, assign Guest role
       currentUser = { name: 'Guest', email: userEmail, allowance: 0, role: 'Guest' };
     }
 

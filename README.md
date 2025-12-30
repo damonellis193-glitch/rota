@@ -18,7 +18,7 @@ A comprehensive team holiday and absence management system built for Google Apps
 
 ## Quick Start
 
-⚠️ **Getting "SPREADSHEET_ID not configured" error?** See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for detailed troubleshooting!
+✅ **This repository is pre-configured!** The spreadsheet ID is already set, so you can deploy immediately.
 
 ### Easy Setup
 
@@ -42,27 +42,31 @@ A comprehensive team holiday and absence management system built for Google Apps
 
 ### 2. Configure Spreadsheet
 
-1. Create a new Google Sheet
-2. Copy the **Spreadsheet ID** from the URL:
-   - Example URL: `https://docs.google.com/spreadsheets/d/1vEDieQC-FJFybCVXuynVrus04U1ZA72XMkvfrtDK5MM/edit`
-   - Spreadsheet ID is: `1vEDieQC-FJFybCVXuynVrus04U1ZA72XMkvfrtDK5MM` (the part between `/d/` and `/edit`)
-3. In `code.gs`, update line 7:
-   - Change: `const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE';`
-   - To: `const SPREADSHEET_ID = '1vEDieQC-FJFybCVXuynVrus04U1ZA72XMkvfrtDK5MM';`
-4. In `code.gs`, update line 8:
-   - Change: `const ADMIN_EMAILS = ['your_email@domain.com'];`
-   - To: `const ADMIN_EMAILS = ['youremail@example.com'];` (use your actual email)
-5. **Save the file** (Ctrl+S or Cmd+S)
+⚠️ **IMPORTANT**: The spreadsheet ID is already configured in this repository! You only need to set up your spreadsheet with the correct structure.
+
+1. Open the configured Google Sheet at:
+   - Spreadsheet ID: `1vEDieQC-FJFybCVXuynVrus04U1ZA72XMkvfrtDK5MM`
+   - URL: `https://docs.google.com/spreadsheets/d/1vEDieQC-FJFybCVXuynVrus04U1ZA72XMkvfrtDK5MM/edit`
+
+2. The app will automatically create the necessary sheets on first run
+
+3. Add employees to the **Employees** sheet with these columns:
+   - Name, Email, Annual Allowance, Role, Manager, Department, CarryOver
+   - Set Role to "Admin" for users who should have admin access
+   - Set Role to "Manager" for users who can approve requests
+   - Set Role to "User" for regular employees
+
+4. Admin access is controlled by the **Employees** sheet - no need to configure emails in code!
 
 ### 3. Deploy
 
-⚠️ **IMPORTANT**: Simply saving the code is NOT enough. You must create a NEW deployment for changes to take effect.
+The spreadsheet ID is already configured! Just deploy the app:
 
 1. Click **Deploy** → **New deployment**
 2. Click the gear icon ⚙️ next to "Select type"
 3. Select type: **Web app**
 4. Set configuration:
-   - **Description**: Version 1.0 (or increment version number)
+   - **Description**: Team Rota v1.0
    - **Execute as**: **Me** (your email)
    - **Who has access**: Choose based on your needs:
      - **Only myself** - Only you can access
@@ -73,10 +77,7 @@ A comprehensive team holiday and absence management system built for Google Apps
 6. **Authorize the app** when prompted (first time only)
 7. Copy the **Web App URL** (ends with `/exec`)
 
-**Updating After Code Changes:**
-- After making changes to `code.gs`, you MUST create a **New deployment**
-- Simply saving the file will NOT update the live web app
-- Each new deployment gets a unique URL OR you can update an existing deployment
+**Note:** The code is pre-configured with your spreadsheet ID, so you can deploy immediately!
 
 ### 4. First Run
 
@@ -87,46 +88,23 @@ A comprehensive team holiday and absence management system built for Google Apps
 
 ## Files
 
-- `code.gs` - Backend Google Apps Script code
+- `code.gs` - Backend Google Apps Script code (pre-configured with spreadsheet ID)
 - `index.html` - Main application UI
 - `diagnostic.html` - Diagnostic testing page
 - `setup.html` - Step-by-step setup guide
 - `appsscript.json` - Apps Script project manifest (OAuth scopes, timezone, etc.)
-- `DEPLOYMENT_GUIDE.md` - Detailed deployment and troubleshooting guide
 - `README.md` - This file
 
 ## Troubleshooting
 
-**📖 For detailed troubleshooting, see [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)**
-
-### "SPREADSHEET_ID not configured" Error
-
-This error means the app is still using the default placeholder values. Common causes:
-
-1. **You updated the code but didn't deploy it**
-   - Solution: Create a **New deployment** (Deploy → New deployment)
-   - Saving the file alone does NOT update the live app
-   
-2. **You're using an old deployment URL**
-   - Solution: Use the URL from your latest deployment
-   - Or update an existing deployment: Deploy → Manage deployments → Edit → Deploy
-
-3. **SPREADSHEET_ID is still the placeholder**
-   - In `code.gs`, line 7 should look like:
-     ```javascript
-     const SPREADSHEET_ID = '1vEDieQC-FJFybCVXuynVrus04U1ZA72XMkvfrtDK5MM'; // Your actual ID
-     ```
-   - NOT:
-     ```javascript
-     const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE'; // Wrong!
-     ```
+**📖 The spreadsheet ID is now pre-configured in this repository!**
 
 ### Permission Errors
 
 If you get "Cannot access spreadsheet" errors:
 
 1. **Check spreadsheet permissions**: 
-   - Open the Google Sheet
+   - Open the Google Sheet at: https://docs.google.com/spreadsheets/d/1vEDieQC-FJFybCVXuynVrus04U1ZA72XMkvfrtDK5MM/edit
    - Ensure the account deploying the app has **Editor** access
    - Check: File → Share → Your email should have "Editor" role
 

@@ -178,9 +178,6 @@
                     
                     var configHtml = '<strong>Current Configuration:</strong><br>';
                     configHtml += 'Spreadsheet ID: <code>' + config.spreadsheetId + '</code><br>';
-                    configHtml += 'Is Placeholder: ' + (config.spreadsheetIdIsPlaceholder ? '❌ YES (PROBLEM!)' : '✅ No') + '<br>';
-                    configHtml += 'Admin Emails: <code>' + JSON.stringify(config.adminEmails) + '</code><br>';
-                    configHtml += 'Are Placeholder: ' + (config.adminEmailsArePlaceholder ? '❌ YES (PROBLEM!)' : '✅ No') + '<br>';
                     configHtml += 'Current User: <code>' + config.currentUser + '</code><br>';
                     configHtml += 'Spreadsheet Accessible: ' + (config.spreadsheetAccessible ? '✅ Yes' : '❌ No') + '<br>';
                     
@@ -195,23 +192,18 @@
                     }
                     
                     var status = 'pass';
-                    var message = 'Configuration looks good!';
+                    var message = 'Configuration looks good! Spreadsheet ID is configured and accessible.';
                     
-                    if (config.spreadsheetIdIsPlaceholder) {
+                    if (!config.spreadsheetAccessible) {
                         status = 'fail';
-                        message = '❌ SPREADSHEET_ID is still set to placeholder! You need to:<br>1. Edit code.gs and set SPREADSHEET_ID to your actual Sheet ID<br>2. Create a NEW deployment (not just save the file)';
-                    } else if (!config.spreadsheetAccessible) {
-                        status = 'fail';
-                        message = '❌ Cannot access spreadsheet! Check permissions and make sure you created a NEW deployment after updating the code.';
-                    } else if (config.adminEmailsArePlaceholder) {
-                        status = 'fail';
-                        message = '❌ ADMIN_EMAILS still has placeholder values! Update code.gs and create a NEW deployment.';
+                        message = '❌ Cannot access spreadsheet! Check that you have Editor permissions to the spreadsheet.';
                     }
                     
                     lastTest.className = 'test ' + status;
                     lastTest.innerHTML = '<h3>Configuration Status <span class="status ' + status + '">' + status.toUpperCase() + '</span></h3>' +
                         '<p>' + message + '</p>' +
-                        '<div style="margin-top: 10px;">' + configHtml + '</div>';
+                        '<div style="margin-top: 10px;">' + configHtml + '</div>' +
+                        '<div style="margin-top: 10px; padding: 10px; background: #e3f2fd; border-radius: 4px;"><strong>💡 Note:</strong> Admin access is controlled by the Employees sheet. Set Role to "Admin" for admin users.</div>';
                 })
                 .withFailureHandler(function(error) {
                     var lastTest = testsDiv.lastChild;
