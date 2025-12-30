@@ -155,7 +155,7 @@ function getInitialData() {
         if (row[0] && row[1] && row[2]) {
           const email = String(row[0]).trim();
           const day = String(row[1]).trim();
-          if(!schedules[email]) schedules[email] = {};
+          if (!schedules[email]) schedules[email] = {};
           schedules[email][day] = { 
             type: String(row[2]).trim(), 
             hours: Number(row[3]) || 7.5 
@@ -210,6 +210,7 @@ function getInitialData() {
         !Array.isArray(result.employees) || 
         !Array.isArray(result.bookings) || 
         !result.schedules || 
+        Array.isArray(result.schedules) ||
         typeof result.schedules !== 'object') {
       console.error('[Backend] Result validation failed - some required fields are missing or invalid');
       return { error: 'Data validation failed. One or more required fields are missing or have invalid types.' };
