@@ -24,15 +24,23 @@ function doGet(e) {
 
 function getInitialData() {
   try {
+    console.log('[Backend] getInitialData called');
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    console.log('[Backend] Spreadsheet opened');
     setupDatabase(ss); 
     
     const userEmail = Session.getActiveUser().getEmail();
+    console.log('[Backend] User email: ' + userEmail);
     
     const empSheet = ss.getSheetByName('Employees');
     const bookSheet = ss.getSheetByName('Bookings');
     const schedSheet = ss.getSheetByName('Schedules');
     const auditSheet = ss.getSheetByName('AuditLogs');
+    
+    if (!empSheet || !bookSheet || !schedSheet) {
+      console.error('[Backend] One or more sheets are missing');
+      return { error: 'Database sheets are missing. Please check the spreadsheet setup.' };
+    }
     
     // 1. Get Employees
     const empData = empSheet.getDataRange().getValues();
@@ -48,6 +56,8 @@ function getInitialData() {
       carryOver: Number(row[6] || 0)    
     }));
 
+    console.log('[Backend] Found ' + employees.length + ' employees');
+
     // Check current user
     let currentUser = employees.find(e => e.email === userEmail);
     if (!currentUser && ADMIN_EMAILS.includes(userEmail)) {
@@ -55,6 +65,8 @@ function getInitialData() {
     } else if (!currentUser) {
       currentUser = { name: 'Guest', email: userEmail, allowance: 0, role: 'Guest' };
     }
+
+    console.log('[Backend] Current user role: ' + currentUser.role);
 
     // 2. Get Bookings
     const bookData = bookSheet.getDataRange().getValues();
@@ -72,6 +84,8 @@ function getInitialData() {
         hours: Number(row[7] || 7.5) 
       }));
     }
+
+    console.log('[Backend] Found ' + bookings.length + ' bookings');
 
     // 3. Get Schedules
     const schedData = schedSheet.getDataRange().getValues();
@@ -107,6 +121,8 @@ function getInitialData() {
       }
     }
 
+    console.log('[Backend] Returning data successfully');
+
     return {
       currentUser: currentUser,
       employees: employees,
@@ -115,8 +131,9 @@ function getInitialData() {
       auditLogs: auditLogs
     };
   } catch (e) {
-    console.error("Server Error: " + e.toString());
-    return { error: e.toString() };
+    console.error("[Backend] Error in getInitialData: " + e.toString());
+    console.error("[Backend] Stack trace: " + e.stack);
+    return { error: 'Backend error: ' + e.toString() + ' - Please check that SPREADSHEET_ID in code.gs is correct and you have access to it.' };
   }
 }
 

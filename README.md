@@ -71,6 +71,21 @@ A comprehensive team holiday and absence management system built for Google Apps
 - **Permission errors**: Make sure you've authorized the app and have access to the spreadsheet
 - **Blank screen**: Clear cache and hard reload
 - **Data not saving**: Check the Spreadsheet ID is correct in `code.gs`
+- **"No Data Received" error**: 
+  - Verify the `SPREADSHEET_ID` in `code.gs` matches your Google Sheet
+  - Ensure you have edit access to the spreadsheet
+  - Check the Apps Script logs (View > Logs in script editor) for detailed errors
+  - Make sure the app is deployed as a Web App (not just saved)
+
+### Browser Console Warnings
+
+You may see warnings like:
+- `Unrecognized feature: 'ambient-light-sensor'`
+- `Unrecognized feature: 'speaker'`
+- `Unrecognized feature: 'vibrate'`
+- `Unrecognized feature: 'vr'`
+
+**These are harmless warnings** from Google Apps Script's iframe embedding and can be safely ignored. They do not affect the app's functionality.
 
 ## Support
 

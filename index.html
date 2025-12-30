@@ -498,21 +498,27 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           google.script.run
             .withSuccessHandler(onDataLoaded)
             .withFailureHandler(function(err) { 
-              console.error('[Rota App] Error loading data:', err); 
-              alert("Error loading data. Please refresh the page."); 
+              console.error('[Rota App] Error loading data:', err);
+              var errorMsg = "Error loading data: " + (err.message || err.toString() || "Unknown error");
+              document.getElementById('loading-screen').innerHTML = '<div class="p-8 text-center"><i class="fa-solid fa-exclamation-triangle text-red-600 text-6xl mb-4"></i><h2 class="text-xl font-bold text-red-600 mb-2">Failed to Load</h2><p class="text-gray-700 mb-4">' + errorMsg + '</p><p class="text-sm text-gray-500">Please check:<br>1. Spreadsheet ID in code.gs is correct<br>2. You have access to the spreadsheet<br>3. The app is properly deployed</p><button onclick="location.reload()" class="mt-4 bg-green-600 text-white px-4 py-2 rounded">Retry</button></div>';
             })
             .getInitialData();
         } catch (e) {
           console.error('[Rota App] Exception during initialization:', e);
-          alert("Failed to initialize app. Please ensure you're accessing this from Google Apps Script.");
+          document.getElementById('loading-screen').innerHTML = '<div class="p-8 text-center"><i class="fa-solid fa-exclamation-triangle text-red-600 text-6xl mb-4"></i><h2 class="text-xl font-bold text-red-600 mb-2">Initialization Failed</h2><p class="text-gray-700 mb-4">' + e.message + '</p><p class="text-sm text-gray-500">Please ensure you are accessing this from a deployed Google Apps Script web app.</p><button onclick="location.reload()" class="mt-4 bg-green-600 text-white px-4 py-2 rounded">Retry</button></div>';
         }
       };
 
       function onDataLoaded(data) {
         console.log('[Rota App] Data loaded successfully:', data);
-        if (!data || data.error) { 
-          console.error('[Rota App] Data error:', data ? data.error : "Unknown Error");
-          handleServerError(data ? data.error : "Unknown Error"); 
+        if (!data) {
+          console.error('[Rota App] Data is null or undefined');
+          document.getElementById('loading-screen').innerHTML = '<div class="p-8 text-center"><i class="fa-solid fa-exclamation-triangle text-red-600 text-6xl mb-4"></i><h2 class="text-xl font-bold text-red-600 mb-2">No Data Received</h2><p class="text-gray-700 mb-4">The backend returned no data. This usually means:<br>1. The spreadsheet ID in code.gs might be incorrect<br>2. You may not have access to the spreadsheet<br>3. There might be an error in the getInitialData() function</p><p class="text-sm text-gray-500 mt-4">Check the Apps Script logs (View > Logs in the script editor) for more details.</p><button onclick="location.reload()" class="mt-4 bg-green-600 text-white px-4 py-2 rounded">Retry</button></div>';
+          return;
+        }
+        if (data.error) { 
+          console.error('[Rota App] Data error:', data.error);
+          document.getElementById('loading-screen').innerHTML = '<div class="p-8 text-center"><i class="fa-solid fa-exclamation-triangle text-red-600 text-6xl mb-4"></i><h2 class="text-xl font-bold text-red-600 mb-2">Backend Error</h2><p class="text-gray-700 mb-4">' + data.error + '</p><p class="text-sm text-gray-500">Please check the configuration and try again.</p><button onclick="location.reload()" class="mt-4 bg-green-600 text-white px-4 py-2 rounded">Retry</button></div>';
           return; 
         }
         appData = data;
