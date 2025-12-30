@@ -18,6 +18,8 @@ A comprehensive team holiday and absence management system built for Google Apps
 
 ## Quick Start
 
+⚠️ **Getting "SPREADSHEET_ID not configured" error?** See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for detailed troubleshooting!
+
 ### Easy Setup
 
 1. **Access the Setup Guide**: After deploying the app, visit `YOUR_WEB_APP_URL?page=setup` for step-by-step instructions.
@@ -90,9 +92,12 @@ A comprehensive team holiday and absence management system built for Google Apps
 - `diagnostic.html` - Diagnostic testing page
 - `setup.html` - Step-by-step setup guide
 - `appsscript.json` - Apps Script project manifest (OAuth scopes, timezone, etc.)
+- `DEPLOYMENT_GUIDE.md` - Detailed deployment and troubleshooting guide
 - `README.md` - This file
 
 ## Troubleshooting
+
+**📖 For detailed troubleshooting, see [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)**
 
 ### "SPREADSHEET_ID not configured" Error
 
