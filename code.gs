@@ -7,18 +7,21 @@
 const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE'; // Replace with your Sheet ID
 const ADMIN_EMAILS = ['your_email@domain.com']; // Replace with your email address
 
+// Helper message for deployment reminders
+const DEPLOYMENT_REMINDER = 'IMPORTANT: After updating code.gs, you must create a NEW deployment (Deploy → New deployment) - saving the file is not enough!';
+
 // Quick Setup Check
 function checkSetup() {
   if (!SPREADSHEET_ID || SPREADSHEET_ID === 'YOUR_SPREADSHEET_ID_HERE' || SPREADSHEET_ID === '') {
     return {
       configured: false,
-      message: 'SPREADSHEET_ID not configured. Please create a Google Sheet and update SPREADSHEET_ID in code.gs. IMPORTANT: After updating code.gs, you must create a NEW deployment (Deploy → New deployment) - saving the file is not enough!'
+      message: 'SPREADSHEET_ID not configured. Please create a Google Sheet and update SPREADSHEET_ID in code.gs. ' + DEPLOYMENT_REMINDER
     };
   }
   if (ADMIN_EMAILS.includes('your_email@domain.com') || ADMIN_EMAILS.length === 0) {
     return {
       configured: false,
-      message: 'ADMIN_EMAILS not configured. Please update ADMIN_EMAILS in code.gs with your email address. IMPORTANT: After updating code.gs, you must create a NEW deployment (Deploy → New deployment) - saving the file is not enough!'
+      message: 'ADMIN_EMAILS not configured. Please update ADMIN_EMAILS in code.gs with your email address. ' + DEPLOYMENT_REMINDER
     };
   }
   try {
