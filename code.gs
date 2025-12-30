@@ -10,16 +10,14 @@ function doGet(e) {
   // Diagnostic mode: add ?page=diagnostic to URL
   if (e && e.parameter && e.parameter.page === 'diagnostic') {
     return HtmlService.createHtmlOutputFromFile('diagnostic')
-      .setTitle('Rota Diagnostics')
-      .setSandboxMode(HtmlService.SandboxMode.IFRAME);
+      .setTitle('Rota Diagnostics');
   }
   
   // Normal app
   return HtmlService.createTemplateFromFile('index')
     .evaluate()
     .setTitle('Team Rota & Holiday Manager')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
-    .setSandboxMode(HtmlService.SandboxMode.IFRAME);
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
 // --- INITIALIZATION & SETUP ---
