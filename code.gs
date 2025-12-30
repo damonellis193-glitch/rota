@@ -102,7 +102,7 @@ function getInitialData() {
     if (empData.length > 0) empData.shift(); 
     
     const employees = empData
-      .filter(r => r[0] && r[1] && r[2] !== null && r[2] !== undefined && r[2] !== '' && r[3]) // Filter rows with required fields: name, email, allowance, role
+      .filter(r => r[0] && r[1] && r[2] != null && r[2] !== '' && r[3]) // Filter rows with required fields: name, email, allowance, role
       .map(row => ({
         name: String(row[0]).trim(),
         email: String(row[1]).trim(),
@@ -206,9 +206,12 @@ function getInitialData() {
     };
     
     // Verify the result is valid before returning
-    if (!result.currentUser || !result.employees || !result.bookings || !result.schedules) {
-      console.error('[Backend] Result validation failed - some required fields are missing');
-      return { error: 'Data validation failed. One or more required fields are missing.' };
+    if (!result.currentUser || 
+        !Array.isArray(result.employees) || 
+        !Array.isArray(result.bookings) || 
+        typeof result.schedules !== 'object') {
+      console.error('[Backend] Result validation failed - some required fields are missing or invalid');
+      return { error: 'Data validation failed. One or more required fields are missing or have invalid types.' };
     }
     
     return result;
