@@ -495,8 +495,13 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       // Helper function to safely escape HTML
       function escapeHtml(text) {
         var div = document.createElement('div');
-        div.textContent = text;
+        div.textContent = text || '';
         return div.innerHTML;
+      }
+
+      // Helper function to get setup page URL
+      function getSetupPageUrl() {
+        return window.location.href.split('?')[0] + '?page=setup';
       }
 
       // Helper function to show error screen
@@ -517,7 +522,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
             .withSuccessHandler(onDataLoaded)
             .withFailureHandler(function(err) { 
               console.error('[Rota App] Error loading data:', err);
-              var errorMsg = "Error loading data: " + escapeHtml(err.message || err.toString() || "Unknown error");
+              var errorMsg = "Error loading data: " + escapeHtml((err && err.message) || (typeof err === 'string' ? err : 'Unknown error'));
               var detailsMsg = '<p class="text-sm text-gray-500">Please check:<br>1. Spreadsheet ID in code.gs is correct<br>2. You have access to the spreadsheet<br>3. The app is properly deployed</p>';
               var buttons = '<button onclick="location.reload()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Retry</button>';
               showErrorScreen('Failed to Load', errorMsg + detailsMsg, buttons);
@@ -525,7 +530,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
             .getInitialData();
         } catch (e) {
           console.error('[Rota App] Exception during initialization:', e);
-          var errorMsg = escapeHtml(e.message);
+          var errorMsg = escapeHtml((e && e.message) || (typeof e === 'string' ? e : 'Initialization error'));
           var detailsMsg = '<p class="text-sm text-gray-500">Please ensure you are accessing this from a deployed Google Apps Script web app.</p>';
           var buttons = '<button onclick="location.reload()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Retry</button>';
           showErrorScreen('Initialization Failed', errorMsg + detailsMsg, buttons);
@@ -537,7 +542,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         if (!data) {
           console.error('[Rota App] Data is null or undefined');
           var message = '<p class="text-gray-700 mb-4">The backend returned no data. This usually means:<br>1. The spreadsheet ID in code.gs might be incorrect<br>2. You may not have access to the spreadsheet<br>3. There might be an error in the getInitialData() function</p><p class="text-sm text-gray-500 mt-4">Check the Apps Script logs (View &gt; Logs in the script editor) for more details.</p>';
-          var buttons = '<button onclick="window.location.href=window.location.href.split(\'?\')[0]+\'?page=setup\'" class="bg-green-600 text-white px-6 py-2 rounded font-bold hover:bg-green-700">View Setup Guide</button>' +
+          var buttons = '<button onclick="window.location.href=\'' + getSetupPageUrl() + '\'" class="bg-green-600 text-white px-6 py-2 rounded font-bold hover:bg-green-700">View Setup Guide</button>' +
                        '<button onclick="location.reload()" class="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600">Retry</button>';
           showErrorScreen('No Data Received', message, buttons);
           return;
@@ -546,7 +551,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           console.error('[Rota App] Data error:', data.error);
           var setupLink = '';
           if (data.error.includes('Setup Required') || data.error.includes('not configured')) {
-            setupLink = '<button onclick="window.location.href=window.location.href.split(\'?\')[0]+\'?page=setup\'" class="bg-green-600 text-white px-6 py-2 rounded font-bold hover:bg-green-700 mr-2">View Setup Guide</button>';
+            setupLink = '<button onclick="window.location.href=\'' + getSetupPageUrl() + '\'" class="bg-green-600 text-white px-6 py-2 rounded font-bold hover:bg-green-700 mr-2">View Setup Guide</button>';
           }
           var message = '<p class="text-gray-700 mb-4">' + escapeHtml(data.error) + '</p><p class="text-sm text-gray-500">Please check the configuration and try again.</p>';
           var buttons = setupLink + '<button onclick="location.reload()" class="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600">Retry</button>';
