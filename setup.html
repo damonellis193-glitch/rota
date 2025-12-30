@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Rota App - Setup Required</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #004E37;
+            margin-top: 0;
+        }
+        .step {
+            background: #f9f9f9;
+            padding: 20px;
+            margin: 15px 0;
+            border-left: 4px solid #004E37;
+            border-radius: 4px;
+        }
+        .step h3 {
+            margin-top: 0;
+            color: #004E37;
+        }
+        code {
+            background: #e3f2fd;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        ol {
+            line-height: 1.8;
+        }
+        .btn {
+            display: inline-block;
+            background: #004E37;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            text-decoration: none;
+            margin-top: 10px;
+        }
+        .btn:hover {
+            background: #003b29;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛠️ Team Rota - Setup Required</h1>
+        
+        <div class="warning">
+            <strong>⚠️ Configuration Incomplete</strong>
+            <p>The Rota app is not yet configured. Please follow the steps below to complete setup.</p>
+        </div>
+
+        <div class="step">
+            <h3>Step 1: Create Your Google Sheet</h3>
+            <ol>
+                <li>Go to <a href="https://sheets.google.com" target="_blank">Google Sheets</a></li>
+                <li>Create a new blank spreadsheet</li>
+                <li>Name it something like "Team Rota Database"</li>
+                <li>Copy the <strong>Spreadsheet ID</strong> from the URL:<br>
+                    <code>https://docs.google.com/spreadsheets/d/<strong>YOUR_SPREADSHEET_ID</strong>/edit</code>
+                </li>
+            </ol>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: Update Configuration in code.gs</h3>
+            <ol>
+                <li>In the Apps Script editor, open <code>code.gs</code></li>
+                <li>Find these lines at the top:
+                    <pre style="background: #f0f0f0; padding: 10px; border-radius: 4px; margin: 10px 0;">const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE';
+const ADMIN_EMAILS = ['your_email@domain.com'];</pre>
+                </li>
+                <li>Replace <code>YOUR_SPREADSHEET_ID_HERE</code> with your actual Spreadsheet ID from Step 1</li>
+                <li>Replace <code>your_email@domain.com</code> with your Google email address</li>
+                <li>Save the file (Ctrl+S or Cmd+S)</li>
+            </ol>
+        </div>
+
+        <div class="step">
+            <h3>Step 3: Deploy the Web App</h3>
+            <ol>
+                <li>Click <strong>Deploy</strong> → <strong>New deployment</strong></li>
+                <li>Click the gear icon ⚙️ next to "Select type"</li>
+                <li>Choose <strong>Web app</strong></li>
+                <li>Configure:
+                    <ul>
+                        <li><strong>Description:</strong> Team Rota v1</li>
+                        <li><strong>Execute as:</strong> Me (your email)</li>
+                        <li><strong>Who has access:</strong> Anyone (or your organization)</li>
+                    </ul>
+                </li>
+                <li>Click <strong>Deploy</strong></li>
+                <li>Grant necessary permissions when prompted</li>
+                <li>Copy the <strong>Web App URL</strong></li>
+            </ol>
+        </div>
+
+        <div class="step">
+            <h3>Step 4: Access the App</h3>
+            <ol>
+                <li>Open the Web App URL you copied in Step 3</li>
+                <li>The app will automatically create the necessary database sheets</li>
+                <li>You'll see the main app interface</li>
+                <li>Go to the Admin panel to add employees</li>
+            </ol>
+        </div>
+
+        <div class="success">
+            <strong>✅ Need Help?</strong>
+            <p>After completing setup, you can test your configuration by visiting:</p>
+            <code>YOUR_WEB_APP_URL?page=diagnostic</code>
+            <p style="margin-top: 10px;">This will run automated tests to verify everything is working correctly.</p>
+        </div>
+
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+            <h3>📚 Additional Resources</h3>
+            <ul>
+                <li><a href="https://github.com/damonellis193-glitch/rota/blob/main/README.md" target="_blank">Full README Documentation</a></li>
+                <li><a href="https://developers.google.com/apps-script/guides/web" target="_blank">Google Apps Script Web Apps Guide</a></li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

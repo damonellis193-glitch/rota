@@ -513,12 +513,16 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         console.log('[Rota App] Data loaded successfully:', data);
         if (!data) {
           console.error('[Rota App] Data is null or undefined');
-          document.getElementById('loading-screen').innerHTML = '<div class="p-8 text-center"><i class="fa-solid fa-exclamation-triangle text-red-600 text-6xl mb-4"></i><h2 class="text-xl font-bold text-red-600 mb-2">No Data Received</h2><p class="text-gray-700 mb-4">The backend returned no data. This usually means:<br>1. The spreadsheet ID in code.gs might be incorrect<br>2. You may not have access to the spreadsheet<br>3. There might be an error in the getInitialData() function</p><p class="text-sm text-gray-500 mt-4">Check the Apps Script logs (View > Logs in the script editor) for more details.</p><button onclick="location.reload()" class="mt-4 bg-green-600 text-white px-4 py-2 rounded">Retry</button></div>';
+          document.getElementById('loading-screen').innerHTML = '<div class="p-8 text-center"><i class="fa-solid fa-exclamation-triangle text-red-600 text-6xl mb-4"></i><h2 class="text-xl font-bold text-red-600 mb-2">No Data Received</h2><p class="text-gray-700 mb-4">The backend returned no data. This usually means:<br>1. The spreadsheet ID in code.gs might be incorrect<br>2. You may not have access to the spreadsheet<br>3. There might be an error in the getInitialData() function</p><p class="text-sm text-gray-500 mt-4">Check the Apps Script logs (View > Logs in the script editor) for more details.</p><div class="flex justify-center gap-3 mt-6"><button onclick="window.location.href=window.location.href.split(\'?\')[0]+\'?page=setup\'" class="bg-green-600 text-white px-6 py-2 rounded font-bold hover:bg-green-700">View Setup Guide</button><button onclick="location.reload()" class="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600">Retry</button></div></div>';
           return;
         }
         if (data.error) { 
           console.error('[Rota App] Data error:', data.error);
-          document.getElementById('loading-screen').innerHTML = '<div class="p-8 text-center"><i class="fa-solid fa-exclamation-triangle text-red-600 text-6xl mb-4"></i><h2 class="text-xl font-bold text-red-600 mb-2">Backend Error</h2><p class="text-gray-700 mb-4">' + data.error + '</p><p class="text-sm text-gray-500">Please check the configuration and try again.</p><button onclick="location.reload()" class="mt-4 bg-green-600 text-white px-4 py-2 rounded">Retry</button></div>';
+          var setupLink = '';
+          if (data.error.includes('Setup Required') || data.error.includes('not configured')) {
+            setupLink = '<button onclick="window.location.href=window.location.href.split(\'?\')[0]+\'?page=setup\'" class="bg-green-600 text-white px-6 py-2 rounded font-bold hover:bg-green-700 mr-2">View Setup Guide</button>';
+          }
+          document.getElementById('loading-screen').innerHTML = '<div class="p-8 text-center"><i class="fa-solid fa-exclamation-triangle text-red-600 text-6xl mb-4"></i><h2 class="text-xl font-bold text-red-600 mb-2">Backend Error</h2><p class="text-gray-700 mb-4">' + data.error + '</p><p class="text-sm text-gray-500">Please check the configuration and try again.</p><div class="flex justify-center gap-3 mt-6">' + setupLink + '<button onclick="location.reload()" class="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600">Retry</button></div></div>';
           return; 
         }
         appData = data;

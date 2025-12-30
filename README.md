@@ -18,6 +18,12 @@ A comprehensive team holiday and absence management system built for Google Apps
 
 ## Quick Start
 
+### Easy Setup
+
+1. **Access the Setup Guide**: After deploying the app, visit `YOUR_WEB_APP_URL?page=setup` for step-by-step instructions.
+
+### Manual Setup
+
 ### 1. Setup Google Apps Script
 
 1. Go to [Google Apps Script](https://script.google.com)
@@ -26,6 +32,7 @@ A comprehensive team holiday and absence management system built for Google Apps
 4. Create HTML files:
    - `index.html` - Copy from this repository
    - `diagnostic.html` - Copy from this repository
+   - `setup.html` - Copy from this repository (for setup guide)
 
 ### 2. Configure Spreadsheet
 
@@ -55,6 +62,7 @@ A comprehensive team holiday and absence management system built for Google Apps
 - `code.gs` - Backend Google Apps Script code
 - `index.html` - Main application UI
 - `diagnostic.html` - Diagnostic testing page
+- `setup.html` - Step-by-step setup guide
 - `README.md` - This file
 
 ## Troubleshooting

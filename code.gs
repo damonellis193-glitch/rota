@@ -3,17 +3,52 @@
  */
 
 // CONFIGURATION
+// IMPORTANT: Update these values before deploying!
 const SPREADSHEET_ID = '1vEDieQC-FJFybCVXuynVrus04U1ZA72XMkvfrtDK5MM'; // Replace with your Sheet ID
-const ADMIN_EMAILS = ['your_email@domain.com']; 
+const ADMIN_EMAILS = ['your_email@domain.com']; // Replace with your email address
+
+// Quick Setup Check
+function checkSetup() {
+  if (SPREADSHEET_ID === '1vEDieQC-FJFybCVXuynVrus04U1ZA72XMkvfrtDK5MM' || SPREADSHEET_ID === 'YOUR_SPREADSHEET_ID_HERE') {
+    return {
+      configured: false,
+      message: 'SPREADSHEET_ID not configured. Please create a Google Sheet and update SPREADSHEET_ID in code.gs'
+    };
+  }
+  if (ADMIN_EMAILS.includes('your_email@domain.com')) {
+    return {
+      configured: false,
+      message: 'ADMIN_EMAILS not configured. Please update ADMIN_EMAILS in code.gs with your email address'
+    };
+  }
+  try {
+    SpreadsheetApp.openById(SPREADSHEET_ID);
+    return { configured: true, message: 'Configuration looks good!' };
+  } catch (e) {
+    return {
+      configured: false,
+      message: 'Cannot access spreadsheet. Error: ' + e.toString()
+    };
+  }
+} 
 
 function doGet(e) {
+  // Check if setup is complete
+  const setupCheck = checkSetup();
+  
   // Diagnostic mode: add ?page=diagnostic to URL
   if (e && e.parameter && e.parameter.page === 'diagnostic') {
     return HtmlService.createHtmlOutputFromFile('diagnostic')
       .setTitle('Rota Diagnostics');
   }
   
-  // Normal app
+  // Setup mode: show setup guide if not configured
+  if (!setupCheck.configured && e && e.parameter && e.parameter.page === 'setup') {
+    return HtmlService.createHtmlOutputFromFile('setup')
+      .setTitle('Rota Setup Required');
+  }
+  
+  // Normal app - but warn if not configured
   return HtmlService.createTemplateFromFile('index')
     .evaluate()
     .setTitle('Team Rota & Holiday Manager')
@@ -25,6 +60,16 @@ function doGet(e) {
 function getInitialData() {
   try {
     console.log('[Backend] getInitialData called');
+    
+    // Check configuration first
+    const setupCheck = checkSetup();
+    if (!setupCheck.configured) {
+      console.error('[Backend] Setup incomplete: ' + setupCheck.message);
+      return { 
+        error: 'Setup Required: ' + setupCheck.message + ' - See README.md for setup instructions.'
+      };
+    }
+    
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     console.log('[Backend] Spreadsheet opened');
     setupDatabase(ss); 
