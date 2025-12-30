@@ -3,17 +3,52 @@
  */
 
 // CONFIGURATION
-const SPREADSHEET_ID = '1vEDieQC-FJFybCVXuynVrus04U1ZA72XMkvfrtDK5MM'; // Replace with your Sheet ID
-const ADMIN_EMAILS = ['your_email@domain.com']; 
+// IMPORTANT: Update these values before deploying!
+const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE'; // Replace with your Sheet ID
+const ADMIN_EMAILS = ['your_email@domain.com']; // Replace with your email address
+
+// Quick Setup Check
+function checkSetup() {
+  if (!SPREADSHEET_ID || SPREADSHEET_ID === 'YOUR_SPREADSHEET_ID_HERE' || SPREADSHEET_ID === '') {
+    return {
+      configured: false,
+      message: 'SPREADSHEET_ID not configured. Please create a Google Sheet and update SPREADSHEET_ID in code.gs'
+    };
+  }
+  if (ADMIN_EMAILS.includes('your_email@domain.com') || ADMIN_EMAILS.length === 0) {
+    return {
+      configured: false,
+      message: 'ADMIN_EMAILS not configured. Please update ADMIN_EMAILS in code.gs with your email address'
+    };
+  }
+  try {
+    SpreadsheetApp.openById(SPREADSHEET_ID);
+    return { configured: true, message: 'Configuration looks good!' };
+  } catch (e) {
+    return {
+      configured: false,
+      message: 'Cannot access spreadsheet. Error: ' + e.toString()
+    };
+  }
+} 
 
 function doGet(e) {
+  // Check if setup is complete
+  const setupCheck = checkSetup();
+  
   // Diagnostic mode: add ?page=diagnostic to URL
   if (e && e.parameter && e.parameter.page === 'diagnostic') {
     return HtmlService.createHtmlOutputFromFile('diagnostic')
       .setTitle('Rota Diagnostics');
   }
   
-  // Normal app
+  // Setup mode: show setup guide if not configured
+  if (!setupCheck.configured && e && e.parameter && e.parameter.page === 'setup') {
+    return HtmlService.createHtmlOutputFromFile('setup')
+      .setTitle('Rota Setup Required');
+  }
+  
+  // Normal app - but warn if not configured
   return HtmlService.createTemplateFromFile('index')
     .evaluate()
     .setTitle('Team Rota & Holiday Manager')
@@ -24,15 +59,33 @@ function doGet(e) {
 
 function getInitialData() {
   try {
+    console.log('[Backend] getInitialData called');
+    
+    // Check configuration first
+    const setupCheck = checkSetup();
+    if (!setupCheck.configured) {
+      console.error('[Backend] Setup incomplete: ' + setupCheck.message);
+      return { 
+        error: 'Setup Required: ' + setupCheck.message + ' - See README.md for setup instructions.'
+      };
+    }
+    
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    console.log('[Backend] Spreadsheet opened');
     setupDatabase(ss); 
     
     const userEmail = Session.getActiveUser().getEmail();
+    console.log('[Backend] User email: ' + userEmail);
     
     const empSheet = ss.getSheetByName('Employees');
     const bookSheet = ss.getSheetByName('Bookings');
     const schedSheet = ss.getSheetByName('Schedules');
     const auditSheet = ss.getSheetByName('AuditLogs');
+    
+    if (!empSheet || !bookSheet || !schedSheet) {
+      console.error('[Backend] One or more sheets are missing');
+      return { error: 'Database sheets are missing. Please check the spreadsheet setup.' };
+    }
     
     // 1. Get Employees
     const empData = empSheet.getDataRange().getValues();
@@ -48,6 +101,8 @@ function getInitialData() {
       carryOver: Number(row[6] || 0)    
     }));
 
+    console.log('[Backend] Found ' + employees.length + ' employees');
+
     // Check current user
     let currentUser = employees.find(e => e.email === userEmail);
     if (!currentUser && ADMIN_EMAILS.includes(userEmail)) {
@@ -55,6 +110,8 @@ function getInitialData() {
     } else if (!currentUser) {
       currentUser = { name: 'Guest', email: userEmail, allowance: 0, role: 'Guest' };
     }
+
+    console.log('[Backend] Current user role: ' + currentUser.role);
 
     // 2. Get Bookings
     const bookData = bookSheet.getDataRange().getValues();
@@ -72,6 +129,8 @@ function getInitialData() {
         hours: Number(row[7] || 7.5) 
       }));
     }
+
+    console.log('[Backend] Found ' + bookings.length + ' bookings');
 
     // 3. Get Schedules
     const schedData = schedSheet.getDataRange().getValues();
@@ -107,6 +166,8 @@ function getInitialData() {
       }
     }
 
+    console.log('[Backend] Returning data successfully');
+
     return {
       currentUser: currentUser,
       employees: employees,
@@ -115,8 +176,9 @@ function getInitialData() {
       auditLogs: auditLogs
     };
   } catch (e) {
-    console.error("Server Error: " + e.toString());
-    return { error: e.toString() };
+    console.error("[Backend] Error in getInitialData: " + e.toString());
+    console.error("[Backend] Stack trace: " + e.stack);
+    return { error: 'Backend error: ' + e.toString() + ' - Please check that SPREADSHEET_ID in code.gs is correct and you have access to it.' };
   }
 }
 
