@@ -92,9 +92,9 @@ By removing the ALLOWALL setting:
 - ✅ Your app will load correctly
 - ✅ All features continue to work
 - ✅ All styling remains the same
-- ⚠️ The app can only be embedded on Google domains (this is actually more secure)
+- ⚠️ The app can only be accessed directly (not embedded in iframes from other sites)
 
-If you specifically need to embed the app in an iframe on another website, you can use `HtmlService.XFrameOptionsMode.DEFAULT` instead, which allows Google domains only.
+**Note:** By default (without any XFrameOptionsMode setting), Google Apps Script prevents iframe embedding for security. This is the recommended and most secure configuration for most apps.
 
 ## Understanding the Console Warnings
 

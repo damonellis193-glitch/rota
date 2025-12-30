@@ -48,11 +48,15 @@ function doGet() {
 
 This prevents Google from injecting the problematic wrapper code while still using IFRAME sandbox mode for better JavaScript support.
 
-### Previous Changes (Already Applied)
-These were applied in earlier fixes and are still in place:
+### Context: Previous Changes
+The following changes were already in place from earlier fixes (not part of this fix):
 
-1. **Tailwind CSS:** Switched from JavaScript-based CDN to CSS-only version (v2.2.19)
-2. **Sandbox Mode:** Using IFRAME mode for better modern JavaScript support
+1. **Tailwind CSS (Already Applied):** Switched from JavaScript-based CDN to CSS-only version (v2.2.19)
+   - This was an earlier attempt to fix the issue, but was not the root cause
+   - The CSS-only version is still in use and working correctly
+
+2. **Sandbox Mode (Already Applied):** Using IFRAME mode for better modern JavaScript support
+   - This setting is maintained in the current fix
 
 ## What You Need to Do
 
