@@ -84,7 +84,10 @@
                 <li>Create a new blank spreadsheet</li>
                 <li>Name it something like "Team Rota Database"</li>
                 <li>Copy the <strong>Spreadsheet ID</strong> from the URL:<br>
-                    <code>https://docs.google.com/spreadsheets/d/<strong>YOUR_SPREADSHEET_ID</strong>/edit</code>
+                    <code>https://docs.google.com/spreadsheets/d/<strong style="background: #ffeb3b; padding: 2px 4px;">1a2B3c4D5e6F7g8H9i0J</strong>/edit</code><br>
+                    <small style="color: #666; margin-top: 5px; display: block;">
+                        ⬆️ Copy only the highlighted ID portion (the long string between /d/ and /edit)
+                    </small>
                 </li>
             </ol>
         </div>
@@ -97,8 +100,16 @@
                     <pre style="background: #f0f0f0; padding: 10px; border-radius: 4px; margin: 10px 0;">const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE';
 const ADMIN_EMAILS = ['your_email@domain.com'];</pre>
                 </li>
-                <li>Replace <code>YOUR_SPREADSHEET_ID_HERE</code> with your actual Spreadsheet ID from Step 1</li>
-                <li>Replace <code>your_email@domain.com</code> with your Google email address</li>
+                <li>Replace <code>YOUR_SPREADSHEET_ID_HERE</code> with your actual Spreadsheet ID from Step 1<br>
+                    <small style="color: #666; margin-top: 5px; display: block;">
+                        Example: <code style="background: #e3f2fd;">const SPREADSHEET_ID = '1a2B3c4D5e6F7g8H9i0J';</code>
+                    </small>
+                </li>
+                <li>Replace <code>your_email@domain.com</code> with your Google email address<br>
+                    <small style="color: #666; margin-top: 5px; display: block;">
+                        Example: <code style="background: #e3f2fd;">const ADMIN_EMAILS = ['alice@company.com'];</code>
+                    </small>
+                </li>
                 <li>Save the file (Ctrl+S or Cmd+S)</li>
             </ol>
         </div>

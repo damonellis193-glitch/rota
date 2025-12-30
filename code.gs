@@ -4,18 +4,18 @@
 
 // CONFIGURATION
 // IMPORTANT: Update these values before deploying!
-const SPREADSHEET_ID = '1vEDieQC-FJFybCVXuynVrus04U1ZA72XMkvfrtDK5MM'; // Replace with your Sheet ID
+const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE'; // Replace with your Sheet ID
 const ADMIN_EMAILS = ['your_email@domain.com']; // Replace with your email address
 
 // Quick Setup Check
 function checkSetup() {
-  if (SPREADSHEET_ID === '1vEDieQC-FJFybCVXuynVrus04U1ZA72XMkvfrtDK5MM' || SPREADSHEET_ID === 'YOUR_SPREADSHEET_ID_HERE') {
+  if (!SPREADSHEET_ID || SPREADSHEET_ID === 'YOUR_SPREADSHEET_ID_HERE' || SPREADSHEET_ID === '') {
     return {
       configured: false,
       message: 'SPREADSHEET_ID not configured. Please create a Google Sheet and update SPREADSHEET_ID in code.gs'
     };
   }
-  if (ADMIN_EMAILS.includes('your_email@domain.com')) {
+  if (ADMIN_EMAILS.includes('your_email@domain.com') || ADMIN_EMAILS.length === 0) {
     return {
       configured: false,
       message: 'ADMIN_EMAILS not configured. Please update ADMIN_EMAILS in code.gs with your email address'
