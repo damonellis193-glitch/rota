@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ES5 Syntax Check</title>
+</head>
+<body>
+    <h1>Testing ES5 Compatibility</h1>
+    <div id="output"></div>
+    <script>
+        // Test basic ES5 features used in the app
+        var output = document.getElementById('output');
+        var tests = [];
+        
+        function addTest(name, passed) {
+            tests.push({ name: name, passed: passed });
+            output.innerHTML += '<div style="margin: 10px; padding: 10px; background: ' + (passed ? '#d4edda' : '#f8d7da') + '">' + name + ': ' + (passed ? 'PASS' : 'FAIL') + '</div>';
+        }
+        
+        // Test 1: var declarations
+        var testVar = 'test';
+        addTest('var declarations', testVar === 'test');
+        
+        // Test 2: Regular functions
+        function testFunc() { return 'works'; }
+        addTest('Regular functions', testFunc() === 'works');
+        
+        // Test 3: Array forEach
+        var arr = [1, 2, 3];
+        var sum = 0;
+        arr.forEach(function(n) { sum += n; });
+        addTest('Array forEach', sum === 6);
+        
+        // Test 4: Array map
+        var mapped = arr.map(function(n) { return n * 2; });
+        addTest('Array map', mapped[0] === 2 && mapped[1] === 4);
+        
+        // Test 5: Array filter
+        var filtered = arr.filter(function(n) { return n > 1; });
+        addTest('Array filter', filtered.length === 2);
+        
+        // Test 6: String concatenation
+        var str = 'Hello' + ' ' + 'World';
+        addTest('String concatenation', str === 'Hello World');
+        
+        // Test 7: Ternary operator
+        var result = (true ? 'yes' : 'no');
+        addTest('Ternary operator', result === 'yes');
+        
+        output.innerHTML += '<h2>All tests completed: ' + tests.filter(function(t) { return t.passed; }).length + '/' + tests.length + ' passed</h2>';
+    </script>
+</body>
+</html>

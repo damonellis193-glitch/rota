@@ -379,118 +379,23 @@
     </div>
 
     <script>
-      // Helper function to get unique values from array (ES5 compatible)
-      function getUniqueValues(arr) {
-        var unique = [];
-        for (var i = 0; i < arr.length; i++) {
-          if (unique.indexOf(arr[i]) === -1 && arr[i]) {
-            unique.push(arr[i]);
-          }
-        }
-        return unique;
-      }
-
-      // Helper function to check if value is in array
-      function arrayContains(arr, value) {
-        return arr.indexOf(value) !== -1;
-      }
-
-      // Helper function to add to array if not present
-      function arrayAdd(arr, value) {
-        if (arr.indexOf(value) === -1) {
-          arr.push(value);
-        }
-      }
-
-      // Helper function to remove from array
-      function arrayRemove(arr, value) {
-        var index = arr.indexOf(value);
-        if (index > -1) {
-          arr.splice(index, 1);
-        }
-      }
-
       // --- INITIALIZATION DEBUG ---
       console.log('[Rota App] Script started loading...');
       
       // --- MOCK API (For Preview) ---
       if (typeof google === 'undefined') {
         console.log('[Rota App] Google Apps Script not detected, using mock API');
-        window.google = { 
-          script: { 
-            run: { 
-              withSuccessHandler: function(s) { this._s = s; return this; }, 
-              withFailureHandler: function(f) { this._f = f; return this; }, 
-              getInitialData: function() { 
-                var self = this;
-                setTimeout(function() { 
-                  if(self._s) self._s({ 
-                    currentUser: { name: 'Preview Admin', email: 'admin@preview.com', allowance: 25, role: 'Admin' }, 
-                    employees: [{ name: 'Preview Admin', email: 'admin@preview.com', allowance: 25, role: 'Admin', department: 'IT', carryOver: 0 }], 
-                    bookings: [], 
-                    schedules: {}, 
-                    auditLogs: [] 
-                  }); 
-                }, 500); 
-              }, 
-              submitBooking: function() { 
-                var self = this;
-                setTimeout(function() { self._s({success:true, id:'999', status:'Pending', daysCount:1}); }, 500); 
-              }, 
-              saveEmployee: function() { 
-                var self = this;
-                setTimeout(function() { self._s({success:true}); }, 500); 
-              }, 
-              deleteEmployee: function() { 
-                var self = this;
-                setTimeout(function() { self._s({success:true}); }, 500); 
-              }, 
-              updateBookingStatus: function() { 
-                var self = this;
-                setTimeout(function() { self._s({success:true}); }, 500); 
-              }, 
-              saveUserSchedule: function() { 
-                var self = this;
-                setTimeout(function() { self._s({success:true}); }, 500); 
-              }, 
-              requestBookingCancellation: function() { 
-                var self = this;
-                setTimeout(function() { self._s({success:true, action:'requested'}); }, 500); 
-              }, 
-              sendChaserEmails: function() { 
-                var self = this;
-                setTimeout(function() { self._s({success:true, count:1}); }, 500); 
-              } 
-            } 
-          } 
-        };
+        window.google = { script: { run: { withSuccessHandler: function(s) { this._s = s; return this; }, withFailureHandler: function(f) { this._f = f; return this; }, getInitialData: function() { setTimeout(() => { if(this._s) this._s({ currentUser: { name: 'Preview Admin', email: 'admin@preview.com', allowance: 25, role: 'Admin' }, employees: [{ name: 'Preview Admin', email: 'admin@preview.com', allowance: 25, role: 'Admin', department: 'IT', carryOver: 0 }], bookings: [], schedules: {}, auditLogs: [] }); }, 500); }, submitBooking: function() { setTimeout(() => this._s({success:true, id:'999', status:'Pending', daysCount:1}), 500); }, saveEmployee: function() { setTimeout(() => this._s({success:true}), 500); }, deleteEmployee: function() { setTimeout(() => this._s({success:true}), 500); }, updateBookingStatus: function() { setTimeout(() => this._s({success:true}), 500); }, saveUserSchedule: function() { setTimeout(() => this._s({success:true}), 500); }, requestBookingCancellation: function() { setTimeout(() => this._s({success:true, action:'requested'}), 500); }, sendChaserEmails: function() { setTimeout(() => this._s({success:true, count:1}), 500); } } } };
       } else {
         console.log('[Rota App] Google Apps Script detected');
       }
 
-      // STATE - Using var for ES5 compatibility
-      
-      // Helper to copy object properties (ES5 compatible)
-      function copyObject(obj, additions) {
-        var result = {};
-        for (var key in obj) {
-          if (obj.hasOwnProperty(key)) {
-            result[key] = obj[key];
-          }
-        }
-        for (var key in additions) {
-          if (additions.hasOwnProperty(key)) {
-            result[key] = additions[key];
-          }
-        }
-        return result;
-      }
-
-var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, auditLogs: [] };
-      var calendarDate = new Date();
-      var myTeamCalendarDate = new Date();
-      var expandedManagers = [];
-      var pollingInterval;
+      // STATE
+      let appData = { currentUser: null, employees: [], bookings: [], schedules: {}, auditLogs: [] };
+      let calendarDate = new Date();
+      let myTeamCalendarDate = new Date();
+      let expandedManagers = new Set();
+      let pollingInterval;
 
       window.onload = function() {
         console.log('[Rota App] Window loaded, calling getInitialData...');
@@ -538,7 +443,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
 
       function startPolling() {
         if (pollingInterval) clearInterval(pollingInterval);
-        pollingInterval = setInterval(function() {
+        pollingInterval = setInterval(() => {
           google.script.run.withSuccessHandler(onBackgroundDataLoaded).getInitialData();
         }, 30000);
       }
@@ -557,28 +462,28 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         renderDashboard();
         renderTeamCalendar();
         renderAdminView();
-        var myTeamView = document.getElementById('view-my-team');
+        const myTeamView = document.getElementById('view-my-team');
         if (!myTeamView.classList.contains('hidden')) renderMyTeamCalendar();
-        var patternsView = document.getElementById('view-patterns');
+        const patternsView = document.getElementById('view-patterns');
         if (!patternsView.classList.contains('hidden')) renderPatternsView();
       }
 
       function loadView(viewName) {
-        ['view-dashboard', 'view-team', 'view-admin', 'view-my-team', 'view-patterns'].forEach(function(id) document.getElementById(id).classList.add('hidden'));
+        ['view-dashboard', 'view-team', 'view-admin', 'view-my-team', 'view-patterns'].forEach(id => document.getElementById(id).classList.add('hidden'));
         document.getElementById('view-' + viewName).classList.remove('hidden');
         if (viewName === 'my-team') renderMyTeamCalendar();
         if (viewName === 'patterns') renderPatternsView();
       }
 
       function getCurrentFiscalYearRange() {
-        var today = new Date();
-        var startYear = (today.getMonth() < 3) ? today.getFullYear() - 1 : today.getFullYear();
+        const today = new Date();
+        const startYear = (today.getMonth() < 3) ? today.getFullYear() - 1 : today.getFullYear();
         return { start: new Date(startYear, 3, 1), end: new Date(startYear + 1, 2, 31) };
       }
 
       function isDateInCurrentFY(dStr) {
-        var d = new Date(dStr);
-        var range = getCurrentFiscalYearRange(); var start = range.start; var end = range.end;
+        const d = new Date(dStr);
+        const { start, end } = getCurrentFiscalYearRange();
         return d >= start && d <= end;
       }
 
@@ -587,16 +492,16 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       }
 
       function handleServerError(error) {
-        var msg = (error.message || error).toString();
+        const msg = (error.message || error).toString();
         alert(msg.includes("permission") ? "Access Denied." : "Error: " + msg);
       }
 
       function calculateBusinessDays(startStr, endStr) {
-        var count = 0;
-        var cur = new Date(startStr);
-        var end = new Date(endStr);
+        let count = 0;
+        let cur = new Date(startStr);
+        const end = new Date(endStr);
         while (cur <= end) {
-          var day = cur.getDay();
+          const day = cur.getDay();
           if (day !== 0 && day !== 6) count++;
           cur.setDate(cur.getDate() + 1);
         }
@@ -604,23 +509,23 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       }
 
       function autoFillHours() {
-        var dateVal = document.getElementById('booking-start-date').value;
-        var endDateInput = document.querySelector('input[name="endDate"]');
+        const dateVal = document.getElementById('booking-start-date').value;
+        const endDateInput = document.querySelector('input[name="endDate"]');
         if (!dateVal) return;
         endDateInput.min = dateVal;
         if (!endDateInput.value || endDateInput.value < dateVal) { endDateInput.value = dateVal; }
-        var email = appData.currentUser.email;
-        var targetSelect = document.getElementById('booking-target-user');
+        let email = appData.currentUser.email;
+        const targetSelect = document.getElementById('booking-target-user');
         if (appData.currentUser.role === 'Admin' && targetSelect.value) { email = targetSelect.value; }
-        var dateObj = new Date(dateVal);
-        var dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
-        var userSched = appData.schedules[email] || {};
-        var daySched = userSched[dayName];
+        const dateObj = new Date(dateVal);
+        const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+        const userSched = appData.schedules[email] || {};
+        const daySched = userSched[dayName];
         document.getElementById('booking-hours').value = (daySched && daySched.hours) ? daySched.hours : 7.5;
       }
 
       function toggleSubTeam(managerEmail) {
-        if(arrayContains(expandedManagers, managerEmail)) { expandedManagers.delete(managerEmail); } else { arrayAdd(expandedManagers, managerEmail); }
+        if(expandedManagers.has(managerEmail)) { expandedManagers.delete(managerEmail); } else { expandedManagers.add(managerEmail); }
         renderMyTeamCalendar();
       }
 
@@ -646,8 +551,8 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       }
 
       function toggleElement(containerId, iconId) {
-        var c = document.getElementById(containerId);
-        var i = document.getElementById(iconId);
+        const c = document.getElementById(containerId);
+        const i = document.getElementById(iconId);
         if(c.classList.contains('hidden')) {
           c.classList.remove('hidden');
           if(i) i.classList.add('rotate-180');
@@ -659,22 +564,22 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
 
       function isManagerOf(managerEmail, employeeEmail) {
         if (managerEmail === employeeEmail) return false;
-        var current = appData.employees.find(function(e) { return e.email === employeeEmail; });
+        let current = appData.employees.find(e => e.email === employeeEmail);
         while (current && current.manager) {
             if (current.manager === managerEmail) return true;
-            current = appData.employees.find(function(e) { return e.email === current.manager; });
+            current = appData.employees.find(e => e.email === current.manager);
         }
         return false;
       }
 
       function handleUserCancel(bookingId) {
         if(!confirm('Are you sure you want to cancel/withdraw this booking?')) return;
-        google.script.run.withSuccessHandler(function(res) {
+        google.script.run.withSuccessHandler((res) => {
             if(res.action === 'deleted') {
-              appData.bookings = appData.bookings.filter(function(b) { return b.id !== bookingId; });
+              appData.bookings = appData.bookings.filter(b => b.id !== bookingId);
               alert('Booking withdrawn.');
             } else if(res.action === 'requested') {
-              var b = appData.bookings.find(function(b) { return b.id === bookingId; });
+              const b = appData.bookings.find(b => b.id === bookingId);
               if(b) b.status = 'Cancellation Requested';
               alert('Cancellation requested. Waiting for approval.');
             }
@@ -683,20 +588,20 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       }
 
       function handleAdminCancellation(id, action) {
-        if (!confirm('Are you sure you want to ' + (action === 'approve' ? 'confirm the cancellation' : 'reject the cancellation') + '?')) return;
+        if (!confirm(`Are you sure you want to ${action === 'approve' ? 'confirm the cancellation' : 'reject the cancellation'}?`)) return;
         handleStatus(id, action === 'approve' ? 'Cancelled' : 'Approved');
       }
 
       // --- RENDERERS ---
       function renderDashboard() {
-        var myBookings = appData.bookings.filter(function(b) { return b.email === appData.currentUser.email && b.status !== 'Cancelled'; });
-        var myProfile = appData.employees.find(function(e) { return e.email === appData.currentUser.email; }) || appData.currentUser;
-        var totalAllowance = (Number(myProfile.allowance) || 0) + (Number(myProfile.carryOver) || 0);
+        const myBookings = appData.bookings.filter(b => b.email === appData.currentUser.email && b.status !== 'Cancelled');
+        const myProfile = appData.employees.find(e => e.email === appData.currentUser.email) || appData.currentUser;
+        const totalAllowance = (Number(myProfile.allowance) || 0) + (Number(myProfile.carryOver) || 0);
         
-        var used = myBookings.filter(function(b) { return b.type === 'Holiday' && b.status === 'Approved' && isDateInCurrentFY(b.startDate; })).reduce(function(acc, c) acc + c.daysCount, 0);
+        const used = myBookings.filter(b => b.type === 'Holiday' && b.status === 'Approved' && isDateInCurrentFY(b.startDate)).reduce((acc, c) => acc + c.daysCount, 0);
         document.getElementById('dash-remaining').textContent = totalAllowance - used;
         
-        var future = myBookings.filter(function(b) { return new Date(b.startDate; }) >= new Date() && b.status === 'Approved').sort(function(a, b) new Date(a.startDate)-new Date(b.startDate));
+        const future = myBookings.filter(b => new Date(b.startDate) >= new Date() && b.status === 'Approved').sort((a,b)=> new Date(a.startDate)-new Date(b.startDate));
         if (future.length > 0) {
           document.getElementById('dash-next-booking').textContent = formatDate(future[0].startDate);
           document.getElementById('dash-next-type').textContent = future[0].type;
@@ -705,163 +610,163 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           document.getElementById('dash-next-type').textContent = "--";
         }
         
-        var adminAlertContainer = document.getElementById('admin-dashboard-alert');
+        const adminAlertContainer = document.getElementById('admin-dashboard-alert');
         if (adminAlertContainer) adminAlertContainer.remove(); 
 
         if (appData.currentUser.role === 'Admin') {
-          var myPending = appData.bookings.filter(function(b) {
+          const myPending = appData.bookings.filter(b => {
              if (b.status !== 'Pending' && b.status !== 'Cancellation Requested') return false;
              return isManagerOf(appData.currentUser.email, b.email);
           }).length;
 
           if (myPending > 0) {
-             var dashboardContainer = document.getElementById('view-dashboard');
-             var alertDiv = document.createElement('div');
+             const dashboardContainer = document.getElementById('view-dashboard');
+             const alertDiv = document.createElement('div');
              alertDiv.id = 'admin-dashboard-alert';
              alertDiv.className = "bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4 flex justify-between items-center shadow-sm rounded-r";
-             alertDiv.innerHTML = '<div class="flex items-center"><div class="flex-shrink-0 text-yellow-500"><i class="fa-solid fa-bell"></i></div><div class="ml-3"><p class="text-sm text-yellow-800 font-bold">Action Required</p><p class="text-xs text-yellow-700">You have ' + myPending + ' request' + (myPending>1?'s':'') + ' waiting.</p></div></div><button onclick="loadView(\'admin\')" class="text-xs font-bold text-green-900 bg-yellow-400 px-3 py-1 rounded hover:bg-yellow-500 transition shadow">Review &rarr;</button>';
+             alertDiv.innerHTML = `<div class="flex items-center"><div class="flex-shrink-0 text-yellow-500"><i class="fa-solid fa-bell"></i></div><div class="ml-3"><p class="text-sm text-yellow-800 font-bold">Action Required</p><p class="text-xs text-yellow-700">You have ${myPending} request${myPending>1?'s':''} waiting.</p></div></div><button onclick="loadView('admin')" class="text-xs font-bold text-green-900 bg-yellow-400 px-3 py-1 rounded hover:bg-yellow-500 transition shadow">Review &rarr;</button>`;
              dashboardContainer.prepend(alertDiv);
           }
           document.getElementById('admin-dashboard-widgets').classList.remove('hidden');
           
-          var today = new Date();
-          var thirtyDaysFromNow = new Date(); thirtyDaysFromNow.setDate(today.getDate() + 30);
+          const today = new Date();
+          const thirtyDaysFromNow = new Date(); thirtyDaysFromNow.setDate(today.getDate() + 30);
           
-          var teamUpcoming = appData.bookings.filter(function(b) { return b.type === 'Holiday' && b.status === 'Approved' && new Date(b.startDate; }) >= today && new Date(b.startDate) <= thirtyDaysFromNow).sort(function(a, b) new Date(a.startDate) - new Date(b.startDate));
-          var upcomingBody = document.getElementById('admin-upcoming-body');
+          const teamUpcoming = appData.bookings.filter(b => b.type === 'Holiday' && b.status === 'Approved' && new Date(b.startDate) >= today && new Date(b.startDate) <= thirtyDaysFromNow).sort((a,b) => new Date(a.startDate) - new Date(b.startDate));
+          const upcomingBody = document.getElementById('admin-upcoming-body');
           if (teamUpcoming.length === 0) {
             upcomingBody.innerHTML = '<tr class="text-gray-400 italic"><td class="p-4">No team holidays in the next 30 days.</td></tr>';
           } else {
              upcomingBody.innerHTML = '';
-             teamUpcoming.forEach(function(b) {
-                var name = appData.employees.find(function(e) { return e.email === b.email; })?.name || b.email;
-                upcomingBody.innerHTML += '<tr class="border-b border-gray-100 last:border-0 hover:bg-blue-50 cursor-pointer transition" onclick="jumpToCalendar(\'' + b.startDate + '\')"><td class="p-3 font-bold text-gray-700">' + name + '</td><td class="p-3 text-right text-gray-500 text-xs"><span class="font-medium text-blue-600">' + formatDate(b.startDate) + ' - ' + formatDate(b.endDate) + '</span></td></tr>';
+             teamUpcoming.forEach(b => {
+                const name = appData.employees.find(e => e.email === b.email)?.name || b.email;
+                upcomingBody.innerHTML += `<tr class="border-b border-gray-100 last:border-0 hover:bg-blue-50 cursor-pointer transition" onclick="jumpToCalendar('${b.startDate}')"><td class="p-3 font-bold text-gray-700">${name}</td><td class="p-3 text-right text-gray-500 text-xs"><span class="font-medium text-blue-600">${formatDate(b.startDate)} - ${formatDate(b.endDate)}</span></td></tr>`;
              });
           }
 
-          var currentHolidays = appData.bookings.filter(function(b) {
-             var start = new Date(b.startDate); var end = new Date(b.endDate); var now = new Date();
+          const currentHolidays = appData.bookings.filter(b => {
+             const start = new Date(b.startDate); const end = new Date(b.endDate); const now = new Date();
              now.setHours(0,0,0,0); start.setHours(0,0,0,0); end.setHours(0,0,0,0);
              return (b.type === 'Holiday' || b.type === 'Sickness') && b.status === 'Approved' && start <= now && end >= now;
-          }).sort(function(a, b) new Date(a.endDate) - new Date(b.endDate));
-          var currentBody = document.getElementById('admin-current-body');
+          }).sort((a,b) => new Date(a.endDate) - new Date(b.endDate));
+          const currentBody = document.getElementById('admin-current-body');
           if (currentHolidays.length === 0) currentBody.innerHTML = '<tr class="text-gray-400 italic"><td class="p-4">No one is currently away.</td></tr>';
           else {
              currentBody.innerHTML = '';
-             currentHolidays.forEach(function(b) {
-                var name = appData.employees.find(function(e) { return e.email === b.email; })?.name || b.email;
-                var isSick = b.type === 'Sickness';
-                currentBody.innerHTML += '<tr class="border-b border-gray-100 last:border-0 hover:bg-red-50 cursor-pointer transition" onclick="jumpToCalendar(\'' + b.startDate + '\')"><td class="p-3 font-bold text-gray-700">' + name + '</td><td class="p-3 text-right text-gray-500 text-xs"><span class="font-medium ' + isSick?'text-red-600 font-bold':'text-blue-600' + '">' + isSick ? 'SICK' : 'HOLIDAY' + ' (' + formatDate(b.endDate) + ')</span></td></tr>';
+             currentHolidays.forEach(b => {
+                const name = appData.employees.find(e => e.email === b.email)?.name || b.email;
+                const isSick = b.type === 'Sickness';
+                currentBody.innerHTML += `<tr class="border-b border-gray-100 last:border-0 hover:bg-red-50 cursor-pointer transition" onclick="jumpToCalendar('${b.startDate}')"><td class="p-3 font-bold text-gray-700">${name}</td><td class="p-3 text-right text-gray-500 text-xs"><span class="font-medium ${isSick?'text-red-600 font-bold':'text-blue-600'}">${isSick ? 'SICK' : 'HOLIDAY'} (${formatDate(b.endDate)})</span></td></tr>`;
              });
           }
         } else {
           document.getElementById('admin-dashboard-widgets').classList.add('hidden');
         }
 
-        var tbody = document.getElementById('my-history-body'); tbody.innerHTML = '';
-        myBookings.sort(function(a, b) new Date(b.startDate) - new Date(a.startDate)).slice(0, 10).forEach(function(b) {
-          var statusHtml = '<span class="font-bold ' + b.status==='Pending'?'text-yellow-600':(b.status==='Approved'?'text-green-600':'text-red-500') + '">' + b.status + '</span>';
-          if (b.status === 'Cancellation Requested') statusHtml = '<span class="font-bold text-orange-500">Cancel Requested</span>';
-          var actionBtn = '';
-          var isFuture = new Date(b.startDate) >= new Date();
+        const tbody = document.getElementById('my-history-body'); tbody.innerHTML = '';
+        myBookings.sort((a,b) => new Date(b.startDate) - new Date(a.startDate)).slice(0, 10).forEach(b => {
+          let statusHtml = `<span class="font-bold ${b.status==='Pending'?'text-yellow-600':(b.status==='Approved'?'text-green-600':'text-red-500')}">${b.status}</span>`;
+          if (b.status === 'Cancellation Requested') statusHtml = `<span class="font-bold text-orange-500">Cancel Requested</span>`;
+          let actionBtn = '';
+          const isFuture = new Date(b.startDate) >= new Date();
           if (isFuture && (b.status === 'Approved' || b.status === 'Pending')) {
-             actionBtn = '<button onclick="handleUserCancel(\'' + b.id + '\')" class="text-xs text-red-500 hover:text-red-700 underline ml-2">Cancel</button>';
+             actionBtn = `<button onclick="handleUserCancel('${b.id}')" class="text-xs text-red-500 hover:text-red-700 underline ml-2">Cancel</button>`;
           }
           
-          var calLink = '';
+          let calLink = '';
           if (b.status === 'Approved' && isFuture) {
-             var start = new Date(b.startDate).toISOString().replace(/-|:|\.\d\d\d/g,"");
-             var end = new Date(new Date(b.endDate).getTime()+86400000).toISOString().replace(/-|:|\.\d\d\d/g,"");
-             var url = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(b.type + ' - Team Rota') + '&dates=' + start + '/' + end + '&details=' + encodeURIComponent('Booking Reference: ' + b.id);
+             const start = new Date(b.startDate).toISOString().replace(/-|:|\.\d\d\d/g,"");
+             const end = new Date(new Date(b.endDate).getTime()+86400000).toISOString().replace(/-|:|\.\d\d\d/g,"");
+             const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(b.type + ' - Team Rota')}&dates=${start}/${end}&details=${encodeURIComponent('Booking Reference: ' + b.id)}`;
              calLink = '<a href="' + url + '" target="_blank" class="text-xs text-blue-500 hover:underline ml-2"><i class="fa-regular fa-calendar-plus"></i> Add to Cal</a>';
           }
 
-          tbody.innerHTML += '<tr class="border-b border-gray-50"><td class="p-3">' + statusHtml + '</td><td class="p-3">' + b.type + '</td><td class="p-3">' + formatDate(b.startDate) + ' - ' + formatDate(b.endDate) + calLink + '</td><td class="p-3 text-right">' + actionBtn + '</td></tr>';
+          tbody.innerHTML += `<tr class="border-b border-gray-50"><td class="p-3">${statusHtml}</td><td class="p-3">${b.type}</td><td class="p-3">${formatDate(b.startDate)} - ${formatDate(b.endDate)}${calLink}</td><td class="p-3 text-right">${actionBtn}</td></tr>`;
         });
       }
 
       function renderGenericCalendar(targetDate, targetDivHeader, targetDivBody, employeeList) {
-        var y = targetDate.getFullYear(), m = targetDate.getMonth();
-        var mNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-        if(targetDivHeader === 'calendar-header-dates') document.getElementById('calendar-month-label').textContent = mNames[m] + ' ' + y;
-        else document.getElementById('my-team-month-label').textContent = mNames[m] + ' ' + y;
+        const y = targetDate.getFullYear(), m = targetDate.getMonth();
+        const mNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        if(targetDivHeader === 'calendar-header-dates') document.getElementById('calendar-month-label').textContent = `${mNames[m]} ${y}`;
+        else document.getElementById('my-team-month-label').textContent = `${mNames[m]} ${y}`;
 
-        var monthsToShow = 1;
+        let monthsToShow = 1;
         if(targetDivHeader === 'calendar-header-dates') {
             monthsToShow = parseInt(document.getElementById('calendar-view-mode').value);
         }
 
-        var header = document.getElementById(targetDivHeader); header.innerHTML = '';
-        var today = new Date(); 
-        var allDates = [];
+        const header = document.getElementById(targetDivHeader); header.innerHTML = '';
+        const today = new Date(); 
+        let allDates = [];
         
-        for(var i=0; i<monthsToShow; i++) {
-            var currentM = (m + i) % 12;
-            var currentY = y + Math.floor((m + i) / 12);
-            var daysInM = new Date(currentY, currentM + 1, 0).getDate();
+        for(let i=0; i<monthsToShow; i++) {
+            const currentM = (m + i) % 12;
+            const currentY = y + Math.floor((m + i) / 12);
+            const daysInM = new Date(currentY, currentM + 1, 0).getDate();
             if (monthsToShow > 1) {
-              header.innerHTML += '<div class="bg-gray-100 text-gray-700 font-bold text-xs p-1 border-r border-gray-300 sticky left-0">' + mNames[currentM] + '</div>';
+              header.innerHTML += `<div class="bg-gray-100 text-gray-700 font-bold text-xs p-1 border-r border-gray-300 sticky left-0">${mNames[currentM]}</div>`;
             }
-            for(var d=1; d<=daysInM; d++) {
-                var dt = new Date(currentY, currentM, d);
+            for(let d=1; d<=daysInM; d++) {
+                const dt = new Date(currentY, currentM, d);
                 allDates.push(dt);
-                var isW = dt.getDay()===0||dt.getDay()===6;
-                var isToday = dt.getDate() === today.getDate() && dt.getMonth() === today.getMonth() && dt.getFullYear() === today.getFullYear();
-                var classes = 'flex-1 min-w-[30px] text-center text-xs py-2 border-r border-gray-100 ';
+                const isW = dt.getDay()===0||dt.getDay()===6;
+                const isToday = dt.getDate() === today.getDate() && dt.getMonth() === today.getMonth() && dt.getFullYear() === today.getFullYear();
+                let classes = `flex-1 min-w-[30px] text-center text-xs py-2 border-r border-gray-100 `;
                 if (isToday) { classes += 'bg-green-600 text-white font-bold shadow-sm'; } else { classes += isW ? 'bg-gray-100 text-gray-400' : 'text-gray-600'; }
-                header.innerHTML += '<div class="' + classes + '"><div class="font-bold">' + d + '</div><div>' + dt.toLocaleDateString('en-US',{weekday:'short' + ')[0]}</div></div>';
+                header.innerHTML += `<div class="${classes}"><div class="font-bold">${d}</div><div>${dt.toLocaleDateString('en-US',{weekday:'short'})[0]}</div></div>`;
             }
         }
         
-        var body = document.getElementById(targetDivBody); body.innerHTML = '';
+        const body = document.getElementById(targetDivBody); body.innerHTML = '';
 
-        employeeList.forEach(function(emp) {
-          var indentStyle = 'padding-left: 0.75rem;'; 
-          var borderStyle = ''; var fontStyle = 'font-bold bg-gray-50'; 
+        employeeList.forEach(emp => {
+          let indentStyle = 'padding-left: 0.75rem;'; 
+          let borderStyle = ''; let fontStyle = 'font-bold bg-gray-50'; 
           if (emp.depth > 0) {
-             var paddingRem = 0.75 + (emp.depth * 1.5); 
-             indentStyle = 'padding-left: ' + paddingRem + 'rem;';
+             const paddingRem = 0.75 + (emp.depth * 1.5); 
+             indentStyle = `padding-left: ${paddingRem}rem;`;
              borderStyle = 'border-l-4 border-green-100';
              fontStyle = ''; 
           }
-          var expandBtn = '';
+          let expandBtn = '';
           if (targetDivBody === 'my-team-grid-body' && emp.hasSubTeam) {
-             var isExpanded = arrayContains(expandedManagers, emp.email);
-             expandBtn = '<button onclick="toggleSubTeam(\'' + emp.email + '\')" class="mr-2 text-purple-600 hover:bg-purple-100 rounded px-1 text-xs font-bold w-5 h-5 flex items-center justify-center border border-purple-200">' + isExpanded ? '-' : '+' + '</button>';
+             const isExpanded = expandedManagers.has(emp.email);
+             expandBtn = `<button onclick="toggleSubTeam('${emp.email}')" class="mr-2 text-purple-600 hover:bg-purple-100 rounded px-1 text-xs font-bold w-5 h-5 flex items-center justify-center border border-purple-200">${isExpanded ? '-' : '+'}</button>`;
           }
 
-          var row = document.createElement('div'); row.className="flex border-b border-gray-100 hover:bg-gray-50 transition";
-          row.innerHTML = '<div class="w-48 shrink-0 text-sm text-gray-700 border-r border-gray-200 sticky left-0 z-10 flex items-center ' + borderStyle + ' ' + fontStyle + '" style="' + indentStyle + '">' + expandBtn + emp.depth > 0 && !expandBtn ? '<i class="fa-solid fa-turn-up rotate-90 mr-2 text-gray-300 text-xs"></i>' : '' + emp.name + '</div>';
-          var cont = document.createElement('div'); cont.className="flex flex-1 overflow-visible";
-          var sched = appData.schedules[emp.email] || {};
+          const row = document.createElement('div'); row.className="flex border-b border-gray-100 hover:bg-gray-50 transition";
+          row.innerHTML = `<div class="w-48 shrink-0 text-sm text-gray-700 border-r border-gray-200 sticky left-0 z-10 flex items-center ${borderStyle} ${fontStyle}" style="${indentStyle}">${expandBtn}${emp.depth > 0 && !expandBtn ? '<i class="fa-solid fa-turn-up rotate-90 mr-2 text-gray-300 text-xs"></i>' : ''}${emp.name}</div>`;
+          const cont = document.createElement('div'); cont.className="flex flex-1 overflow-visible";
+          const sched = appData.schedules[emp.email] || {};
           
-          allDates.forEach(function(cur) {
-            var dayName = cur.toLocaleDateString('en-US',{weekday:'long'});
-            var isW = cur.getDay()===0||cur.getDay()===6;
+          allDates.forEach(cur => {
+            const dayName = cur.toLocaleDateString('en-US',{weekday:'long'});
+            const isW = cur.getDay()===0||cur.getDay()===6;
             
             // Gap Logic
-            var isWorkingDay = true;
+            let isWorkingDay = true;
             if (Object.keys(sched).length > 0) {
                 if (!sched[dayName] || sched[dayName].type === 'None') isWorkingDay = false;
             } else {
                 if (isW) isWorkingDay = false;
             }
 
-            var cell = document.createElement('div'); 
-            cell.className='flex-1 min-w-[30px] border-r border-gray-100 h-10 ' + isWorkingDay?'':'bg-gray-50 pattern-dots' + ' relative';
+            const cell = document.createElement('div'); 
+            cell.className=`flex-1 min-w-[30px] border-r border-gray-100 h-10 ${isWorkingDay?'':'bg-gray-50 pattern-dots'} relative`;
             
-            var b = appData.bookings.find(function(x) { return x.email===emp.email && x.status!=='Rejected' && x.status!=='Cancelled' && cur>=new Date(x.startDate; })&&cur<=new Date(x.endDate));
-            var def = sched[dayName];
+            const b = appData.bookings.find(x => x.email===emp.email && x.status!=='Rejected' && x.status!=='Cancelled' && cur>=new Date(x.startDate)&&cur<=new Date(x.endDate));
+            const def = sched[dayName];
             
-            var shouldShow = true;
+            let shouldShow = true;
             if (b && b.type === 'Sickness') {
-                var isMe = appData.currentUser.email === b.email;
-                var isAdmin = appData.currentUser.role === 'Admin';
+                const isMe = appData.currentUser.email === b.email;
+                const isAdmin = appData.currentUser.role === 'Admin';
                 if (!isMe && !isAdmin) shouldShow = false;
             }
 
             if(b && shouldShow && isWorkingDay) {
-               var div = document.createElement('div'); div.className="absolute inset-1 rounded-sm shadow-sm flex items-center justify-center text-[10px] font-bold text-white overflow-hidden";
+               const div = document.createElement('div'); div.className="absolute inset-1 rounded-sm shadow-sm flex items-center justify-center text-[10px] font-bold text-white overflow-hidden";
                if(b.status==='Pending' || b.status==='Cancellation Requested') {
                  div.classList.add('bg-gray-400','bg-stripe','text-gray-800');
                  div.innerHTML='<i class="fa-solid fa-hourglass"></i>';
@@ -873,7 +778,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
                }
                cell.appendChild(div);
             } else if(def && isWorkingDay && def.type !== 'None') {
-               var div = document.createElement('div'); div.className="absolute inset-1 rounded-sm flex items-center justify-center text-[9px] font-semibold text-gray-600";
+               const div = document.createElement('div'); div.className="absolute inset-1 rounded-sm flex items-center justify-center text-[9px] font-semibold text-gray-600";
                div.classList.add(def.type==='WFH'?'bg-blue-50':'bg-yellow-50', def.type==='WFH'?'text-blue-700':'text-yellow-700');
                div.textContent = def.hours+'h';
                cell.appendChild(div);
@@ -886,58 +791,58 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       }
 
       function renderTeamCalendar() {
-        var deptFilter = document.getElementById('calendar-dept-filter');
+        const deptFilter = document.getElementById('calendar-dept-filter');
         if (deptFilter.options.length === 1) {
-            var depts = getUniqueValues(appData.employees.map(function(e) { return e.department; }).filter(function(d) { return d; }));
-            depts.forEach(function(d) { var opt = document.createElement('option'); opt.value = d; opt.textContent = d; deptFilter.appendChild(opt); });
+            const depts = [...new Set(appData.employees.map(e => e.department).filter(d => d))];
+            depts.forEach(d => { const opt = document.createElement('option'); opt.value = d; opt.textContent = d; deptFilter.appendChild(opt); });
         }
         
-        var empMap = {}; var reportsMap = {};
-        appData.employees.forEach(function(e) { empMap[e.email] = e; var mgr = e.manager || 'root'; if(!reportsMap[mgr]) reportsMap[mgr] = []; reportsMap[mgr].push(e); });
-        var organizedEmployees = []; var processed = new Set();
+        const empMap = {}; const reportsMap = {};
+        appData.employees.forEach(e => { empMap[e.email] = e; const mgr = e.manager || 'root'; if(!reportsMap[mgr]) reportsMap[mgr] = []; reportsMap[mgr].push(e); });
+        const organizedEmployees = []; const processed = new Set();
         function traverse(email, level) {
-            if(arrayContains(processed, email)) return;
-            if (email !== 'root') { var emp = empMap[email]; if(emp) { organizedEmployees.push(copyObject(emp, { depth: level  })); arrayAdd(processed, email); } }
-            var reports = reportsMap[email] || [];
-            reports.forEach(function(r) traverse(r.email, email === 'root' ? 0 : level + 1));
+            if(processed.has(email)) return;
+            if (email !== 'root') { const emp = empMap[email]; if(emp) { organizedEmployees.push({ ...emp, depth: level }); processed.add(email); } }
+            const reports = reportsMap[email] || [];
+            reports.forEach(r => traverse(r.email, email === 'root' ? 0 : level + 1));
         }
-        var roots = appData.employees.filter(function(e) { return !e.manager || !empMap[e.manager]; });
-        roots.sort(function(a, b) (a.role==='Admin' && b.role!=='Admin') ? -1 : 0);
-        roots.forEach(function(r) traverse(r.email, 0));
-        appData.employees.forEach(function(e) { if (!arrayContains(processed, e.email)) { organizedEmployees.push(copyObject(e, { depth: 0  })); } });
+        const roots = appData.employees.filter(e => !e.manager || !empMap[e.manager]);
+        roots.sort((a,b) => (a.role==='Admin' && b.role!=='Admin') ? -1 : 0);
+        roots.forEach(r => traverse(r.email, 0));
+        appData.employees.forEach(e => { if (!processed.has(e.email)) { organizedEmployees.push({ ...e, depth: 0 }); } });
 
-        var displayList = organizedEmployees;
-        if (deptFilter.value !== 'all') { displayList = organizedEmployees.filter(function(e) { return e.department === deptFilter.value; }); displayList.forEach(function(e) e.depth = 0); }
+        let displayList = organizedEmployees;
+        if (deptFilter.value !== 'all') { displayList = organizedEmployees.filter(e => e.department === deptFilter.value); displayList.forEach(e => e.depth = 0); }
         renderGenericCalendar(calendarDate, 'calendar-header-dates', 'calendar-grid-body', displayList);
       }
 
       function renderMyTeamCalendar() {
         if(appData.currentUser.role !== 'Admin') return;
-        var myEmail = appData.currentUser.email;
-        var myTeam = [];
+        const myEmail = appData.currentUser.email;
+        const myTeam = [];
         function getRecursiveReports(managerEmail, depth) {
-            var directs = appData.employees.filter(function(e) { return e.manager === managerEmail; });
-            directs.forEach(function(r) {
-                var subReports = appData.employees.filter(function(e) { return e.manager === r.email; });
-                myTeam.push(copyObject(r, { depth: depth, hasSubTeam: subReports.length > 0  }));
-                if (arrayContains(expandedManagers, r.email)) { getRecursiveReports(r.email, depth + 1); }
+            const directs = appData.employees.filter(e => e.manager === managerEmail);
+            directs.forEach(r => {
+                const subReports = appData.employees.filter(e => e.manager === r.email);
+                myTeam.push({ ...r, depth: depth, hasSubTeam: subReports.length > 0 });
+                if (expandedManagers.has(r.email)) { getRecursiveReports(r.email, depth + 1); }
             });
         }
-        var me = appData.employees.find(function(e) { return e.email === myEmail; });
-        var myDirects = appData.employees.filter(function(e) { return e.manager === myEmail; });
-        if(me) myTeam.push(copyObject(me, { depth: 0, hasSubTeam: myDirects.length > 0  }));
-        if (arrayContains(expandedManagers, myEmail) || true) { getRecursiveReports(myEmail, 1); }
+        const me = appData.employees.find(e => e.email === myEmail);
+        const myDirects = appData.employees.filter(e => e.manager === myEmail);
+        if(me) myTeam.push({ ...me, depth: 0, hasSubTeam: myDirects.length > 0 });
+        if (expandedManagers.has(myEmail) || true) { getRecursiveReports(myEmail, 1); }
         renderGenericCalendar(myTeamCalendarDate, 'my-team-header-dates', 'my-team-grid-body', myTeam);
       }
 
       function renderPatternsView() {
-        var tbody = document.getElementById('patterns-body'); tbody.innerHTML = '';
-        appData.employees.forEach(function(emp) {
-            var sched = appData.schedules[emp.email] || {};
-            var rowHtml = '<tr class="hover:bg-gray-50 border-b border-gray-100"><td class="p-4 font-bold text-gray-700">' + emp.name + '</td>';
-            ['Monday','Tuesday','Wednesday','Thursday','Friday'].forEach(function(d) {
-                var day = sched[d] || {type:'Office', hours:7.5};
-                rowHtml += '<td class="p-4 text-sm"><span class="block font-bold ' + day.type==='WFH'?'text-blue-600':'text-yellow-600' + '">' + day.type + '</span><span class="text-xs text-gray-500">' + day.hours + 'h</span></td>';
+        const tbody = document.getElementById('patterns-body'); tbody.innerHTML = '';
+        appData.employees.forEach(emp => {
+            const sched = appData.schedules[emp.email] || {};
+            let rowHtml = `<tr class="hover:bg-gray-50 border-b border-gray-100"><td class="p-4 font-bold text-gray-700">${emp.name}</td>`;
+            ['Monday','Tuesday','Wednesday','Thursday','Friday'].forEach(d => {
+                const day = sched[d] || {type:'Office', hours:7.5};
+                rowHtml += `<td class="p-4 text-sm"><span class="block font-bold ${day.type==='WFH'?'text-blue-600':'text-yellow-600'}">${day.type}</span><span class="text-xs text-gray-500">${day.hours}h</span></td>`;
             });
             tbody.innerHTML += rowHtml + '</tr>';
         });
@@ -946,201 +851,201 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       function renderAdminView() {
         if(appData.currentUser.role!=='Admin') return;
         
-        var filterVal = document.getElementById('admin-pending-filter').value;
-        var pending = appData.bookings.filter(function(b) { return b.status==='Pending' || b.status==='Cancellation Requested'; }); 
+        const filterVal = document.getElementById('admin-pending-filter').value;
+        const pending = appData.bookings.filter(b=>b.status==='Pending' || b.status==='Cancellation Requested'); 
         document.getElementById('pending-count').textContent=pending.length;
         
-        var filterSel = document.getElementById('admin-pending-filter');
+        const filterSel = document.getElementById('admin-pending-filter');
         if (filterSel.options.length <= 1) {
-           var uniqueEmails = [...new Set(pending.map(function(b) { return b.email; }))];
-           uniqueEmails.forEach(function(email) { var name = appData.employees.find(function(e) { return e.email === email; })?.name || email; var opt = document.createElement('option'); opt.value = email; opt.textContent = name; filterSel.appendChild(opt); });
+           const uniqueEmails = [...new Set(pending.map(b => b.email))];
+           uniqueEmails.forEach(email => { const name = appData.employees.find(e => e.email === email)?.name || email; const opt = document.createElement('option'); opt.value = email; opt.textContent = name; filterSel.appendChild(opt); });
         }
-        var displayPending = filterVal === 'all' ? pending : pending.filter(function(b) { return b.email === filterVal; });
-        var inbox = document.getElementById('admin-inbox-container');
+        const displayPending = filterVal === 'all' ? pending : pending.filter(b => b.email === filterVal);
+        const inbox = document.getElementById('admin-inbox-container');
         if(displayPending.length===0) {
           inbox.innerHTML='<div class="p-6 text-center text-gray-400 italic">No matching requests.</div>';
         } else {
-          var h='<table class="w-full text-left text-sm"><thead class="bg-yellow-50 text-green-900"><tr><th class="p-3">Colleague</th><th class="p-3">Request</th><th class="p-3">Dates</th><th class="p-3 text-right">Action</th></tr></thead><tbody>';
-          displayPending.forEach(function(b) {
-            var n=appData.employees.find(function(e) { return e.email===b.email; })?.name||b.email;
-            var canApprove = isManagerOf(appData.currentUser.email, b.email);
-            var actionButtons = '';
+          let h='<table class="w-full text-left text-sm"><thead class="bg-yellow-50 text-green-900"><tr><th class="p-3">Colleague</th><th class="p-3">Request</th><th class="p-3">Dates</th><th class="p-3 text-right">Action</th></tr></thead><tbody>';
+          displayPending.forEach(b=>{
+            const n=appData.employees.find(e=>e.email===b.email)?.name||b.email;
+            const canApprove = isManagerOf(appData.currentUser.email, b.email);
+            let actionButtons = '';
             if (canApprove) {
                 if (b.status === 'Cancellation Requested') {
-                    actionButtons = '<button onclick="handleAdminCancellation(\'' + b.id + '\',\'approve\')" class="text-red-600 font-bold mr-2">Confirm Cancel</button><button onclick="handleAdminCancellation(\'' + b.id + '\',\'reject\')" class="text-gray-500">Keep Booking</button>';
+                    actionButtons = `<button onclick="handleAdminCancellation('${b.id}','approve')" class="text-red-600 font-bold mr-2">Confirm Cancel</button><button onclick="handleAdminCancellation('${b.id}','reject')" class="text-gray-500">Keep Booking</button>`;
                 } else {
-                    actionButtons = '<button onclick="handleStatus(\'' + b.id + '\',\'Approved\')" class="text-green-600 font-bold mr-2">Approve</button><button onclick="handleStatus(\'' + b.id + '\',\'Rejected\')" class="text-red-500">Reject</button>';
+                    actionButtons = `<button onclick="handleStatus('${b.id}','Approved')" class="text-green-600 font-bold mr-2">Approve</button><button onclick="handleStatus('${b.id}','Rejected')" class="text-red-500">Reject</button>`;
                 }
             } else {
-                var emp = appData.employees.find(function(e) { return e.email === b.email; });
-                var mgrName = emp && emp.manager ? (appData.employees.find(function(m) { return m.email === emp.manager; })?.name || emp.manager) : 'Manager';
-                actionButtons = '<span class="text-xs text-gray-400 italic">Awaiting ' + mgrName + '</span>';
+                const emp = appData.employees.find(e => e.email === b.email);
+                const mgrName = emp && emp.manager ? (appData.employees.find(m => m.email === emp.manager)?.name || emp.manager) : 'Manager';
+                actionButtons = `<span class="text-xs text-gray-400 italic">Awaiting ${mgrName}</span>`;
             }
 
             if (b.status === 'Cancellation Requested') {
-                h+='<tr class="border-b bg-red-50"><td class="p-3 font-bold">' + n + '</td><td class="p-3 text-red-600 font-bold">Cancel Request</td><td class="p-3">' + formatDate(b.startDate) + ' - ' + formatDate(b.endDate) + '</td><td class="p-3 text-right">' + actionButtons + '</td></tr>';
+                h+=`<tr class="border-b bg-red-50"><td class="p-3 font-bold">${n}</td><td class="p-3 text-red-600 font-bold">Cancel Request</td><td class="p-3">${formatDate(b.startDate)} - ${formatDate(b.endDate)}</td><td class="p-3 text-right">${actionButtons}</td></tr>`;
             } else {
-                h+='<tr class="border-b"><td class="p-3 font-bold">' + n + '</td><td class="p-3">' + b.type + '</td><td class="p-3"><button onclick="jumpToCalendar(\'' + b.startDate + '\')" class="text-blue-600 hover:text-blue-800 hover:underline font-medium flex items-center" title="View in Calendar"><i class="fa-solid fa-calendar-day mr-2"></i> ' + formatDate(b.startDate) + ' - ' + formatDate(b.endDate) + ' </button></td><td class="p-3 text-right">' + actionButtons + '</td></tr>';
+                h+=`<tr class="border-b"><td class="p-3 font-bold">${n}</td><td class="p-3">${b.type}</td><td class="p-3"><button onclick="jumpToCalendar('${b.startDate}')" class="text-blue-600 hover:text-blue-800 hover:underline font-medium flex items-center" title="View in Calendar"><i class="fa-solid fa-calendar-day mr-2"></i> ${formatDate(b.startDate)} - ${formatDate(b.endDate)} </button></td><td class="p-3 text-right">${actionButtons}</td></tr>`;
             }
           });
           inbox.innerHTML=h+'</tbody></table>';
         }
 
         // SICKNESS INSIGHTS RENDER
-        var sicknessBody = document.getElementById('admin-sickness-body');
-        var sickBookings = appData.bookings.filter(function(b) { return b.type === 'Sickness' && b.status !== 'Cancelled'; });
+        const sicknessBody = document.getElementById('admin-sickness-body');
+        const sickBookings = appData.bookings.filter(b => b.type === 'Sickness' && b.status !== 'Cancelled');
         if (sickBookings.length === 0) {
             sicknessBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-400 italic">No sickness records found.</td></tr>';
         } else {
-            var stats = {};
-            sickBookings.sort(function(a, b) new Date(a.startDate) - new Date(b.startDate));
-            sickBookings.forEach(function(b) {
+            const stats = {};
+            sickBookings.sort((a,b) => new Date(a.startDate) - new Date(b.startDate));
+            sickBookings.forEach(b => {
                 if(!stats[b.email]) stats[b.email] = { days: 0, episodes: 0, last: null, lastEnd: null };
-                var s = stats[b.email];
+                const s = stats[b.email];
                 s.days += b.daysCount;
                 // Episode Logic
-                var start = new Date(b.startDate);
+                const start = new Date(b.startDate);
                 if (!s.lastEnd || (start - s.lastEnd) > (2 * 86400000)) { s.episodes++; }
                 s.lastEnd = new Date(b.endDate);
                 if (!s.last || new Date(b.endDate) > new Date(s.last)) s.last = b.endDate;
             });
             
             sicknessBody.innerHTML = '';
-            Object.keys(stats).forEach(function(email) {
-                var s = stats[email];
-                var n = appData.employees.find(function(e) { return e.email === email; })?.name || email;
-                var bf = (s.episodes * s.episodes * s.days); // Bradford Factor Proxy
-                var riskClass = 'text-green-600';
+            Object.keys(stats).forEach(email => {
+                const s = stats[email];
+                const n = appData.employees.find(e => e.email === email)?.name || email;
+                const bf = (s.episodes * s.episodes * s.days); // Bradford Factor Proxy
+                let riskClass = 'text-green-600';
                 if(bf > 200) riskClass = 'text-red-600 font-bold';
                 else if(bf > 50) riskClass = 'text-yellow-600 font-bold';
                 
-                sicknessBody.innerHTML += '<tr class="border-b border-gray-100 hover:bg-gray-50"><td class="p-2 font-bold text-gray-700">' + n + '</td><td class="p-2 text-center">' + s.days + '</td><td class="p-2 text-center">' + s.episodes + '</td><td class="p-2 text-sm text-gray-500">' + formatDate(s.last) + '</td><td class="p-2 font-mono ' + riskClass + '">' + bf + '</td></tr>';
+                sicknessBody.innerHTML += `<tr class="border-b border-gray-100 hover:bg-gray-50"><td class="p-2 font-bold text-gray-700">${n}</td><td class="p-2 text-center">${s.days}</td><td class="p-2 text-center">${s.episodes}</td><td class="p-2 text-sm text-gray-500">${formatDate(s.last)}</td><td class="p-2 font-mono ${riskClass}">${bf}</td></tr>`;
             });
         }
 
         // AUDIT LOGS RENDER
-        var auditBody = document.getElementById('audit-logs-body');
+        const auditBody = document.getElementById('audit-logs-body');
         if (appData.auditLogs && appData.auditLogs.length > 0) {
             auditBody.innerHTML = '';
-            appData.auditLogs.forEach(function(log) {
-                var time = new Date(log.timestamp).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
-                auditBody.innerHTML += '<tr class="border-b border-gray-100 hover:bg-gray-50"><td class="p-2 text-gray-500 whitespace-nowrap">' + time + '</td><td class="p-2 text-blue-600 font-bold">' + log.actor + '</td><td class="p-2 font-bold text-gray-700">' + log.action + '</td><td class="p-2 text-gray-600 break-all">' + log.details + '</td></tr>';
+            appData.auditLogs.forEach(log => {
+                const time = new Date(log.timestamp).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+                auditBody.innerHTML += `<tr class="border-b border-gray-100 hover:bg-gray-50"><td class="p-2 text-gray-500 whitespace-nowrap">${time}</td><td class="p-2 text-blue-600 font-bold">${log.actor}</td><td class="p-2 font-bold text-gray-700">${log.action}</td><td class="p-2 text-gray-600 break-all">${log.details}</td></tr>`;
             });
         } else {
             auditBody.innerHTML = '<tr><td colspan="4" class="p-4 text-gray-400 italic">No logs available.</td></tr>';
         }
 
         // Active Bookings Render
-        var activeFilterVal = document.getElementById('admin-active-filter').value;
-        var allBookingsBody = document.getElementById('admin-all-bookings-body');
-        var allApproved = appData.bookings.filter(function(b) { return b.status === 'Approved' || b.status === 'Pending'; }).sort(function(a, b) new Date(b.startDate) - new Date(a.startDate));
-        var activeFilterSel = document.getElementById('admin-active-filter');
+        const activeFilterVal = document.getElementById('admin-active-filter').value;
+        const allBookingsBody = document.getElementById('admin-all-bookings-body');
+        let allApproved = appData.bookings.filter(b => b.status === 'Approved' || b.status === 'Pending').sort((a,b) => new Date(b.startDate) - new Date(a.startDate));
+        const activeFilterSel = document.getElementById('admin-active-filter');
         if (activeFilterSel.options.length <= 1) {
-           var uniqueEmails = [...new Set(allApproved.map(function(b) { return b.email; }))];
-           uniqueEmails.forEach(function(email) { var name = appData.employees.find(function(e) { return e.email === email; })?.name || email; var opt = document.createElement('option'); opt.value = email; opt.textContent = name; activeFilterSel.appendChild(opt); });
+           const uniqueEmails = [...new Set(allApproved.map(b => b.email))];
+           uniqueEmails.forEach(email => { const name = appData.employees.find(e => e.email === email)?.name || email; const opt = document.createElement('option'); opt.value = email; opt.textContent = name; activeFilterSel.appendChild(opt); });
         }
-        if (activeFilterVal !== 'all') { allApproved = allApproved.filter(function(b) { return b.email === activeFilterVal; }); }
+        if (activeFilterVal !== 'all') { allApproved = allApproved.filter(b => b.email === activeFilterVal); }
         if (allApproved.length === 0) {
           allBookingsBody.innerHTML = '<tr class="text-gray-400 italic"><td class="p-4">No active bookings found.</td></tr>';
         } else {
-            var abHtml = '';
-            allApproved.forEach(function(b) {
-                var name = appData.employees.find(function(e) { return e.email === b.email; })?.name || b.email;
-                abHtml += '<tr class="border-b border-gray-100 hover:bg-gray-50"><td class="p-3 font-bold text-gray-700">' + name + '</td><td class="p-3">' + b.type + '</td><td class="p-3">' + formatDate(b.startDate) + ' - ' + formatDate(b.endDate) + '</td><td class="p-3"><span class="px-2 py-1 rounded text-xs font-bold ' + b.status==='Approved'?'bg-green-100 text-green-700':'bg-yellow-100 text-yellow-700' + '">' + b.status + '</span></td><td class="p-3 text-right"><a href="mailto:' + b.email + '?subject=Regarding Holiday ' + formatDate(b.startDate) + '" class="text-blue-500 hover:text-blue-700 mr-3" title="Email"><i class="fa-solid fa-envelope"></i></a><button onclick="handleAdminCancellation(\'' + b.id + '\', \'approve\')" class="text-red-400 hover:text-red-600" title="Cancel Booking"><i class="fa-solid fa-ban"></i></button></td></tr>';
+            let abHtml = '';
+            allApproved.forEach(b => {
+                const name = appData.employees.find(e => e.email === b.email)?.name || b.email;
+                abHtml += `<tr class="border-b border-gray-100 hover:bg-gray-50"><td class="p-3 font-bold text-gray-700">${name}</td><td class="p-3">${b.type}</td><td class="p-3">${formatDate(b.startDate)} - ${formatDate(b.endDate)}</td><td class="p-3"><span class="px-2 py-1 rounded text-xs font-bold ${b.status==='Approved'?'bg-green-100 text-green-700':'bg-yellow-100 text-yellow-700'}">${b.status}</span></td><td class="p-3 text-right"><a href="mailto:${b.email}?subject=Regarding Holiday ${formatDate(b.startDate)}" class="text-blue-500 hover:text-blue-700 mr-3" title="Email"><i class="fa-solid fa-envelope"></i></a><button onclick="handleAdminCancellation('${b.id}', 'approve')" class="text-red-400 hover:text-red-600" title="Cancel Booking"><i class="fa-solid fa-ban"></i></button></td></tr>`;
             });
             allBookingsBody.innerHTML = abHtml;
         }
 
-        var tbodyEmp = document.getElementById('admin-emp-body'); tbodyEmp.innerHTML='';
-        var today = new Date(); // Fix: Define today
-        var range = getCurrentFiscalYearRange(); var start = range.start; var end = range.end;
-        var totalDays=(end-start)/86400000;
-        var passed=(today-start)/86400000;
-        var frac=Math.max(0,Math.min(1,passed/totalDays));
-        var remMonths=((end-today)/86400000)/30;
+        const tbodyEmp = document.getElementById('admin-emp-body'); tbodyEmp.innerHTML='';
+        const today = new Date(); // Fix: Define today
+        const {start,end} = getCurrentFiscalYearRange();
+        const totalDays=(end-start)/86400000;
+        const passed=(today-start)/86400000;
+        const frac=Math.max(0,Math.min(1,passed/totalDays));
+        const remMonths=((end-today)/86400000)/30;
         
-        appData.employees.forEach(function(emp) {
-          var totalAllowance = (Number(emp.allowance)||0) + (Number(emp.carryOver)||0);
-          var books=appData.bookings.filter(function(b) { return b.email===emp.email && b.type==='Holiday' && b.status!=='Cancelled' && isDateInCurrentFY(b.startDate; }));
-          var taken=books.filter(function(b) { return b.status==='Approved'&&new Date(b.startDate; })<today).reduce(function(a, c) a+c.daysCount,0);
-          var plan=books.filter(function(b) { return (b.status==='Approved'||b.status==='Pending'; })&&new Date(b.startDate)>=today).reduce(function(a, c) a+c.daysCount,0);
-          var total=taken+plan, unbooked=totalAllowance-total, pct=total/totalAllowance;
-          var msg='', cls='text-gray-500';
-          if(unbooked<0) { msg='🛑 <strong>Overbooked!</strong> (' + Math.abs(unbooked) + ' days)'; cls='bg-red-100 text-red-800'; }
-          else if(total===totalAllowance) { msg='✅ <strong>Fully Booked.</strong>'; cls='bg-green-100 text-green-800'; }
-          else if(remMonths<3 && unbooked>5) { msg='⚠️ <strong>CRITICAL:</strong> ' + unbooked + ' days left.'; cls='bg-red-50 text-red-600 animate-pulse'; }
-          else if(frac>0.6 && pct<0.4) { msg='📉 <strong>Hoarding:</strong> Push to book.'; cls='bg-yellow-100 text-yellow-800'; }
-          else { msg='✔️ <strong>On Track.</strong>'; cls='text-green-700 bg-green-50'; }
+        appData.employees.forEach(emp=>{
+          const totalAllowance = (Number(emp.allowance)||0) + (Number(emp.carryOver)||0);
+          const books=appData.bookings.filter(b=>b.email===emp.email && b.type==='Holiday' && b.status!=='Cancelled' && isDateInCurrentFY(b.startDate));
+          const taken=books.filter(b=>b.status==='Approved'&&new Date(b.startDate)<today).reduce((a,c)=>a+c.daysCount,0);
+          const plan=books.filter(b=>(b.status==='Approved'||b.status==='Pending')&&new Date(b.startDate)>=today).reduce((a,c)=>a+c.daysCount,0);
+          const total=taken+plan, unbooked=totalAllowance-total, pct=total/totalAllowance;
+          let msg='', cls='text-gray-500';
+          if(unbooked<0) { msg=`🛑 <strong>Overbooked!</strong> (${Math.abs(unbooked)} days)`; cls='bg-red-100 text-red-800'; }
+          else if(total===totalAllowance) { msg=`✅ <strong>Fully Booked.</strong>`; cls='bg-green-100 text-green-800'; }
+          else if(remMonths<3 && unbooked>5) { msg=`⚠️ <strong>CRITICAL:</strong> ${unbooked} days left.`; cls='bg-red-50 text-red-600 animate-pulse'; }
+          else if(frac>0.6 && pct<0.4) { msg=`📉 <strong>Hoarding:</strong> Push to book.`; cls='bg-yellow-100 text-yellow-800'; }
+          else { msg=`✔️ <strong>On Track.</strong>`; cls='text-green-700 bg-green-50'; }
           
-          tbodyEmp.innerHTML+='<tr class="hover:bg-gray-50 border-b border-gray-50"><td class="p-4 font-bold text-gray-700">' + emp.name + '<div class="text-xs text-gray-400 font-normal">' + emp.email + '</div><div class="text-xs text-blue-400">' + emp.department||'' + '</div></td><td class="p-4 text-center font-mono">' + totalAllowance + '<br><span class="text-xs text-gray-400">(+' + emp.carryOver||0 + ')</span></td><td class="p-4 text-center font-mono text-gray-600">' + taken + '</td><td class="p-4 text-center font-mono text-blue-600">' + plan + '</td><td class="p-4 text-center font-mono font-bold text-gray-800">' + unbooked + '</td><td class="p-4"><div class="p-2 rounded text-xs ' + cls + '">' + msg + '</div></td><td class="p-4 text-right space-x-2"><button onclick="openBookingModal(\'' + emp.email + '\')" class="text-gray-400 hover:text-green-600" title="Book for Colleague"><i class="fa-solid fa-calendar-plus"></i></button><button onclick="openScheduleModal(\'' + emp.email + '\',\'' + emp.name + '\')" class="text-gray-400 hover:text-green-600" title="Schedule"><i class="fa-solid fa-clock"></i></button><button onclick="openEmployeeModal(\'' + emp.email + '\')" class="text-gray-400 hover:text-blue-600" title="Edit"><i class="fa-solid fa-pen"></i></button><button onclick="deleteEmployee(\'' + emp.email + '\')" class="text-gray-400 hover:text-red-600" title="Delete"><i class="fa-solid fa-trash"></i></button></td></tr>';
+          tbodyEmp.innerHTML+=`<tr class="hover:bg-gray-50 border-b border-gray-50"><td class="p-4 font-bold text-gray-700">${emp.name}<div class="text-xs text-gray-400 font-normal">${emp.email}</div><div class="text-xs text-blue-400">${emp.department||''}</div></td><td class="p-4 text-center font-mono">${totalAllowance}<br><span class="text-xs text-gray-400">(+${emp.carryOver||0})</span></td><td class="p-4 text-center font-mono text-gray-600">${taken}</td><td class="p-4 text-center font-mono text-blue-600">${plan}</td><td class="p-4 text-center font-mono font-bold text-gray-800">${unbooked}</td><td class="p-4"><div class="p-2 rounded text-xs ${cls}">${msg}</div></td><td class="p-4 text-right space-x-2"><button onclick="openBookingModal('${emp.email}')" class="text-gray-400 hover:text-green-600" title="Book for Colleague"><i class="fa-solid fa-calendar-plus"></i></button><button onclick="openScheduleModal('${emp.email}','${emp.name}')" class="text-gray-400 hover:text-green-600" title="Schedule"><i class="fa-solid fa-clock"></i></button><button onclick="openEmployeeModal('${emp.email}')" class="text-gray-400 hover:text-blue-600" title="Edit"><i class="fa-solid fa-pen"></i></button><button onclick="deleteEmployee('${emp.email}')" class="text-gray-400 hover:text-red-600" title="Delete"><i class="fa-solid fa-trash"></i></button></td></tr>`;
         });
       }
 
       function handleBooking(e) {
         e.preventDefault();
-        var dCount = calculateBusinessDays(e.target.startDate.value, e.target.endDate.value);
+        const dCount = calculateBusinessDays(e.target.startDate.value, e.target.endDate.value);
         if (dCount === 0 && e.target.type.value === 'Holiday') { alert("Selected dates are weekends only."); return; }
-        var btn=document.getElementById('btn-submit-booking');
+        const btn=document.getElementById('btn-submit-booking');
         btn.innerHTML='Sending...';
         btn.disabled=true;
-        var fd = { type: e.target.type.value, startDate: e.target.startDate.value, endDate: e.target.endDate.value, hours: e.target.hours.value, targetEmail: document.getElementById('booking-target-user').value || null };
-        google.script.run.withSuccessHandler(function(res) {
+        const fd = { type: e.target.type.value, startDate: e.target.startDate.value, endDate: e.target.endDate.value, hours: e.target.hours.value, targetEmail: document.getElementById('booking-target-user').value || null };
+        google.script.run.withSuccessHandler((res) => {
             if (res.success === false) { alert(res.message); btn.innerHTML='Submit'; btn.disabled=false; return; }
-            var email = fd.targetEmail || appData.currentUser.email;
-            var newB = { id: res.id, email: email, type: fd.type, startDate: fd.startDate, endDate: fd.endDate, daysCount: res.daysCount, status: res.status, hours: fd.hours };
+            const email = fd.targetEmail || appData.currentUser.email;
+            const newB = { id: res.id, email: email, type: fd.type, startDate: fd.startDate, endDate: fd.endDate, daysCount: res.daysCount, status: res.status, hours: fd.hours };
             appData.bookings.push(newB);
             closeModals();
             refreshAllViews();
             btn.innerHTML='Submit';
             btn.disabled=false;
-        }).withFailureHandler(function(err) { btn.innerHTML='Submit'; btn.disabled=false; handleServerError(err); }).submitBooking(fd);
+        }).withFailureHandler((err) => { btn.innerHTML='Submit'; btn.disabled=false; handleServerError(err); }).submitBooking(fd);
       }
 
       function handleStatus(id, s) {
         if(s==='Rejected' && !confirm('Reject this booking?')) return;
-        var b = appData.bookings.find(function(x) { return x.id===id; });
+        const b = appData.bookings.find(x=>x.id===id);
         if(b) { b.status = s; refreshAllViews(); }
-        google.script.run.withSuccessHandler(function() { console.log("Status synced"); }).withFailureHandler(handleServerError).updateBookingStatus(id, s);
+        google.script.run.withSuccessHandler(()=>{ console.log("Status synced"); }).withFailureHandler(handleServerError).updateBookingStatus(id, s);
       }
 
       function handleEmployee(e) {
         e.preventDefault();
-        var fd = { name:e.target.name.value, email:e.target.email.value, allowance:e.target.allowance.value, carryOver:e.target.carryOver.value, role:e.target.role.value, manager:e.target.manager.value, department:e.target.department.value };
-        var isNew = !appData.employees.some(function(emp) { return emp.email === fd.email; });
-        google.script.run.withSuccessHandler(function() {
-            var idx = appData.employees.findIndex(function(emp) { return emp.email === fd.email; });
+        const fd = { name:e.target.name.value, email:e.target.email.value, allowance:e.target.allowance.value, carryOver:e.target.carryOver.value, role:e.target.role.value, manager:e.target.manager.value, department:e.target.department.value };
+        const isNew = !appData.employees.some(emp => emp.email === fd.email);
+        google.script.run.withSuccessHandler(() => {
+            const idx = appData.employees.findIndex(emp => emp.email === fd.email);
             if (idx >= 0) appData.employees[idx] = fd; else appData.employees.push(fd);
             renderAdminView();
             closeModals();
-            if (isNew && confirm('Colleague ' + fd.name + ' saved. Set schedule now?')) { openScheduleModal(fd.email, fd.name); }
+            if (isNew && confirm(`Colleague ${fd.name} saved. Set schedule now?`)) { openScheduleModal(fd.email, fd.name); }
         }).withFailureHandler(handleServerError).saveEmployee(fd);
       }
 
       function deleteEmployee(email) {
-        if(confirm('Delete?')) google.script.run.withSuccessHandler(function() { location.reload(); }).withFailureHandler(handleServerError).deleteEmployee(email);
+        if(confirm('Delete?')) google.script.run.withSuccessHandler(()=>location.reload()).withFailureHandler(handleServerError).deleteEmployee(email);
       }
 
       function openScheduleModal(email, name) {
         document.getElementById('modal-schedule').classList.remove('hidden');
         document.getElementById('schedule-modal-user').textContent=name;
         document.getElementById('schedule-email').value=email;
-        var c=document.getElementById('schedule-rows'); c.innerHTML='';
-        var d=['Monday','Tuesday','Wednesday','Thursday','Friday'];
-        var ex=appData.schedules[email]||{};
-        d.forEach(function(day) {
-            var def=ex[day]||{type:'None',hours:7.5};
-            c.innerHTML+='<div class="flex items-center space-x-3 p-2 bg-gray-50 rounded border border-gray-100"><div class="w-24 font-bold text-sm text-gray-700">' + day + '</div><select name="type_' + day + '" class="border rounded p-1 text-sm flex-1"><option value="None" ' + def.type==='None'?'selected':'' + '>Not Working</option><option value="Office" ' + def.type==='Office'?'selected':'' + '>Office</option><option value="WFH" ' + def.type==='WFH'?'selected':'' + '>WFH</option><option value="Travel" ' + def.type==='Travel'?'selected':'' + '>Travel</option></select><input type="number" name="hours_' + day + '" value="' + def.hours + '" step="0.1" class="w-20 border rounded p-1 text-sm"></div>';
+        const c=document.getElementById('schedule-rows'); c.innerHTML='';
+        const d=['Monday','Tuesday','Wednesday','Thursday','Friday'];
+        const ex=appData.schedules[email]||{};
+        d.forEach(day=>{
+            const def=ex[day]||{type:'None',hours:7.5};
+            c.innerHTML+=`<div class="flex items-center space-x-3 p-2 bg-gray-50 rounded border border-gray-100"><div class="w-24 font-bold text-sm text-gray-700">${day}</div><select name="type_${day}" class="border rounded p-1 text-sm flex-1"><option value="None" ${def.type==='None'?'selected':''}>Not Working</option><option value="Office" ${def.type==='Office'?'selected':''}>Office</option><option value="WFH" ${def.type==='WFH'?'selected':''}>WFH</option><option value="Travel" ${def.type==='Travel'?'selected':''}>Travel</option></select><input type="number" name="hours_${day}" value="${def.hours}" step="0.1" class="w-20 border rounded p-1 text-sm"></div>`;
         });
       }
 
       function handleScheduleSave(e) {
         e.preventDefault();
-        var em=e.target.email.value;
-        var d=['Monday','Tuesday','Wednesday','Thursday','Friday'];
-        var map={};
-        d.forEach(function(day) {
-            var t=e.target['type_' + day].value;
-            var h=e.target['hours_' + day].value;
+        const em=e.target.email.value;
+        const d=['Monday','Tuesday','Wednesday','Thursday','Friday'];
+        const map={};
+        d.forEach(day=>{
+            const t=e.target[`type_${day}`].value;
+            const h=e.target[`hours_${day}`].value;
             if(t!=='None') map[day]={type:t,hours:h};
         });
         if(!appData.schedules[em]) appData.schedules[em]={};
@@ -1152,14 +1057,14 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
 
       function openBookingModal(pre) {
         document.getElementById('modal-booking').classList.remove('hidden');
-        var s=document.getElementById('booking-target-user');
-        var d=document.getElementById('admin-booking-controls');
+        const s=document.getElementById('booking-target-user');
+        const d=document.getElementById('admin-booking-controls');
         document.getElementById('booking-start-date').value='';
         document.querySelector('input[name="endDate"]').value='';
         document.getElementById('booking-hours').value=7.5;
         if(appData.currentUser.role==='Admin'){
             d.classList.remove('hidden');
-            s.innerHTML='<option value="">-- Myself --</option>'+appData.employees.filter(function(e) { return e.email!==appData.currentUser.email; }).map(function(e) { return '<option value="' + e.email + '">' + e.name + '</option>'; }).join('');
+            s.innerHTML='<option value="">-- Myself --</option>'+appData.employees.filter(e=>e.email!==appData.currentUser.email).map(e=>`<option value="${e.email}">${e.name}</option>`).join('');
             if(pre) s.value=pre; else s.value="";
         } else {
             d.classList.add('hidden');
@@ -1169,14 +1074,14 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
 
       function openEmployeeModal(editEmail) {
         document.getElementById('modal-employee').classList.remove('hidden');
-        var form = document.querySelector('#modal-employee form');
-        var managerSel = document.getElementById('emp-manager-select');
+        const form = document.querySelector('#modal-employee form');
+        const managerSel = document.getElementById('emp-manager-select');
         managerSel.innerHTML = '<option value="">-- None --</option>';
-        appData.employees.filter(function(e) { return e.role === 'Admin'; }).forEach(function(m) {
-            managerSel.innerHTML += '<option value="' + m.email + '">' + m.name + '</option>';
+        appData.employees.filter(e => e.role === 'Admin').forEach(m => {
+            managerSel.innerHTML += `<option value="${m.email}">${m.name}</option>`;
         });
         if (editEmail) {
-            var emp = appData.employees.find(function(e) { return e.email === editEmail; });
+            const emp = appData.employees.find(e => e.email === editEmail);
             if(emp) {
                 form.name.value = emp.name;
                 form.email.value = emp.email;
@@ -1192,12 +1097,12 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       }
 
       function closeModals() {
-        ['modal-booking','modal-employee','modal-schedule','modal-chaser'].forEach(function(id) document.getElementById(id).classList.add('hidden'));
+        ['modal-booking','modal-employee','modal-schedule','modal-chaser'].forEach(id=>document.getElementById(id).classList.add('hidden'));
       }
 
       function sendChaser() {
-        var msg = document.getElementById('chaser-message').value;
-        var list = []; 
+        const msg = document.getElementById('chaser-message').value;
+        const list = []; 
         alert('Chaser sent!');
         closeModals();
       }
