@@ -3,25 +3,43 @@
 ## Issue Fixed
 The app was getting stuck on the loading screen with the error:
 ```
-Uncaught SyntaxError: Unexpected token 'class'
+Uncaught SyntaxError: Failed to execute 'write' on 'Document': Unexpected token 'class'
 ```
+
+## Root Cause
+The `.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)` setting was causing Google Apps Script to inject wrapper code that contains ES6 syntax. This injected code failed to execute using `document.write()`, preventing the app from loading.
 
 ## Changes Made
 
-### 1. HTML File (`index.html`)
-**Changed:** Tailwind CSS loading method
-- **Before:** `<script src="https://cdn.tailwindcss.com"></script>`
-- **After:** `<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">`
+### Google Apps Script File (`code.gs`)
+**Changed:** Removed the ALLOWALL XFrame setting
 
-**Why:** The Tailwind CSS CDN includes a JavaScript runtime that uses ES6 syntax (including the `class` keyword). This causes syntax errors in certain browser environments or when Google Apps Script serves the page in NATIVE sandbox mode.
+**Before:**
+```javascript
+function doGet() {
+  return HtmlService.createTemplateFromFile('index')
+    .evaluate()
+    .setTitle('Team Rota & Holiday Manager')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setSandboxMode(HtmlService.SandboxMode.IFRAME)
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+```
 
-**Solution:** Switched to a pre-built CSS-only version of Tailwind CSS that doesn't require JavaScript execution.
+**After:**
+```javascript
+function doGet() {
+  return HtmlService.createTemplateFromFile('index')
+    .evaluate()
+    .setTitle('Team Rota & Holiday Manager')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setSandboxMode(HtmlService.SandboxMode.IFRAME);
+}
+```
 
-### 2. Google Apps Script File (`code.gs`)
-**Changed:** Added sandbox mode configuration
-- **Added:** `.setSandboxMode(HtmlService.SandboxMode.IFRAME)`
+**Why:** The ALLOWALL setting was causing Google to inject problematic wrapper code. Removing it prevents the injection while still maintaining IFRAME sandbox mode for proper JavaScript support.
 
-**Why:** IFRAME sandbox mode provides better support for modern JavaScript features and is the recommended mode for Google Apps Script web apps.
+**Note:** The app will still work correctly. If you need to embed the app in an iframe on a specific domain in the future, you can use `HtmlService.XFrameOptionsMode.DEFAULT` instead of ALLOWALL.
 
 ## How to Deploy
 
@@ -29,25 +47,22 @@ Uncaught SyntaxError: Unexpected token 'class'
    - Go to https://script.google.com
    - Open your "Team Rota" project
 
-2. **Update the `index.html` file**
-   - Find line 5-6 in `index.html`
-   - Replace the Tailwind CSS script tag with the new link tag (see changes above)
+2. **Update the `code.gs` file**
+   - Find the `doGet()` function (around line 9-16)
+   - **Remove the line:** `.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)`
+   - Make sure the function ends with `.setSandboxMode(HtmlService.SandboxMode.IFRAME);`
 
-3. **Update the `code.gs` file**
-   - Find the `doGet()` function
-   - Add `.setSandboxMode(HtmlService.SandboxMode.IFRAME)` before `.setXFrameOptionsMode()`
-
-4. **Deploy the updated version**
+3. **Deploy the updated version**
    - Click **Deploy** > **Manage deployments**
    - Click the **Edit** button (pencil icon) on your active deployment
    - Change the version to "New version"
-   - Add a description like "Fixed ES6 syntax error"
+   - Add a description like "Fixed loading screen ES6 syntax error - removed ALLOWALL"
    - Click **Deploy**
 
-5. **Test the application**
+4. **Test the application**
    - Open the web app URL
-   - The loading screen should now disappear and the app should load correctly
-   - Verify that all Tailwind CSS styles are still applied correctly
+   - The loading screen should now disappear within 1-2 seconds
+   - Verify that the app loads and functions correctly
 
 ## Verification
 

@@ -3,42 +3,56 @@
 ## Problem
 Your web app was getting stuck on the loading screen with this error in the browser console:
 ```
-Uncaught SyntaxError: Unexpected token 'class'
+Uncaught SyntaxError: Failed to execute 'write' on 'Document': Unexpected token 'class'
+```
+
+Along with multiple warnings:
+```
+Unrecognized feature: 'ambient-light-sensor', 'speaker', 'vibrate', 'vr'
 ```
 
 ## Root Cause
-The issue was caused by the Tailwind CSS CDN (`https://cdn.tailwindcss.com`) which includes a JavaScript runtime that uses modern ES6 syntax. When Google Apps Script serves your HTML page, it may use a sandbox mode that doesn't support ES6 features like the `class` keyword, causing a syntax error that prevents the app from loading.
+The issue was caused by `.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)` in the `code.gs` file. This setting:
+- Allows the app to be embedded in iframes from ANY domain
+- Causes Google Apps Script to inject wrapper code containing ES6 syntax
+- The injected code fails to execute because it contains modern JavaScript (the `class` keyword) that the browser rejects when using `document.write()`
 
 ## Solution Applied
 
-### Two-Part Fix:
-
-#### 1. Replaced Tailwind CSS Loading (Critical Fix)
-**File:** `index.html`  
-**Change:** Switched from JavaScript-based Tailwind CDN to CSS-only version
+### Critical Fix: Removed ALLOWALL XFrame Setting
+**File:** `code.gs`  
+**Change:** Removed the `.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)` line
 
 **Before:**
-```html
-<script src="https://cdn.tailwindcss.com"></script>
+```javascript
+function doGet() {
+  return HtmlService.createTemplateFromFile('index')
+    .evaluate()
+    .setTitle('Team Rota & Holiday Manager')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setSandboxMode(HtmlService.SandboxMode.IFRAME)
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
 ```
 
 **After:**
-```html
-<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-```
-
-This eliminates the JavaScript that was causing the error while keeping all your styles intact.
-
-#### 2. Enabled Modern JavaScript Support (Future-Proofing)
-**File:** `code.gs`  
-**Change:** Added IFRAME sandbox mode configuration
-
-**Added this line to the `doGet()` function:**
 ```javascript
-.setSandboxMode(HtmlService.SandboxMode.IFRAME)
+function doGet() {
+  return HtmlService.createTemplateFromFile('index')
+    .evaluate()
+    .setTitle('Team Rota & Holiday Manager')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setSandboxMode(HtmlService.SandboxMode.IFRAME);
+}
 ```
 
-This ensures that if you ever need to use modern JavaScript features in the future, they'll be supported.
+This prevents Google from injecting the problematic wrapper code while still using IFRAME sandbox mode for better JavaScript support.
+
+### Previous Changes (Already Applied)
+These were applied in earlier fixes and are still in place:
+
+1. **Tailwind CSS:** Switched from JavaScript-based CDN to CSS-only version (v2.2.19)
+2. **Sandbox Mode:** Using IFRAME mode for better modern JavaScript support
 
 ## What You Need to Do
 
