@@ -3,6 +3,8 @@
  */
 
 // CONFIGURATION
+// This repository is pre-configured for a specific deployment.
+// If you're forking this for your own use, replace the SPREADSHEET_ID below with your own.
 const SPREADSHEET_ID = '1vEDieQC-FJFybCVXuynVrus04U1ZA72XMkvfrtDK5MM';
 
 // Quick Setup Check
