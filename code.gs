@@ -11,8 +11,7 @@ function doGet() {
     .evaluate()
     .setTitle('Team Rota & Holiday Manager')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
-    .setSandboxMode(HtmlService.SandboxMode.IFRAME)
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    .setSandboxMode(HtmlService.SandboxMode.IFRAME);
 }
 
 // --- INITIALIZATION & SETUP ---
