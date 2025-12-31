@@ -227,8 +227,7 @@ function getInitialData() {
     if (!result.currentUser || 
         !Array.isArray(result.employees) || 
         !Array.isArray(result.bookings) || 
-        !Array.isArray(result.schedules) ||
-        !result.schedules) {
+        !Array.isArray(result.schedules)) {
       console.error('[Backend] Result validation failed - some required fields are missing or invalid');
       return { error: 'Data validation failed. One or more required fields are missing or have invalid types.' };
     }

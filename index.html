@@ -492,6 +492,21 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       var expandedManagers = [];
       var pollingInterval;
 
+      // Helper function to convert schedules array to object
+      function convertSchedulesToObject(data) {
+        if (Array.isArray(data.schedules)) {
+          var schedulesObj = {};
+          for (var i = 0; i < data.schedules.length; i++) {
+            var item = data.schedules[i];
+            schedulesObj[item.email] = item.schedule;
+          }
+          data.schedules = schedulesObj;
+        }
+        
+        // If schedules is missing, initialize as empty object
+        if (!data.schedules) data.schedules = {};
+      }
+
       // Helper function to safely escape HTML
       function escapeHtml(text) {
         var div = document.createElement('div');
@@ -570,17 +585,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         }
         
         // Convert schedules array back to object for easier lookup
-        if (Array.isArray(data.schedules)) {
-          var schedulesObj = {};
-          for (var i = 0; i < data.schedules.length; i++) {
-            var item = data.schedules[i];
-            schedulesObj[item.email] = item.schedule;
-          }
-          data.schedules = schedulesObj;
-        }
-        
-        // If schedules is missing, initialize as empty object
-        if (!data.schedules) data.schedules = {};
+        convertSchedulesToObject(data);
         
         appData = data;
         console.log('[Rota App] Hiding loading screen');
@@ -613,16 +618,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         if (!data || data.error) return;
         
         // Convert schedules array back to object
-        if (Array.isArray(data.schedules)) {
-          var schedulesObj = {};
-          for (var i = 0; i < data.schedules.length; i++) {
-            var item = data.schedules[i];
-            schedulesObj[item.email] = item.schedule;
-          }
-          data.schedules = schedulesObj;
-        }
-        
-        if (!data.schedules) data.schedules = {};
+        convertSchedulesToObject(data);
         
         appData = data;
         if(!appData.auditLogs) appData.auditLogs=[];
