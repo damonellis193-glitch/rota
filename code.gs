@@ -101,15 +101,17 @@ function getInitialData() {
     const empData = empSheet.getDataRange().getValues();
     if (empData.length > 0) empData.shift(); 
     
-    const employees = empData.filter(r => r[0]).map(row => ({
-      name: String(row[0]),
-      email: String(row[1]),
-      allowance: Number(row[2]),
-      role: String(row[3]),
-      manager: String(row[4] || ''),
-      department: String(row[5] || ''), 
-      carryOver: Number(row[6] || 0)    
-    }));
+    const employees = empData
+      .filter(r => r[0] && r[1] && r[2] && r[3]) // Filter rows with required fields: name, email, allowance, role
+      .map(row => ({
+        name: String(row[0]).trim(),
+        email: String(row[1]).trim(),
+        allowance: Number(row[2]) || 0,
+        role: String(row[3]).trim(),
+        manager: String(row[4] || '').trim(),
+        department: String(row[5] || '').trim(), 
+        carryOver: Number(row[6]) || 0    
+      }));
 
     console.log('[Backend] Found ' + employees.length + ' employees');
 
@@ -127,16 +129,18 @@ function getInitialData() {
     let bookings = [];
     if (bookData.length > 1) {
       bookData.shift(); 
-      bookings = bookData.filter(r => r[0]).map(row => ({
-        id: String(row[0]),
-        email: String(row[1]),
-        type: String(row[2]), 
-        startDate: row[3] ? new Date(row[3]).toISOString() : null,
-        endDate: row[4] ? new Date(row[4]).toISOString() : null,
-        daysCount: Number(row[5]),
-        status: String(row[6]),
-        hours: Number(row[7] || 7.5) 
-      }));
+      bookings = bookData
+        .filter(r => r[0] && r[1] && r[2] && r[3] && r[4] && r[6]) // Filter rows with required fields: id, email, type, dates, status (daysCount optional, defaults to 0)
+        .map(row => ({
+          id: String(row[0]).trim(),
+          email: String(row[1]).trim(),
+          type: String(row[2]).trim(), 
+          startDate: row[3] ? new Date(row[3]).toISOString() : null,
+          endDate: row[4] ? new Date(row[4]).toISOString() : null,
+          daysCount: Number(row[5]) || 0,
+          status: String(row[6]).trim(),
+          hours: Number(row[7]) || 7.5 
+        }));
     }
 
     console.log('[Backend] Found ' + bookings.length + ' bookings');
@@ -147,11 +151,15 @@ function getInitialData() {
     if (schedData.length > 1) {
       schedData.shift(); 
       schedData.forEach(row => {
-        if (row[0]) {
-          const email = String(row[0]);
-          const day = String(row[1]);
-          if(!schedules[email]) schedules[email] = {};
-          schedules[email][day] = { type: String(row[2]), hours: Number(row[3] || 7.5) };
+        // Only process rows with email, day, type and valid hours
+        if (row[0] && row[1] && row[2]) {
+          const email = String(row[0]).trim();
+          const day = String(row[1]).trim();
+          if (!schedules[email]) schedules[email] = {};
+          schedules[email][day] = { 
+            type: String(row[2]).trim(), 
+            hours: Number(row[3]) || 7.5 
+          };
         }
       });
     }
@@ -160,30 +168,55 @@ function getInitialData() {
     let auditLogs = [];
     if (currentUser.role === 'Admin') {
       if (auditSheet) {
-        const lastRow = auditSheet.getLastRow();
-        const startRow = Math.max(2, lastRow - 49);
-        if (lastRow > 1) {
-          const range = auditSheet.getRange(startRow, 1, (lastRow - startRow + 1), 4);
-          const rawLogs = range.getValues();
-          auditLogs = rawLogs.reverse().map(r => ({
-            timestamp: r[0],
-            actor: r[1],
-            action: r[2],
-            details: r[3]
-          }));
+        try {
+          const lastRow = auditSheet.getLastRow();
+          const startRow = Math.max(2, lastRow - 49);
+          if (lastRow > 1) {
+            const range = auditSheet.getRange(startRow, 1, (lastRow - startRow + 1), 4);
+            const rawLogs = range.getValues();
+            auditLogs = rawLogs
+              .filter(r => r[0] && r[1] && r[2]) // Filter rows with required fields
+              .reverse()
+              .map(r => ({
+                timestamp: r[0],
+                actor: String(r[1]).trim(),
+                action: String(r[2]).trim(),
+                details: String(r[3] || '').trim()
+              }));
+          }
+        } catch (auditError) {
+          console.error('[Backend] Error loading audit logs: ' + auditError.toString());
+          // Continue without audit logs - don't fail the entire request
+          auditLogs = [];
         }
       }
     }
 
     console.log('[Backend] Returning data successfully');
+    console.log('[Backend] Employees count: ' + employees.length);
+    console.log('[Backend] Bookings count: ' + bookings.length);
+    console.log('[Backend] CurrentUser: ' + JSON.stringify(currentUser));
 
-    return {
+    const result = {
       currentUser: currentUser,
       employees: employees,
       bookings: bookings,
       schedules: schedules,
       auditLogs: auditLogs
     };
+    
+    // Verify the result is valid before returning
+    if (!result.currentUser || 
+        !Array.isArray(result.employees) || 
+        !Array.isArray(result.bookings) || 
+        !result.schedules || 
+        Array.isArray(result.schedules) ||
+        typeof result.schedules !== 'object') {
+      console.error('[Backend] Result validation failed - some required fields are missing or invalid');
+      return { error: 'Data validation failed. One or more required fields are missing or have invalid types.' };
+    }
+    
+    return result;
   } catch (e) {
     console.error("[Backend] Error in getInitialData: " + e.toString());
     console.error("[Backend] Stack trace: " + e.stack);

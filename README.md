@@ -152,6 +152,22 @@ You may see warnings like:
 
 **These are harmless warnings** from Google Apps Script's iframe embedding and can be safely ignored. They do not affect the app's functionality.
 
+### "No Data Received" or Blank Data Issues
+
+If you see errors like `[Rota App] Data is null or undefined`, this is usually caused by:
+
+1. **Blank cells in your spreadsheet data**: The app now automatically filters out rows with missing required fields
+   - For **Employees**: Name, Email, Allowance, and Role are required
+   - For **Bookings**: ID, Email, Type, Start Date, End Date, and Status are required
+   - For **Schedules**: Email, Day, and Type are required
+
+2. **Solution**: 
+   - Remove any rows from your spreadsheet that have blank cells in required columns
+   - Or fill in the required fields for those rows
+   - The app will skip incomplete rows automatically and load successfully with the valid data
+
+3. **Note**: It's normal to have extra empty rows at the bottom of your spreadsheet. These are automatically filtered out and won't cause issues.
+
 ## Support
 
 For issues or questions, please check the diagnostic page by adding `?page=diagnostic` to your Web App URL.
