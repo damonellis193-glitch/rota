@@ -492,6 +492,24 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       var expandedManagers = [];
       var pollingInterval;
 
+      // Helper function to convert schedules array to object
+      function convertSchedulesToObject(data) {
+        if (Array.isArray(data.schedules)) {
+          var schedulesObj = {};
+          for (var i = 0; i < data.schedules.length; i++) {
+            var item = data.schedules[i];
+            // Validate that item has required properties
+            if (item && item.email && item.schedule) {
+              schedulesObj[item.email] = item.schedule;
+            }
+          }
+          data.schedules = schedulesObj;
+        }
+        
+        // If schedules is missing, initialize as empty object
+        if (!data.schedules) data.schedules = {};
+      }
+
       // Helper function to safely escape HTML
       function escapeHtml(text) {
         var div = document.createElement('div');
@@ -568,6 +586,10 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           showErrorScreen('Backend Error', message, buttons);
           return; 
         }
+        
+        // Convert schedules array back to object for easier lookup
+        convertSchedulesToObject(data);
+        
         appData = data;
         console.log('[Rota App] Hiding loading screen');
         document.getElementById('loading-screen').classList.add('hidden');
@@ -578,7 +600,6 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           document.getElementById('denied-email').textContent = appData.currentUser.email;
           return;
         }
-        if(!appData.schedules) appData.schedules = {}; 
         console.log('[Rota App] Showing dashboard for user:', appData.currentUser.name);
         document.getElementById('view-dashboard').classList.remove('hidden');
         document.getElementById('user-display').textContent = appData.currentUser.name;
@@ -598,8 +619,11 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
 
       function onBackgroundDataLoaded(data) {
         if (!data || data.error) return;
+        
+        // Convert schedules array back to object
+        convertSchedulesToObject(data);
+        
         appData = data;
-        if(!appData.schedules) appData.schedules = {};
         if(!appData.auditLogs) appData.auditLogs=[];
         if (document.getElementById('modal-booking').classList.contains('hidden') && document.getElementById('modal-employee').classList.contains('hidden')) {
           refreshAllViews();

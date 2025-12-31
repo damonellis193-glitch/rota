@@ -164,6 +164,17 @@ function getInitialData() {
       });
     }
 
+    // Convert schedules object to array for better serialization
+    const schedulesArray = [];
+    for (const email in schedules) {
+      if (schedules.hasOwnProperty(email)) {
+        schedulesArray.push({
+          email: email,
+          schedule: schedules[email]
+        });
+      }
+    }
+
     // 4. Get Audit Logs (Last 50 for Admin Dashboard)
     let auditLogs = [];
     if (currentUser.role === 'Admin') {
@@ -201,7 +212,7 @@ function getInitialData() {
       currentUser: currentUser,
       employees: employees,
       bookings: bookings,
-      schedules: schedules,
+      schedules: schedulesArray,
       auditLogs: auditLogs
     };
     
@@ -210,18 +221,13 @@ function getInitialData() {
     console.log('[Backend] - currentUser exists:', !!result.currentUser);
     console.log('[Backend] - employees is array:', Array.isArray(result.employees));
     console.log('[Backend] - bookings is array:', Array.isArray(result.bookings));
-    console.log('[Backend] - schedules exists:', !!result.schedules);
-    console.log('[Backend] - schedules is object:', typeof result.schedules === 'object');
-    console.log('[Backend] - schedules is NOT array:', !Array.isArray(result.schedules));
-    console.log('[Backend] - schedules keys:', Object.keys(result.schedules).length);
+    console.log('[Backend] - schedules is array:', Array.isArray(result.schedules));
     console.log('[Backend] - auditLogs is array:', Array.isArray(result.auditLogs));
     
     if (!result.currentUser || 
         !Array.isArray(result.employees) || 
         !Array.isArray(result.bookings) || 
-        !result.schedules || 
-        typeof result.schedules !== 'object' ||
-        Array.isArray(result.schedules)) {
+        !Array.isArray(result.schedules)) {
       console.error('[Backend] Result validation failed - some required fields are missing or invalid');
       return { error: 'Data validation failed. One or more required fields are missing or have invalid types.' };
     }
