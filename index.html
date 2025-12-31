@@ -519,7 +519,17 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         console.log('[Rota App] Window loaded, calling getInitialData...');
         try {
           google.script.run
-            .withSuccessHandler(onDataLoaded)
+            .withSuccessHandler(function(data) {
+              console.log('[Rota App] Success handler called');
+              console.log('[Rota App] Data type:', typeof data);
+              console.log('[Rota App] Data is null:', data === null);
+              console.log('[Rota App] Data is undefined:', data === undefined);
+              console.log('[Rota App] Data value:', data);
+              if (data) {
+                console.log('[Rota App] Data keys:', Object.keys(data));
+              }
+              onDataLoaded(data);
+            })
             .withFailureHandler(function(err) { 
               console.error('[Rota App] Error loading data:', err);
               var errorMsg = "Error loading data: " + escapeHtml((err && err.message) || (typeof err === 'string' ? err : 'Unknown error'));

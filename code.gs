@@ -206,16 +206,36 @@ function getInitialData() {
     };
     
     // Verify the result is valid before returning
+    console.log('[Backend] Validation checks:');
+    console.log('[Backend] - currentUser exists:', !!result.currentUser);
+    console.log('[Backend] - employees is array:', Array.isArray(result.employees));
+    console.log('[Backend] - bookings is array:', Array.isArray(result.bookings));
+    console.log('[Backend] - schedules exists:', !!result.schedules);
+    console.log('[Backend] - schedules is object:', typeof result.schedules === 'object');
+    console.log('[Backend] - schedules is NOT array:', !Array.isArray(result.schedules));
+    console.log('[Backend] - schedules keys:', Object.keys(result.schedules).length);
+    console.log('[Backend] - auditLogs is array:', Array.isArray(result.auditLogs));
+    
     if (!result.currentUser || 
         !Array.isArray(result.employees) || 
         !Array.isArray(result.bookings) || 
         !result.schedules || 
-        Array.isArray(result.schedules) ||
-        typeof result.schedules !== 'object') {
+        typeof result.schedules !== 'object' ||
+        Array.isArray(result.schedules)) {
       console.error('[Backend] Result validation failed - some required fields are missing or invalid');
       return { error: 'Data validation failed. One or more required fields are missing or have invalid types.' };
     }
     
+    // Test if the result can be serialized
+    try {
+      var testSerialization = JSON.stringify(result);
+      console.log('[Backend] Serialization test passed, size: ' + testSerialization.length + ' bytes');
+    } catch (serializationError) {
+      console.error('[Backend] SERIALIZATION ERROR:', serializationError.toString());
+      return { error: 'Data serialization failed: ' + serializationError.toString() };
+    }
+    
+    console.log('[Backend] About to return result');
     return result;
   } catch (e) {
     console.error("[Backend] Error in getInitialData: " + e.toString());
