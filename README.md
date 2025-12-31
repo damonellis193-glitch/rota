@@ -2,6 +2,22 @@
 
 A comprehensive team holiday and absence management system built for Google Apps Script.
 
+## Recent Updates
+
+### v2.0 - Chunked Data Loading (Latest)
+**Fixed:** Google Apps Script data transfer limitation issue that caused the app to fail with null data.
+
+**What Changed:**
+- Replaced single large data payload with multiple small API calls
+- Added visual loading progress with status updates
+- Improved reliability for larger datasets
+- Faster initial load times
+
+**Technical Details:**
+- Backend split into 5 focused API endpoints (getCurrentUser, getEmployees, getBookings, getSchedules, getAuditLogs)
+- Frontend loads data sequentially with progress feedback
+- All existing functionality preserved (100% backward compatible)
+
 ## Features
 
 - ✅ Holiday booking and approvals
@@ -15,6 +31,7 @@ A comprehensive team holiday and absence management system built for Google Apps
 - ✅ Department filtering
 - ✅ Multi-month views
 - ✅ Mobile responsive
+- ✅ **NEW: Chunked data loading for improved reliability**
 
 ## Quick Start
 
@@ -130,6 +147,7 @@ If you get "Cannot access spreadsheet" errors:
 2. Make sure you're using the Web App URL (ends with `/exec`)
 3. Check that you've deployed a new version
 4. Try accessing `?page=diagnostic` for automated tests
+5. **NEW:** Watch the loading progress bar - it will show which data chunk is loading
 
 ### Common Issues
 
@@ -141,6 +159,8 @@ If you get "Cannot access spreadsheet" errors:
   - Ensure you have edit access to the spreadsheet
   - Check the Apps Script logs (View > Logs in script editor) for detailed errors
   - Make sure the app is deployed as a Web App (not just saved)
+  - **NEW:** Check which data chunk failed in the loading progress indicator
+- **Data loading slowly**: This is normal with chunked loading - the app loads data in 5 separate chunks for reliability
 
 ### Browser Console Warnings
 
@@ -154,7 +174,9 @@ You may see warnings like:
 
 ### "No Data Received" or Blank Data Issues
 
-If you see errors like `[Rota App] Data is null or undefined`, this is usually caused by:
+**FIXED in v2.0:** The chunked loading architecture eliminates the data transfer size limitation issues.
+
+If you still see errors like `[Rota App] Data is null or undefined`, this is usually caused by:
 
 1. **Blank cells in your spreadsheet data**: The app now automatically filters out rows with missing required fields
    - For **Employees**: Name, Email, Allowance, and Role are required
