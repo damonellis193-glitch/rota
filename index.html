@@ -498,7 +498,10 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           var schedulesObj = {};
           for (var i = 0; i < data.schedules.length; i++) {
             var item = data.schedules[i];
-            schedulesObj[item.email] = item.schedule;
+            // Validate that item has required properties
+            if (item && item.email && item.schedule) {
+              schedulesObj[item.email] = item.schedule;
+            }
           }
           data.schedules = schedulesObj;
         }
