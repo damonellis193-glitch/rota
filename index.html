@@ -955,7 +955,8 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           } else {
              upcomingBody.innerHTML = '';
              teamUpcoming.forEach(function(b) {
-                var name = appData.employees.find(function(e) { return e.email === b.email; })?.name || b.email;
+                var emp = appData.employees.find(function(e) { return e.email === b.email; });
+                var name = (emp || {}).name || b.email;
                 upcomingBody.innerHTML += '<tr class="border-b border-gray-100 last:border-0 hover:bg-blue-50 cursor-pointer transition" onclick="jumpToCalendar(\'' + b.startDate + '\')"><td class="p-3 font-bold text-gray-700">' + name + '</td><td class="p-3 text-right text-gray-500 text-xs"><span class="font-medium text-blue-600">' + formatDate(b.startDate) + ' - ' + formatDate(b.endDate) + '</span></td></tr>';
              });
           }
@@ -970,7 +971,8 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           else {
              currentBody.innerHTML = '';
              currentHolidays.forEach(function(b) {
-                var name = appData.employees.find(function(e) { return e.email === b.email; })?.name || b.email;
+                var emp = appData.employees.find(function(e) { return e.email === b.email; });
+                var name = (emp || {}).name || b.email;
                 var isSick = b.type === 'Sickness';
                 currentBody.innerHTML += '<tr class="border-b border-gray-100 last:border-0 hover:bg-red-50 cursor-pointer transition" onclick="jumpToCalendar(\'' + b.startDate + '\')"><td class="p-3 font-bold text-gray-700">' + name + '</td><td class="p-3 text-right text-gray-500 text-xs"><span class="font-medium ' + (isSick ? 'text-red-600 font-bold' : 'text-blue-600') + '">' + (isSick ? 'SICK' : 'HOLIDAY') + ' (' + formatDate(b.endDate) + ')</span></td></tr>';
              });
@@ -1173,8 +1175,8 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         
         var filterSel = document.getElementById('admin-pending-filter');
         if (filterSel.options.length <= 1) {
-           var uniqueEmails = [...new Set(pending.map(function(b) { return b.email; }))];
-           uniqueEmails.forEach(function(email) { var name = appData.employees.find(function(e) { return e.email === email; })?.name || email; var opt = document.createElement('option'); opt.value = email; opt.textContent = name; filterSel.appendChild(opt); });
+           var uniqueEmails = getUniqueValues(pending.map(function(b) { return b.email; }));
+           uniqueEmails.forEach(function(email) { var emp = appData.employees.find(function(e) { return e.email === email; }); var name = (emp || {}).name || email; var opt = document.createElement('option'); opt.value = email; opt.textContent = name; filterSel.appendChild(opt); });
         }
         var displayPending = filterVal === 'all' ? pending : pending.filter(function(b) { return b.email === filterVal; });
         var inbox = document.getElementById('admin-inbox-container');
@@ -1183,7 +1185,8 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         } else {
           var h='<table class="w-full text-left text-sm"><thead class="bg-yellow-50 text-green-900"><tr><th class="p-3">Colleague</th><th class="p-3">Request</th><th class="p-3">Dates</th><th class="p-3 text-right">Action</th></tr></thead><tbody>';
           displayPending.forEach(function(b) {
-            var n=appData.employees.find(function(e) { return e.email===b.email; })?.name||b.email;
+            var empFound=appData.employees.find(function(e) { return e.email===b.email; });
+            var n=(empFound || {}).name||b.email;
             var canApprove = isManagerOf(appData.currentUser.email, b.email);
             var actionButtons = '';
             if (canApprove) {
@@ -1194,7 +1197,8 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
                 }
             } else {
                 var emp = appData.employees.find(function(e) { return e.email === b.email; });
-                var mgrName = emp && emp.manager ? (appData.employees.find(function(m) { return m.email === emp.manager; })?.name || emp.manager) : 'Manager';
+                var mgr = emp && emp.manager ? appData.employees.find(function(m) { return m.email === emp.manager; }) : null;
+                var mgrName = emp && emp.manager ? ((mgr || {}).name || emp.manager) : 'Manager';
                 actionButtons = '<span class="text-xs text-gray-400 italic">Awaiting ' + mgrName + '</span>';
             }
 
@@ -1229,7 +1233,8 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
             sicknessBody.innerHTML = '';
             Object.keys(stats).forEach(function(email) {
                 var s = stats[email];
-                var n = appData.employees.find(function(e) { return e.email === email; })?.name || email;
+                var empFound = appData.employees.find(function(e) { return e.email === email; });
+                var n = (empFound || {}).name || email;
                 var bf = (s.episodes * s.episodes * s.days); // Bradford Factor Proxy
                 var riskClass = 'text-green-600';
                 if(bf > 200) riskClass = 'text-red-600 font-bold';
@@ -1257,8 +1262,8 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         var allApproved = appData.bookings.filter(function(b) { return b.status === 'Approved' || b.status === 'Pending'; }).sort(function(a, b) { return new Date(b.startDate) - new Date(a.startDate); });
         var activeFilterSel = document.getElementById('admin-active-filter');
         if (activeFilterSel.options.length <= 1) {
-           var uniqueEmails = [...new Set(allApproved.map(function(b) { return b.email; }))];
-           uniqueEmails.forEach(function(email) { var name = appData.employees.find(function(e) { return e.email === email; })?.name || email; var opt = document.createElement('option'); opt.value = email; opt.textContent = name; activeFilterSel.appendChild(opt); });
+           var uniqueEmails = getUniqueValues(allApproved.map(function(b) { return b.email; }));
+           uniqueEmails.forEach(function(email) { var emp = appData.employees.find(function(e) { return e.email === email; }); var name = (emp || {}).name || email; var opt = document.createElement('option'); opt.value = email; opt.textContent = name; activeFilterSel.appendChild(opt); });
         }
         if (activeFilterVal !== 'all') { allApproved = allApproved.filter(function(b) { return b.email === activeFilterVal; }); }
         if (allApproved.length === 0) {
@@ -1266,7 +1271,8 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         } else {
             var abHtml = '';
             allApproved.forEach(function(b) {
-                var name = appData.employees.find(function(e) { return e.email === b.email; })?.name || b.email;
+                var empFound = appData.employees.find(function(e) { return e.email === b.email; });
+                var name = (empFound || {}).name || b.email;
                 abHtml += '<tr class="border-b border-gray-100 hover:bg-gray-50"><td class="p-3 font-bold text-gray-700">' + name + '</td><td class="p-3">' + b.type + '</td><td class="p-3">' + formatDate(b.startDate) + ' - ' + formatDate(b.endDate) + '</td><td class="p-3"><span class="px-2 py-1 rounded text-xs font-bold ' + (b.status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700') + '">' + b.status + '</span></td><td class="p-3 text-right"><a href="mailto:' + b.email + '?subject=Regarding Holiday ' + formatDate(b.startDate) + '" class="text-blue-500 hover:text-blue-700 mr-3" title="Email"><i class="fa-solid fa-envelope"></i></a><button onclick="handleAdminCancellation(\'' + b.id + '\', \'approve\')" class="text-red-400 hover:text-red-600" title="Cancel Booking"><i class="fa-solid fa-ban"></i></button></td></tr>';
             });
             allBookingsBody.innerHTML = abHtml;
