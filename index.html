@@ -810,7 +810,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       }
 
       function toggleSubTeam(managerEmail) {
-        if(arrayContains(expandedManagers, managerEmail)) { expandedManagers.delete(managerEmail); } else { arrayAdd(expandedManagers, managerEmail); }
+        if(arrayContains(expandedManagers, managerEmail)) { arrayRemove(expandedManagers, managerEmail); } else { arrayAdd(expandedManagers, managerEmail); }
         renderMyTeamCalendar();
       }
 
