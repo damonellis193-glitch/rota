@@ -304,16 +304,81 @@
           <!-- COLLEAGUE MANAGEMENT -->
           <div class="bg-white rounded-xl shadow overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-               <h3 class="font-bold text-gray-700">Colleague Management</h3>
+               <h3 class="font-bold text-gray-700"><i class="fa-solid fa-users mr-2"></i>Colleague Management & Insights</h3>
                <div class="space-x-2">
+                 <button onclick="exportColleaguesCSV()" class="bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm px-3 py-2 rounded shadow border border-blue-300"><i class="fa-solid fa-download mr-2"></i> Export CSV</button>
                  <button onclick="openChaserModal()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm px-3 py-2 rounded shadow border border-gray-300"><i class="fa-solid fa-envelope mr-2"></i> Email Chaser</button>
                  <button onclick="openEmployeeModal()" class="btn-primary text-sm px-3 py-2 rounded shadow"><i class="fa-solid fa-user-plus mr-2"></i> Add</button>
                </div>
             </div>
-            <table class="w-full text-left">
-              <thead><tr class="bg-gray-100 text-gray-600 text-xs uppercase"><th class="p-4">Name</th><th class="p-4 text-center">Allowance</th><th class="p-4 text-center text-gray-500">Taken</th><th class="p-4 text-center text-blue-600">Planned</th><th class="p-4 text-center font-bold">Unbooked</th><th class="p-4 w-1/3">Insight / Risk</th><th class="p-4 text-right">Manage</th></tr></thead>
-              <tbody id="admin-emp-body" class="divide-y divide-gray-100"></tbody>
-            </table>
+            
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-4 p-6 bg-gray-50 border-b">
+              <div class="bg-white p-4 rounded-lg border border-gray-200 text-center">
+                <div class="text-2xl font-bold text-gray-800" id="summary-total-employees">--</div>
+                <div class="text-xs text-gray-500 uppercase">Total Employees</div>
+              </div>
+              <div class="bg-white p-4 rounded-lg border border-red-200 text-center">
+                <div class="text-2xl font-bold text-red-600" id="summary-at-risk">--</div>
+                <div class="text-xs text-gray-500 uppercase">At Risk</div>
+              </div>
+              <div class="bg-white p-4 rounded-lg border border-green-200 text-center">
+                <div class="text-2xl font-bold text-green-600" id="summary-avg-util">--</div>
+                <div class="text-xs text-gray-500 uppercase">Avg Utilization</div>
+              </div>
+              <div class="bg-white p-4 rounded-lg border border-yellow-200 text-center">
+                <div class="text-2xl font-bold text-yellow-600" id="summary-pending">--</div>
+                <div class="text-xs text-gray-500 uppercase">Pending Requests</div>
+              </div>
+              <div class="bg-white p-4 rounded-lg border border-blue-200 text-center">
+                <div class="text-2xl font-bold text-blue-600" id="summary-away">--</div>
+                <div class="text-xs text-gray-500 uppercase">Currently Away</div>
+              </div>
+              <div class="bg-white p-4 rounded-lg border border-purple-200 text-center">
+                <div class="text-2xl font-bold text-purple-600" id="summary-high-bradford">--</div>
+                <div class="text-xs text-gray-500 uppercase">High Bradford</div>
+              </div>
+            </div>
+            
+            <!-- Filters -->
+            <div class="px-6 py-3 bg-gray-50 border-b flex flex-wrap gap-2 items-center">
+              <span class="text-xs font-bold text-gray-600 uppercase">Filters:</span>
+              <select id="filter-department" onchange="renderEnhancedColleagueTable()" class="border border-gray-300 rounded px-2 py-1 text-xs">
+                <option value="all">All Departments</option>
+              </select>
+              <select id="filter-risk" onchange="renderEnhancedColleagueTable()" class="border border-gray-300 rounded px-2 py-1 text-xs">
+                <option value="all">All Risk Levels</option>
+                <option value="red">🔴 High Risk</option>
+                <option value="yellow">🟡 Needs Attention</option>
+                <option value="green">🟢 Healthy</option>
+                <option value="blue">🔵 On Leave</option>
+              </select>
+              <select id="filter-manager" onchange="renderEnhancedColleagueTable()" class="border border-gray-300 rounded px-2 py-1 text-xs">
+                <option value="all">All Managers</option>
+              </select>
+              <button onclick="resetColleagueFilters()" class="text-xs text-gray-500 hover:text-gray-700 underline ml-2">Clear Filters</button>
+            </div>
+            
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm">
+                <thead>
+                  <tr class="bg-gray-100 text-gray-600 text-xs uppercase">
+                    <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('status')">Status</th>
+                    <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('name')">Name <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
+                    <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('department')">Department <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
+                    <th class="p-3 text-center cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('remaining')">Days Left <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
+                    <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('utilization')">Utilization <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
+                    <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('lastHoliday')">Last Holiday <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
+                    <th class="p-3 text-center cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('sickDays')">Sick Days <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
+                    <th class="p-3 text-center cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('bradford')">Bradford <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
+                    <th class="p-3 text-center">Pending</th>
+                    <th class="p-3">Manager</th>
+                    <th class="p-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-emp-body-enhanced" class="divide-y divide-gray-100"></tbody>
+              </table>
+            </div>
           </div>
 
           <!-- SYSTEM AUDIT LOGS -->
@@ -1225,29 +1290,280 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
             allBookingsBody.innerHTML = abHtml;
         }
 
-        var tbodyEmp = document.getElementById('admin-emp-body'); tbodyEmp.innerHTML='';
-        var today = new Date(); // Fix: Define today
-        var range = getCurrentFiscalYearRange(); var start = range.start; var end = range.end;
-        var totalDays=(end-start)/86400000;
-        var passed=(today-start)/86400000;
-        var frac=Math.max(0,Math.min(1,passed/totalDays));
-        var remMonths=((end-today)/86400000)/30;
+        // Enhanced Colleague Management Table
+        renderEnhancedColleagueTable();
+      }
+
+      // Global variables for sorting and filtering
+      var colleagueSortField = 'name';
+      var colleagueSortDirection = 'asc';
+
+      function renderEnhancedColleagueTable() {
+        var tbody = document.getElementById('admin-emp-body-enhanced');
+        if (!tbody) return; // Not on admin page
+        
+        tbody.innerHTML = '';
+        var today = new Date();
+        var range = getCurrentFiscalYearRange();
+        var start = range.start;
+        var end = range.end;
+        var totalDays = (end - start) / 86400000;
+        var passed = (today - start) / 86400000;
+        var frac = Math.max(0, Math.min(1, passed / totalDays));
+        var remMonths = ((end - today) / 86400000) / 30;
+        
+        // Calculate sickness stats
+        var sickBookings = appData.bookings.filter(function(b) { return b.type === 'Sickness' && b.status !== 'Cancelled'; });
+        var sicknessStats = {};
+        sickBookings.forEach(function(b) {
+          if (!sicknessStats[b.email]) sicknessStats[b.email] = { days: 0, episodes: 0, lastEnd: null };
+          var s = sicknessStats[b.email];
+          s.days += b.daysCount;
+          var start = new Date(b.startDate);
+          if (!s.lastEnd || (start - s.lastEnd) > (2 * 86400000)) s.episodes++;
+          s.lastEnd = new Date(b.endDate);
+        });
+        
+        // Calculate metrics for each employee
+        var employeeMetrics = appData.employees.map(function(emp) {
+          var totalAllowance = (Number(emp.allowance) || 0) + (Number(emp.carryOver) || 0);
+          var books = appData.bookings.filter(function(b) { return b.email === emp.email && b.type === 'Holiday' && b.status !== 'Cancelled' && isDateInCurrentFY(b.startDate); });
+          var taken = books.filter(function(b) { return b.status === 'Approved' && new Date(b.startDate) < today; }).reduce(function(a, c) { return a + c.daysCount; }, 0);
+          var plan = books.filter(function(b) { return (b.status === 'Approved' || b.status === 'Pending') && new Date(b.startDate) >= today; }).reduce(function(a, c) { return a + c.daysCount; }, 0);
+          var total = taken + plan;
+          var unbooked = totalAllowance - total;
+          var pct = totalAllowance > 0 ? (total / totalAllowance) * 100 : 0;
+          
+          // Last holiday date
+          var holidayBookings = appData.bookings.filter(function(b) { return b.email === emp.email && b.type === 'Holiday' && b.status === 'Approved' && new Date(b.endDate) < today; });
+          var lastHoliday = holidayBookings.length > 0 ? holidayBookings.sort(function(a, b) { return new Date(b.endDate) - new Date(a.endDate); })[0].endDate : null;
+          var daysSinceLastHoliday = lastHoliday ? Math.floor((today - new Date(lastHoliday)) / 86400000) : 999;
+          
+          // Currently away
+          var currentlyAway = appData.bookings.some(function(b) {
+            var s = new Date(b.startDate);
+            var e = new Date(b.endDate);
+            s.setHours(0, 0, 0, 0);
+            e.setHours(0, 0, 0, 0);
+            var now = new Date();
+            now.setHours(0, 0, 0, 0);
+            return b.email === emp.email && (b.type === 'Holiday' || b.type === 'Sickness') && b.status === 'Approved' && s <= now && e >= now;
+          });
+          
+          // Pending requests
+          var pendingCount = appData.bookings.filter(function(b) { return b.email === emp.email && (b.status === 'Pending' || b.status === 'Cancellation Requested'); }).length;
+          
+          // Sickness
+          var sickStats = sicknessStats[emp.email] || { days: 0, episodes: 0 };
+          var bradford = sickStats.episodes * sickStats.episodes * sickStats.days;
+          
+          // Status determination
+          var status = 'green';
+          if (currentlyAway) status = 'blue';
+          else if (unbooked > 10 && remMonths < 1) status = 'red';
+          else if (bradford > 100) status = 'red';
+          else if (daysSinceLastHoliday > 90 || (unbooked > 5 && pct < 40)) status = 'yellow';
+          
+          // Manager name
+          var mgrEmail = emp.manager || '';
+          var mgrEmp = appData.employees.find(function(e) { return e.email === mgrEmail; });
+          var mgrName = (mgrEmp || {}).name || (mgrEmail ? mgrEmail : '--');
+          
+          return {
+            emp: emp,
+            totalAllowance: totalAllowance,
+            taken: taken,
+            plan: plan,
+            unbooked: unbooked,
+            utilization: pct,
+            lastHoliday: lastHoliday,
+            daysSinceLastHoliday: daysSinceLastHoliday,
+            currentlyAway: currentlyAway,
+            pendingCount: pendingCount,
+            sickDays: sickStats.days,
+            bradford: bradford,
+            status: status,
+            mgrName: mgrName
+          };
+        });
+        
+        // Apply filters
+        var deptFilter = document.getElementById('filter-department').value;
+        var riskFilter = document.getElementById('filter-risk').value;
+        var mgrFilter = document.getElementById('filter-manager').value;
+        
+        employeeMetrics = employeeMetrics.filter(function(m) {
+          if (deptFilter !== 'all' && m.emp.department !== deptFilter) return false;
+          if (riskFilter !== 'all' && m.status !== riskFilter) return false;
+          if (mgrFilter !== 'all' && m.emp.manager !== mgrFilter) return false;
+          return true;
+        });
+        
+        // Sort
+        employeeMetrics.sort(function(a, b) {
+          var aVal, bVal;
+          switch (colleagueSortField) {
+            case 'name': aVal = a.emp.name; bVal = b.emp.name; break;
+            case 'department': aVal = a.emp.department || ''; bVal = b.emp.department || ''; break;
+            case 'remaining': aVal = a.unbooked; bVal = b.unbooked; break;
+            case 'utilization': aVal = a.utilization; bVal = b.utilization; break;
+            case 'lastHoliday': aVal = a.daysSinceLastHoliday; bVal = b.daysSinceLastHoliday; break;
+            case 'sickDays': aVal = a.sickDays; bVal = b.sickDays; break;
+            case 'bradford': aVal = a.bradford; bVal = b.bradford; break;
+            default: aVal = a.emp.name; bVal = b.emp.name;
+          }
+          
+          if (colleagueSortDirection === 'asc') {
+            return aVal > bVal ? 1 : (aVal < bVal ? -1 : 0);
+          } else {
+            return aVal < bVal ? 1 : (aVal > bVal ? -1 : 0);
+          }
+        });
+        
+        // Calculate summary stats
+        var totalEmployees = appData.employees.length;
+        var atRisk = employeeMetrics.filter(function(m) { return m.status === 'red'; }).length;
+        var avgUtil = totalEmployees > 0 ? employeeMetrics.reduce(function(sum, m) { return sum + m.utilization; }, 0) / totalEmployees : 0;
+        var totalPending = appData.bookings.filter(function(b) { return b.status === 'Pending' || b.status === 'Cancellation Requested'; }).length;
+        var currentlyAway = employeeMetrics.filter(function(m) { return m.currentlyAway; }).length;
+        var highBradford = employeeMetrics.filter(function(m) { return m.bradford > 100; }).length;
+        
+        document.getElementById('summary-total-employees').textContent = totalEmployees;
+        document.getElementById('summary-at-risk').textContent = atRisk;
+        document.getElementById('summary-avg-util').textContent = Math.round(avgUtil) + '%';
+        document.getElementById('summary-pending').textContent = totalPending;
+        document.getElementById('summary-away').textContent = currentlyAway;
+        document.getElementById('summary-high-bradford').textContent = highBradford;
+        
+        // Populate filter dropdowns
+        var deptFilterEl = document.getElementById('filter-department');
+        if (deptFilterEl.options.length === 1) {
+          var depts = getUniqueValues(appData.employees.map(function(e) { return e.department; }).filter(function(d) { return d; }));
+          depts.forEach(function(d) {
+            var opt = document.createElement('option');
+            opt.value = d;
+            opt.textContent = d;
+            deptFilterEl.appendChild(opt);
+          });
+        }
+        
+        var mgrFilterEl = document.getElementById('filter-manager');
+        if (mgrFilterEl.options.length === 1) {
+          var mgrs = getUniqueValues(appData.employees.filter(function(e) { return e.manager; }).map(function(e) { return e.manager; }));
+          mgrs.forEach(function(mEmail) {
+            var mEmp = appData.employees.find(function(e) { return e.email === mEmail; });
+            var opt = document.createElement('option');
+            opt.value = mEmail;
+            opt.textContent = (mEmp || {}).name || mEmail;
+            mgrFilterEl.appendChild(opt);
+          });
+        }
+        
+        // Render rows
+        employeeMetrics.forEach(function(m) {
+          var emp = m.emp;
+          
+          // Status icon
+          var statusIcon = '🟢';
+          if (m.status === 'red') statusIcon = '🔴';
+          else if (m.status === 'yellow') statusIcon = '🟡';
+          else if (m.status === 'blue') statusIcon = '🔵';
+          
+          // Utilization bar
+          var utilBarWidth = Math.min(100, Math.round(m.utilization));
+          var utilBarColor = m.utilization > 80 ? 'bg-green-500' : (m.utilization > 40 ? 'bg-yellow-500' : 'bg-red-500');
+          var utilBar = '<div class="w-full bg-gray-200 rounded h-2 mb-1"><div class="' + utilBarColor + ' h-2 rounded" style="width: ' + utilBarWidth + '%"></div></div><span class="text-xs font-bold">' + Math.round(m.utilization) + '%</span>';
+          
+          // Last holiday display
+          var lastHolDisplay = m.lastHoliday ? m.daysSinceLastHoliday + ' days ago' : 'Never';
+          if (m.daysSinceLastHoliday > 90) lastHolDisplay = '<span class="text-red-600 font-bold">' + lastHolDisplay + '</span>';
+          
+          // Bradford color
+          var bradfordClass = m.bradford > 200 ? 'text-red-600 font-bold' : (m.bradford > 50 ? 'text-yellow-600 font-bold' : 'text-green-600');
+          
+          var row = '<tr class="hover:bg-gray-50 border-b border-gray-100">';
+          row += '<td class="p-3 text-center text-xl">' + statusIcon + '</td>';
+          row += '<td class="p-3"><div class="font-bold text-gray-700">' + emp.name + '</div><div class="text-xs text-gray-400">' + emp.email + '</div></td>';
+          row += '<td class="p-3 text-sm text-gray-600">' + (emp.department || '--') + '</td>';
+          row += '<td class="p-3 text-center"><div class="font-bold text-gray-800">' + m.unbooked + ' / ' + m.totalAllowance + '</div></td>';
+          row += '<td class="p-3">' + utilBar + '</td>';
+          row += '<td class="p-3 text-xs text-gray-600">' + lastHolDisplay + '</td>';
+          row += '<td class="p-3 text-center font-mono text-gray-700">' + m.sickDays + '</td>';
+          row += '<td class="p-3 text-center font-mono ' + bradfordClass + '">' + m.bradford + '</td>';
+          row += '<td class="p-3 text-center">' + (m.pendingCount > 0 ? '<span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded font-bold text-xs">' + m.pendingCount + '</span>' : '--') + '</td>';
+          row += '<td class="p-3 text-xs text-gray-600">' + m.mgrName + '</td>';
+          row += '<td class="p-3 text-right space-x-1"><a href="mailto:' + emp.email + '" class="text-blue-500 hover:text-blue-700" title="Email"><i class="fa-solid fa-envelope text-sm"></i></a><button onclick="openBookingModal(\'' + emp.email + '\')" class="text-gray-400 hover:text-green-600" title="Book"><i class="fa-solid fa-calendar-plus text-sm"></i></button><button onclick="openScheduleModal(\'' + emp.email + '\',\'' + emp.name + '\')" class="text-gray-400 hover:text-green-600" title="Schedule"><i class="fa-solid fa-clock text-sm"></i></button><button onclick="openEmployeeModal(\'' + emp.email + '\')" class="text-gray-400 hover:text-blue-600" title="Edit"><i class="fa-solid fa-pen text-sm"></i></button><button onclick="deleteEmployee(\'' + emp.email + '\')" class="text-gray-400 hover:text-red-600" title="Delete"><i class="fa-solid fa-trash text-sm"></i></button></td>';
+          row += '</tr>';
+          
+          tbody.innerHTML += row;
+        });
+        
+        if (employeeMetrics.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="11" class="p-6 text-center text-gray-400 italic">No employees match the current filters.</td></tr>';
+        }
+      }
+
+      function sortColleagueTable(field) {
+        if (colleagueSortField === field) {
+          colleagueSortDirection = colleagueSortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+          colleagueSortField = field;
+          colleagueSortDirection = 'asc';
+        }
+        renderEnhancedColleagueTable();
+      }
+
+      function resetColleagueFilters() {
+        document.getElementById('filter-department').value = 'all';
+        document.getElementById('filter-risk').value = 'all';
+        document.getElementById('filter-manager').value = 'all';
+        renderEnhancedColleagueTable();
+      }
+
+      function exportColleaguesCSV() {
+        var csv = 'Name,Email,Department,Days Remaining,Total Allowance,Utilization %,Last Holiday,Sick Days YTD,Bradford Factor,Pending Requests,Manager\n';
         
         appData.employees.forEach(function(emp) {
-          var totalAllowance = (Number(emp.allowance)||0) + (Number(emp.carryOver)||0);
-          var books=appData.bookings.filter(function(b) { return b.email===emp.email && b.type==='Holiday' && b.status!=='Cancelled' && isDateInCurrentFY(b.startDate); });
-          var taken=books.filter(function(b) { return b.status==='Approved' && new Date(b.startDate)<today; }).reduce(function(a, c) { return a+c.daysCount; },0);
-          var plan=books.filter(function(b) { return (b.status==='Approved'||b.status==='Pending') && new Date(b.startDate)>=today; }).reduce(function(a, c) { return a+c.daysCount; },0);
-          var total=taken+plan, unbooked=totalAllowance-total, pct=total/totalAllowance;
-          var msg='', cls='text-gray-500';
-          if(unbooked<0) { msg='🛑 <strong>Overbooked!</strong> (' + Math.abs(unbooked) + ' days)'; cls='bg-red-100 text-red-800'; }
-          else if(total===totalAllowance) { msg='✅ <strong>Fully Booked.</strong>'; cls='bg-green-100 text-green-800'; }
-          else if(remMonths<3 && unbooked>5) { msg='⚠️ <strong>CRITICAL:</strong> ' + unbooked + ' days left.'; cls='bg-red-50 text-red-600 animate-pulse'; }
-          else if(frac>0.6 && pct<0.4) { msg='📉 <strong>Hoarding:</strong> Push to book.'; cls='bg-yellow-100 text-yellow-800'; }
-          else { msg='✔️ <strong>On Track.</strong>'; cls='text-green-700 bg-green-50'; }
+          var totalAllowance = (Number(emp.allowance) || 0) + (Number(emp.carryOver) || 0);
+          var books = appData.bookings.filter(function(b) { return b.email === emp.email && b.type === 'Holiday' && b.status !== 'Cancelled' && isDateInCurrentFY(b.startDate); });
+          var today = new Date();
+          var taken = books.filter(function(b) { return b.status === 'Approved' && new Date(b.startDate) < today; }).reduce(function(a, c) { return a + c.daysCount; }, 0);
+          var plan = books.filter(function(b) { return (b.status === 'Approved' || b.status === 'Pending') && new Date(b.startDate) >= today; }).reduce(function(a, c) { return a + c.daysCount; }, 0);
+          var unbooked = totalAllowance - (taken + plan);
+          var pct = totalAllowance > 0 ? Math.round((taken + plan) / totalAllowance * 100) : 0;
           
-          tbodyEmp.innerHTML+='<tr class="hover:bg-gray-50 border-b border-gray-50"><td class="p-4 font-bold text-gray-700">' + emp.name + '<div class="text-xs text-gray-400 font-normal">' + emp.email + '</div><div class="text-xs text-blue-400">' + (emp.department || '') + '</div></td><td class="p-4 text-center font-mono">' + totalAllowance + '<br><span class="text-xs text-gray-400">(+' + (emp.carryOver || 0) + ')</span></td><td class="p-4 text-center font-mono text-gray-600">' + taken + '</td><td class="p-4 text-center font-mono text-blue-600">' + plan + '</td><td class="p-4 text-center font-mono font-bold text-gray-800">' + unbooked + '</td><td class="p-4"><div class="p-2 rounded text-xs ' + cls + '">' + msg + '</div></td><td class="p-4 text-right space-x-2"><button onclick="openBookingModal(\'' + emp.email + '\')" class="text-gray-400 hover:text-green-600" title="Book for Colleague"><i class="fa-solid fa-calendar-plus"></i></button><button onclick="openScheduleModal(\'' + emp.email + '\',\'' + emp.name + '\')" class="text-gray-400 hover:text-green-600" title="Schedule"><i class="fa-solid fa-clock"></i></button><button onclick="openEmployeeModal(\'' + emp.email + '\')" class="text-gray-400 hover:text-blue-600" title="Edit"><i class="fa-solid fa-pen"></i></button><button onclick="deleteEmployee(\'' + emp.email + '\')" class="text-gray-400 hover:text-red-600" title="Delete"><i class="fa-solid fa-trash"></i></button></td></tr>';
+          var holidayBookings = appData.bookings.filter(function(b) { return b.email === emp.email && b.type === 'Holiday' && b.status === 'Approved' && new Date(b.endDate) < today; });
+          var lastHoliday = holidayBookings.length > 0 ? formatDate(holidayBookings.sort(function(a, b) { return new Date(b.endDate) - new Date(a.endDate); })[0].endDate) : 'Never';
+          
+          var sickBookings = appData.bookings.filter(function(b) { return b.email === emp.email && b.type === 'Sickness' && b.status !== 'Cancelled'; });
+          var sickDays = sickBookings.reduce(function(a, c) { return a + c.daysCount; }, 0);
+          var sickEpisodes = 0;
+          var lastEnd = null;
+          sickBookings.sort(function(a, b) { return new Date(a.startDate) - new Date(b.startDate); }).forEach(function(b) {
+            var start = new Date(b.startDate);
+            if (!lastEnd || (start - lastEnd) > (2 * 86400000)) sickEpisodes++;
+            lastEnd = new Date(b.endDate);
+          });
+          var bradford = sickEpisodes * sickEpisodes * sickDays;
+          
+          var pending = appData.bookings.filter(function(b) { return b.email === emp.email && (b.status === 'Pending' || b.status === 'Cancellation Requested'); }).length;
+          
+          var mgrEmail = emp.manager || '';
+          var mgrEmp = appData.employees.find(function(e) { return e.email === mgrEmail; });
+          var mgrName = (mgrEmp || {}).name || (mgrEmail ? mgrEmail : '');
+          
+          csv += '"' + emp.name + '","' + emp.email + '","' + (emp.department || '') + '",' + unbooked + ',' + totalAllowance + ',' + pct + ',"' + lastHoliday + '",' + sickDays + ',' + bradford + ',' + pending + ',"' + mgrName + '"\n';
         });
+        
+        var blob = new Blob([csv], { type: 'text/csv' });
+        var url = window.URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'colleague-management-' + new Date().toISOString().split('T')[0] + '.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
       }
 
       function handleBooking(e) {
