@@ -203,6 +203,34 @@ function getInitialData() {
       }
     }
 
+    // 5. Get Carryover Requests
+    let carryoverRequests = [];
+    if (currentUser.role === 'Admin') {
+      const carryoverSheet = ss.getSheetByName('CarryoverRequests');
+      if (carryoverSheet) {
+        try {
+          const carryoverData = carryoverSheet.getDataRange().getValues();
+          if (carryoverData.length > 1) {
+            carryoverData.shift();
+            carryoverRequests = carryoverData
+              .filter(r => r[0] && r[1] && r[3]) // Email, Days, Status
+              .map(r => ({
+                email: String(r[0]).trim(),
+                days: Number(r[1]) || 0,
+                reason: String(r[2] || '').trim(),
+                status: String(r[3]).trim(),
+                timestamp: r[4] ? (r[4] instanceof Date ? r[4].toISOString() : String(r[4])) : null,
+                processedBy: String(r[5] || '').trim(),
+                processedAt: r[6] ? (r[6] instanceof Date ? r[6].toISOString() : String(r[6])) : null
+              }));
+          }
+        } catch (carryoverError) {
+          console.error('[Backend] Error loading carryover requests: ' + carryoverError.toString());
+          carryoverRequests = [];
+        }
+      }
+    }
+
     console.log('[Backend] Returning data successfully');
     console.log('[Backend] Employees count: ' + employees.length);
     console.log('[Backend] Bookings count: ' + bookings.length);
@@ -213,7 +241,8 @@ function getInitialData() {
       employees: employees,
       bookings: bookings,
       schedules: schedulesArray,
-      auditLogs: auditLogs
+      auditLogs: auditLogs,
+      carryoverRequests: carryoverRequests
     };
     
     // Verify the result is valid before returning
@@ -267,6 +296,10 @@ function setupDatabase(ss) {
   if (!ss.getSheetByName('AuditLogs')) {
     const s = ss.insertSheet('AuditLogs');
     s.appendRow(['Timestamp', 'Actor', 'Action', 'Details']);
+  }
+  if (!ss.getSheetByName('CarryoverRequests')) {
+    const s = ss.insertSheet('CarryoverRequests');
+    s.appendRow(['Email', 'Days', 'Reason', 'Status', 'Timestamp', 'ProcessedBy', 'ProcessedAt']);
   }
 }
 
@@ -490,5 +523,166 @@ function saveUserSchedule(email, scheduleMap) {
     }
   });
   logAction(actor, 'Schedule Updated', `Updated schedule for ${email}`);
+  return { success: true };
+}
+
+// --- CARRYOVER REQUEST FUNCTIONS ---
+
+function submitCarryoverRequest(data) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('CarryoverRequests');
+  if (!sheet) {
+    setupDatabase(ss);
+  }
+  
+  const userEmail = Session.getActiveUser().getEmail();
+  const actor = userEmail;
+  
+  // Check if user already has a pending request
+  const existingData = sheet.getDataRange().getValues();
+  for (let i = 1; i < existingData.length; i++) {
+    if (existingData[i][0] === userEmail && existingData[i][3] === 'Pending') {
+      return { success: false, message: 'You already have a pending carryover request.' };
+    }
+  }
+  
+  // Validate days (max 5)
+  if (data.days > 5 || data.days < 1) {
+    return { success: false, message: 'Carryover must be between 1 and 5 days.' };
+  }
+  
+  sheet.appendRow([
+    userEmail,
+    data.days,
+    data.reason || '',
+    'Pending',
+    new Date(),
+    '',
+    ''
+  ]);
+  
+  logAction(actor, 'Carryover Requested', `Requested ${data.days} days carryover`);
+  
+  // Send email notification to manager
+  try {
+    const empSheet = ss.getSheetByName('Employees');
+    const empData = empSheet.getDataRange().getValues();
+    const employee = empData.find(r => String(r[1]).trim() === userEmail);
+    
+    if (employee && employee[4]) { // Has manager
+      const managerEmail = String(employee[4]).trim();
+      const employeeName = String(employee[0]).trim();
+      
+      MailApp.sendEmail({
+        to: managerEmail,
+        subject: 'Holiday Carryover Request from ' + employeeName,
+        body: `Hello,\n\n${employeeName} has submitted a request to carry over ${data.days} days of holiday allowance to the next fiscal year.\n\nReason: ${data.reason || 'No reason provided'}\n\nPlease review this request in the admin panel.\n\nThank you,\nRota System`
+      });
+    }
+  } catch (e) {
+    console.error('Failed to send email notification: ' + e.toString());
+  }
+  
+  return { success: true };
+}
+
+function approveCarryoverRequest(email, days) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const carryoverSheet = ss.getSheetByName('CarryoverRequests');
+  const empSheet = ss.getSheetByName('Employees');
+  const actor = Session.getActiveUser().getEmail();
+  
+  // Find and update the request
+  const carryoverData = carryoverSheet.getDataRange().getValues();
+  let requestRow = -1;
+  for (let i = 1; i < carryoverData.length; i++) {
+    if (carryoverData[i][0] === email && carryoverData[i][3] === 'Pending') {
+      requestRow = i + 1;
+      break;
+    }
+  }
+  
+  if (requestRow === -1) {
+    return { success: false, message: 'Request not found or already processed.' };
+  }
+  
+  // Update the request status
+  carryoverSheet.getRange(requestRow, 4).setValue('Approved');
+  carryoverSheet.getRange(requestRow, 6).setValue(actor);
+  carryoverSheet.getRange(requestRow, 7).setValue(new Date());
+  
+  // Update employee's CarryOver field
+  const empData = empSheet.getDataRange().getValues();
+  for (let i = 1; i < empData.length; i++) {
+    if (String(empData[i][1]).trim() === email) {
+      const currentCarryover = Number(empData[i][6]) || 0;
+      empSheet.getRange(i + 1, 7).setValue(days);
+      break;
+    }
+  }
+  
+  logAction(actor, 'Carryover Approved', `Approved ${days} days carryover for ${email}`);
+  
+  // Send email notification
+  try {
+    const empData = empSheet.getDataRange().getValues();
+    const employee = empData.find(r => String(r[1]).trim() === email);
+    const employeeName = employee ? String(employee[0]).trim() : email;
+    
+    MailApp.sendEmail({
+      to: email,
+      subject: 'Holiday Carryover Request Approved',
+      body: `Hello ${employeeName},\n\nYour request to carry over ${days} days of holiday allowance has been approved!\n\nThis will be added to your allowance for the next fiscal year.\n\nThank you,\nRota System`
+    });
+  } catch (e) {
+    console.error('Failed to send email notification: ' + e.toString());
+  }
+  
+  return { success: true };
+}
+
+function rejectCarryoverRequest(email, days) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const carryoverSheet = ss.getSheetByName('CarryoverRequests');
+  const empSheet = ss.getSheetByName('Employees');
+  const actor = Session.getActiveUser().getEmail();
+  
+  // Find and update the request
+  const carryoverData = carryoverSheet.getDataRange().getValues();
+  let requestRow = -1;
+  for (let i = 1; i < carryoverData.length; i++) {
+    if (carryoverData[i][0] === email && carryoverData[i][3] === 'Pending') {
+      requestRow = i + 1;
+      break;
+    }
+  }
+  
+  if (requestRow === -1) {
+    return { success: false, message: 'Request not found or already processed.' };
+  }
+  
+  // Update the request status
+  carryoverSheet.getRange(requestRow, 4).setValue('Rejected');
+  carryoverSheet.getRange(requestRow, 6).setValue(actor);
+  carryoverSheet.getRange(requestRow, 7).setValue(new Date());
+  
+  logAction(actor, 'Carryover Rejected', `Rejected carryover request for ${email}`);
+  
+  // Send email notification
+  try {
+    const empData = empSheet.getDataRange().getValues();
+    const employee = empData.find(r => String(r[1]).trim() === email);
+    const employeeName = employee ? String(employee[0]).trim() : email;
+    const requestDays = carryoverData[requestRow - 1][1];
+    
+    MailApp.sendEmail({
+      to: email,
+      subject: 'Holiday Carryover Request Update',
+      body: `Hello ${employeeName},\n\nYour request to carry over ${requestDays} days of holiday allowance has been reviewed.\n\nUnfortunately, this request could not be approved at this time. Please contact your manager for more information.\n\nThank you,\nRota System`
+    });
+  } catch (e) {
+    console.error('Failed to send email notification: ' + e.toString());
+  }
+  
   return { success: true };
 }

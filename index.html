@@ -119,9 +119,12 @@
               </div>
             </div>
             <!-- Action -->
-            <div class="bg-white rounded-xl shadow-md p-6 border-t-4 border-green-800 flex flex-col justify-center items-center">
+            <div class="bg-white rounded-xl shadow-md p-6 border-t-4 border-green-800 flex flex-col justify-center items-center space-y-2">
                <button onclick="openBookingModal()" class="w-full btn-primary font-bold py-3 px-4 rounded-lg shadow hover:shadow-lg transition transform hover:-translate-y-1 flex items-center justify-center">
                  <i class="fa-solid fa-plus mr-2"></i> Book Time Off
+               </button>
+               <button id="carryover-btn" onclick="openCarryoverModal()" class="hidden w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg shadow hover:shadow-lg transition transform hover:-translate-y-1 flex items-center justify-center">
+                 <i class="fa-solid fa-forward mr-2"></i> Request Carryover
                </button>
             </div>
           </div>
@@ -258,6 +261,14 @@
             <div id="admin-inbox-container" class="overflow-x-auto"></div>
           </div>
 
+          <!-- CARRYOVER REQUESTS -->
+          <div id="admin-carryover-section" class="hidden bg-white rounded-xl shadow overflow-hidden border-t-4 border-purple-400">
+            <div class="px-6 py-4 border-b border-gray-100 bg-purple-50 flex justify-between items-center">
+              <h3 class="font-bold text-purple-900"><i class="fa-solid fa-forward mr-2"></i>Carryover Requests (<span id="carryover-count">0</span>)</h3>
+            </div>
+            <div id="admin-carryover-container" class="overflow-x-auto"></div>
+          </div>
+
           <!-- SICKNESS INSIGHTS -->
           <div class="bg-white rounded-xl shadow overflow-hidden border-t-4 border-red-500">
             <div onclick="toggleElement('sickness-insights-container', 'sickness-icon')" class="px-6 py-4 border-b border-gray-100 bg-red-50 flex justify-between items-center cursor-pointer select-none">
@@ -378,6 +389,35 @@
       </div>
     </div>
 
+    <div id="modal-carryover" class="hidden fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div class="bg-purple-600 p-4 text-white flex justify-between items-center border-b-4 border-purple-700"><h3 class="font-bold">Request Holiday Carryover</h3><button onclick="closeModals()" class="text-white"><i class="fa-solid fa-times"></i></button></div>
+        <form onsubmit="handleCarryoverRequest(event)" class="p-6">
+          <div class="mb-4 p-4 bg-purple-50 rounded border border-purple-200">
+            <p class="text-sm text-purple-900 mb-2"><i class="fa-solid fa-info-circle mr-1"></i> <strong>Current Year Summary</strong></p>
+            <div class="text-xs text-purple-700">
+              <div class="flex justify-between mb-1"><span>Total Allowance:</span><span id="carryover-total" class="font-bold">--</span></div>
+              <div class="flex justify-between mb-1"><span>Used:</span><span id="carryover-used" class="font-bold">--</span></div>
+              <div class="flex justify-between"><span>Remaining:</span><span id="carryover-available" class="font-bold text-green-600">--</span></div>
+            </div>
+          </div>
+          <div class="mb-4">
+            <label class="text-xs font-bold uppercase text-gray-500 block mb-1">Days to Carry Over</label>
+            <input type="number" id="carryover-days" name="days" min="1" max="5" required class="w-full border rounded p-2">
+            <p class="text-xs text-gray-400 mt-1">Maximum: 5 days</p>
+          </div>
+          <div class="mb-6">
+            <label class="text-xs font-bold uppercase text-gray-500 block mb-1">Reason (Optional)</label>
+            <textarea name="reason" rows="3" class="w-full border rounded p-2 text-sm" placeholder="e.g., Did not have opportunity to use all days..."></textarea>
+          </div>
+          <div class="flex justify-end space-x-2">
+            <button type="button" onclick="closeModals()" class="px-4 py-2 text-gray-500">Cancel</button>
+            <button type="submit" id="btn-submit-carryover" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded font-bold">Submit Request</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <script>
       // Helper function to get unique values from array (ES5 compatible)
       function getUniqueValues(arr) {
@@ -486,7 +526,7 @@
         return result;
       }
 
-var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, auditLogs: [] };
+var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, auditLogs: [], carryoverRequests: [] };
       var calendarDate = new Date();
       var myTeamCalendarDate = new Date();
       var expandedManagers = [];
@@ -583,6 +623,9 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         
         // Convert schedules array back to object for easier lookup
         convertSchedulesToObject(data);
+        
+        // Ensure carryoverRequests exists
+        if (!data.carryoverRequests) data.carryoverRequests = [];
         
         appData = data;
         console.log('[Rota App] Hiding loading screen');
@@ -785,6 +828,15 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         } else {
           document.getElementById('dash-next-booking').textContent = "No bookings";
           document.getElementById('dash-next-type').textContent = "--";
+        }
+        
+        // Show/hide carryover button (only in March)
+        var currentMonth = new Date().getMonth();
+        var carryoverBtn = document.getElementById('carryover-btn');
+        if (currentMonth === 2) { // March is month 2 (0-indexed)
+          carryoverBtn.classList.remove('hidden');
+        } else {
+          carryoverBtn.classList.add('hidden');
         }
         
         var adminAlertContainer = document.getElementById('admin-dashboard-alert');
@@ -1072,6 +1124,40 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           inbox.innerHTML=h+'</tbody></table>';
         }
 
+        // CARRYOVER REQUESTS RENDER
+        var carryoverRequests = appData.carryoverRequests || [];
+        var pendingCarryover = carryoverRequests.filter(function(r) { return r.status === 'Pending'; });
+        document.getElementById('carryover-count').textContent = pendingCarryover.length;
+        
+        var carryoverContainer = document.getElementById('admin-carryover-container');
+        var carryoverSection = document.getElementById('admin-carryover-section');
+        
+        if (pendingCarryover.length === 0) {
+          carryoverSection.classList.add('hidden');
+        } else {
+          carryoverSection.classList.remove('hidden');
+          var carryoverHtml = '<table class="w-full text-left text-sm"><thead class="bg-purple-50 text-purple-900"><tr><th class="p-3">Colleague</th><th class="p-3">Days Requested</th><th class="p-3">Reason</th><th class="p-3">Requested On</th><th class="p-3 text-right">Action</th></tr></thead><tbody>';
+          
+          pendingCarryover.forEach(function(req) {
+            var empFound = appData.employees.find(function(e) { return e.email === req.email; });
+            var empName = (empFound || {}).name || req.email;
+            var requestDate = req.timestamp ? formatDate(req.timestamp) : '--';
+            var reason = req.reason || 'No reason provided';
+            
+            var canApprove = isManagerOf(appData.currentUser.email, req.email);
+            var actionButtons = '';
+            if (canApprove) {
+              actionButtons = '<button onclick="handleCarryoverStatus(\'' + req.email + '\', \'approve\', ' + req.days + ')" class="text-green-600 font-bold mr-2">Approve</button><button onclick="handleCarryoverStatus(\'' + req.email + '\', \'reject\', 0)" class="text-red-500">Reject</button>';
+            } else {
+              actionButtons = '<span class="text-xs text-gray-400 italic">Awaiting Manager</span>';
+            }
+            
+            carryoverHtml += '<tr class="border-b border-gray-100 hover:bg-purple-50"><td class="p-3 font-bold text-gray-700">' + empName + '</td><td class="p-3 font-bold text-purple-600">' + req.days + ' days</td><td class="p-3 text-sm text-gray-600">' + reason + '</td><td class="p-3 text-xs text-gray-500">' + requestDate + '</td><td class="p-3 text-right">' + actionButtons + '</td></tr>';
+          });
+          
+          carryoverContainer.innerHTML = carryoverHtml + '</tbody></table>';
+        }
+
         // SICKNESS INSIGHTS RENDER
         var sicknessBody = document.getElementById('admin-sickness-body');
         var sickBookings = appData.bookings.filter(function(b) { return b.type === 'Sickness' && b.status !== 'Cancelled'; });
@@ -1280,7 +1366,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       }
 
       function closeModals() {
-        ['modal-booking','modal-employee','modal-schedule','modal-chaser'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
+        ['modal-booking','modal-employee','modal-schedule','modal-chaser','modal-carryover'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
       }
 
       function sendChaser() {
@@ -1292,6 +1378,74 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
 
       function openChaserModal() {
         document.getElementById('modal-chaser').classList.remove('hidden');
+      }
+
+      function openCarryoverModal() {
+        document.getElementById('modal-carryover').classList.remove('hidden');
+        
+        // Calculate current year stats
+        var myBookings = appData.bookings.filter(function(b) { return b.email === appData.currentUser.email && b.status !== 'Cancelled'; });
+        var myProfile = appData.employees.find(function(e) { return e.email === appData.currentUser.email; }) || appData.currentUser;
+        var totalAllowance = (Number(myProfile.allowance) || 0) + (Number(myProfile.carryOver) || 0);
+        var used = myBookings.filter(function(b) { return b.type === 'Holiday' && b.status === 'Approved' && isDateInCurrentFY(b.startDate); }).reduce(function(acc, c) { return acc + c.daysCount; }, 0);
+        var remaining = totalAllowance - used;
+        
+        document.getElementById('carryover-total').textContent = totalAllowance + ' days';
+        document.getElementById('carryover-used').textContent = used + ' days';
+        document.getElementById('carryover-available').textContent = remaining + ' days';
+        document.getElementById('carryover-days').max = Math.min(5, remaining);
+      }
+
+      function handleCarryoverRequest(e) {
+        e.preventDefault();
+        var btn = document.getElementById('btn-submit-carryover');
+        btn.innerHTML = 'Submitting...';
+        btn.disabled = true;
+        
+        var fd = {
+          days: Number(e.target.days.value),
+          reason: e.target.reason.value || ''
+        };
+        
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res.success === false) {
+              alert(res.message);
+              btn.innerHTML = 'Submit Request';
+              btn.disabled = false;
+              return;
+            }
+            
+            alert('Carryover request submitted! Your manager will review it shortly.');
+            closeModals();
+            btn.innerHTML = 'Submit Request';
+            btn.disabled = false;
+            
+            // Reload data to show updated requests
+            loadDataBackground();
+          })
+          .withFailureHandler(function(err) {
+            btn.innerHTML = 'Submit Request';
+            btn.disabled = false;
+            handleServerError(err);
+          })
+          .submitCarryoverRequest(fd);
+      }
+
+      function handleCarryoverStatus(requestEmail, action, days) {
+        if (!confirm('Are you sure you want to ' + action + ' this carryover request?')) return;
+        
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res.success) {
+              alert('Carryover request ' + action + 'd successfully!');
+              loadDataBackground();
+            } else {
+              alert(res.message || 'Failed to process request');
+            }
+          })
+          .withFailureHandler(handleServerError)
+          [action === 'approve' ? 'approveCarryoverRequest' : 'rejectCarryoverRequest'](requestEmail, days);
       }
     </script>
   </body>
