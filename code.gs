@@ -277,7 +277,7 @@ function getAuditLogs() {
             .filter(r => r[0] && r[1] && r[2])
             .reverse()
             .map(r => ({
-              timestamp: r[0],
+              timestamp: r[0] instanceof Date ? r[0].toISOString() : String(r[0]),
               actor: String(r[1]).trim(),
               action: String(r[2]).trim(),
               details: String(r[3] || '').trim()
@@ -421,7 +421,7 @@ function getInitialData() {
               .filter(r => r[0] && r[1] && r[2]) // Filter rows with required fields
               .reverse()
               .map(r => ({
-                timestamp: r[0],
+                timestamp: r[0] instanceof Date ? r[0].toISOString() : String(r[0]),
                 actor: String(r[1]).trim(),
                 action: String(r[2]).trim(),
                 details: String(r[3] || '').trim()
