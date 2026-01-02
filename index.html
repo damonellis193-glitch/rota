@@ -1095,7 +1095,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         
         var empMap = {}; var reportsMap = {};
         appData.employees.forEach(function(e) { empMap[e.email] = e; var mgr = e.manager || 'root'; if(!reportsMap[mgr]) reportsMap[mgr] = []; reportsMap[mgr].push(e); });
-        var organizedEmployees = []; var processed = new Set();
+        var organizedEmployees = []; var processed = [];
         function traverse(email, level) {
             if(arrayContains(processed, email)) return;
             if (email !== 'root') { var emp = empMap[email]; if(emp) { organizedEmployees.push(copyObject(emp, { depth: level })); arrayAdd(processed, email); } }
