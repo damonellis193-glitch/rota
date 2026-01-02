@@ -72,11 +72,7 @@
       <!-- LOADING OVERLAY -->
       <div id="loading-screen" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 z-50">
         <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4"></div>
-        <h2 class="text-center text-gray-500 text-xl font-semibold mb-4">Loading Rota...</h2>
-        <div class="w-80 bg-gray-200 rounded-full h-2 mb-2">
-          <div id="loading-progress-bar" class="bg-green-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
-        </div>
-        <p id="loading-status" class="text-sm text-gray-400">Initializing...</p>
+        <h2 class="text-center text-gray-500 text-xl font-semibold">Loading...</h2>
       </div>
 
       <div class="h-full overflow-y-auto">
@@ -425,45 +421,6 @@
             run: { 
               withSuccessHandler: function(s) { this._s = s; return this; }, 
               withFailureHandler: function(f) { this._f = f; return this; },
-              // Chunked API functions
-              getCurrentUser: function() {
-                var self = this;
-                setTimeout(function() {
-                  if(self._s) self._s({ 
-                    currentUser: { name: 'Preview Admin', email: 'admin@preview.com', allowance: 25, role: 'Admin' }
-                  });
-                }, 200);
-              },
-              getEmployees: function() {
-                var self = this;
-                setTimeout(function() {
-                  if(self._s) self._s({ 
-                    employees: [
-                      { name: 'Preview Admin', email: 'admin@preview.com', allowance: 25, role: 'Admin', department: 'IT', carryOver: 0 },
-                      { name: 'Preview User', email: 'user@preview.com', allowance: 25, role: 'User', department: 'Sales', carryOver: 0 }
-                    ]
-                  });
-                }, 200);
-              },
-              getBookings: function() {
-                var self = this;
-                setTimeout(function() {
-                  if(self._s) self._s({ bookings: [] });
-                }, 200);
-              },
-              getSchedules: function() {
-                var self = this;
-                setTimeout(function() {
-                  if(self._s) self._s({ schedules: [] });
-                }, 200);
-              },
-              getAuditLogs: function() {
-                var self = this;
-                setTimeout(function() {
-                  if(self._s) self._s({ auditLogs: [] });
-                }, 200);
-              },
-              // Legacy function for backward compatibility
               getInitialData: function() { 
                 var self = this;
                 setTimeout(function() { 
@@ -577,96 +534,29 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       }
 
       window.onload = function() {
-        console.log('[Rota App] Window loaded, starting chunked data loading...');
-        loadDataChunked();
+        console.log('[Rota App] Window loaded, loading data...');
+        loadData();
       };
 
-      // Chunked data loading to avoid Google Apps Script transfer limits
-      function loadDataChunked() {
-        var loadedData = {
-          currentUser: null,
-          employees: [],
-          bookings: [],
-          schedules: [],
-          auditLogs: []
-        };
-        
-        var loadingSteps = [
-          { name: 'Loading user info...', fn: 'getCurrentUser', progress: 20 },
-          { name: 'Loading employees...', fn: 'getEmployees', progress: 40 },
-          { name: 'Loading bookings...', fn: 'getBookings', progress: 60 },
-          { name: 'Loading schedules...', fn: 'getSchedules', progress: 80 },
-          { name: 'Loading audit logs...', fn: 'getAuditLogs', progress: 100 }
-        ];
-        
-        var currentStep = 0;
-        
-        function updateProgress(status, progress) {
-          document.getElementById('loading-status').textContent = status;
-          document.getElementById('loading-progress-bar').style.width = progress + '%';
+      // Load all data in a single call for fast performance
+      function loadData() {
+        console.log('[Rota App] Calling getInitialData...');
+        try {
+          google.script.run
+            .withSuccessHandler(onDataLoaded)
+            .withFailureHandler(function(err) {
+              console.error('[Rota App] Error loading data:', err);
+              var errorMsg = "Error loading data: " + escapeHtml((err && err.message) || (typeof err === 'string' ? err : 'Unknown error'));
+              var buttons = '<button onclick="location.reload()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Retry</button>';
+              showErrorScreen('Failed to Load Data', errorMsg, buttons);
+            })
+            .getInitialData();
+        } catch (e) {
+          console.error('[Rota App] Exception loading data:', e);
+          var errorMsg = escapeHtml((e && e.message) || (typeof e === 'string' ? e : 'Loading error'));
+          var buttons = '<button onclick="location.reload()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Retry</button>';
+          showErrorScreen('Loading Failed', errorMsg, buttons);
         }
-        
-        function loadNextChunk() {
-          if (currentStep >= loadingSteps.length) {
-            // All data loaded successfully
-            console.log('[Rota App] All chunks loaded successfully');
-            onDataLoaded(loadedData);
-            return;
-          }
-          
-          var step = loadingSteps[currentStep];
-          console.log('[Rota App] Loading chunk ' + (currentStep + 1) + '/' + loadingSteps.length + ': ' + step.fn);
-          updateProgress(step.name, step.progress);
-          
-          try {
-            google.script.run
-              .withSuccessHandler(function(data) {
-                console.log('[Rota App] Chunk ' + step.fn + ' loaded successfully');
-                
-                if (!data) {
-                  console.error('[Rota App] Chunk ' + step.fn + ' returned null');
-                  var message = '<p class="text-gray-700 mb-4">Failed to load ' + step.name + '</p>';
-                  var buttons = '<button onclick="location.reload()" class="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600">Retry</button>';
-                  showErrorScreen('Data Loading Failed', message, buttons);
-                  return;
-                }
-                
-                if (data.error) {
-                  console.error('[Rota App] Error in chunk ' + step.fn + ': ' + data.error);
-                  var message = '<p class="text-gray-700 mb-4">' + escapeHtml(data.error) + '</p>';
-                  var buttons = '<button onclick="location.reload()" class="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600">Retry</button>';
-                  showErrorScreen('Data Loading Error', message, buttons);
-                  return;
-                }
-                
-                // Merge the loaded chunk into our data
-                if (data.currentUser) loadedData.currentUser = data.currentUser;
-                if (data.employees) loadedData.employees = data.employees;
-                if (data.bookings) loadedData.bookings = data.bookings;
-                if (data.schedules) loadedData.schedules = data.schedules;
-                if (data.auditLogs) loadedData.auditLogs = data.auditLogs;
-                
-                // Move to next chunk
-                currentStep++;
-                setTimeout(loadNextChunk, 100); // Small delay between chunks
-              })
-              .withFailureHandler(function(err) {
-                console.error('[Rota App] Error loading chunk ' + step.fn + ':', err);
-                var errorMsg = "Error loading " + step.name + ": " + escapeHtml((err && err.message) || (typeof err === 'string' ? err : 'Unknown error'));
-                var buttons = '<button onclick="location.reload()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Retry</button>';
-                showErrorScreen('Failed to Load Data', errorMsg, buttons);
-              })
-              [step.fn]();
-          } catch (e) {
-            console.error('[Rota App] Exception loading chunk ' + step.fn + ':', e);
-            var errorMsg = escapeHtml((e && e.message) || (typeof e === 'string' ? e : 'Loading error'));
-            var buttons = '<button onclick="location.reload()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Retry</button>';
-            showErrorScreen('Loading Failed', errorMsg, buttons);
-          }
-        }
-        
-        // Start loading the first chunk
-        loadNextChunk();
       }
 
       function onDataLoaded(data) {
@@ -717,48 +607,19 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       function startPolling() {
         if (pollingInterval) clearInterval(pollingInterval);
         pollingInterval = setInterval(function() {
-          // Use chunked loading for background refresh too
-          loadDataChunkedBackground();
+          // Use single call for background refresh
+          loadDataBackground();
         }, 30000);
       }
 
-      function loadDataChunkedBackground() {
-        var loadedData = {
-          currentUser: null,
-          employees: [],
-          bookings: [],
-          schedules: [],
-          auditLogs: []
-        };
-        
-        var steps = ['getCurrentUser', 'getEmployees', 'getBookings', 'getSchedules', 'getAuditLogs'];
-        var completed = 0;
-        
-        function checkComplete() {
-          completed++;
-          if (completed === steps.length) {
-            onBackgroundDataLoaded(loadedData);
-          }
-        }
-        
-        // Load all chunks in parallel for background refresh (faster)
-        steps.forEach(function(fnName) {
-          google.script.run
-            .withSuccessHandler(function(data) {
-              if (data && !data.error) {
-                if (data.currentUser) loadedData.currentUser = data.currentUser;
-                if (data.employees) loadedData.employees = data.employees;
-                if (data.bookings) loadedData.bookings = data.bookings;
-                if (data.schedules) loadedData.schedules = data.schedules;
-                if (data.auditLogs) loadedData.auditLogs = data.auditLogs;
-              }
-              checkComplete();
-            })
-            .withFailureHandler(function() {
-              checkComplete(); // Continue even if one chunk fails
-            })
-            [fnName]();
-        });
+      function loadDataBackground() {
+        console.log('[Rota App] Background refresh...');
+        google.script.run
+          .withSuccessHandler(onBackgroundDataLoaded)
+          .withFailureHandler(function() {
+            console.log('[Rota App] Background refresh failed, will retry on next interval');
+          })
+          .getInitialData();
       }
 
       function onBackgroundDataLoaded(data) {
