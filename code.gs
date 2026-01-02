@@ -67,239 +67,7 @@ function doGet(e) {
 
 // --- INITIALIZATION & SETUP ---
 
-// --- CHUNKED DATA LOADING API ---
-// Split data into small focused functions to avoid Google Apps Script transfer limits
-
-function getCurrentUser() {
-  try {
-    console.log('[Backend] getCurrentUser called');
-    
-    // Check configuration first
-    const setupCheck = checkSetup();
-    if (!setupCheck.configured) {
-      console.error('[Backend] Setup incomplete: ' + setupCheck.message);
-      return { 
-        error: 'Setup Required: ' + setupCheck.message + ' - See README.md for setup instructions.'
-      };
-    }
-    
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    setupDatabase(ss);
-    
-    const userEmail = Session.getActiveUser().getEmail();
-    console.log('[Backend] User email: ' + userEmail);
-    
-    const empSheet = ss.getSheetByName('Employees');
-    if (!empSheet) {
-      console.error('[Backend] Employees sheet missing');
-      return { error: 'Employees sheet is missing.' };
-    }
-    
-    const empData = empSheet.getDataRange().getValues();
-    if (empData.length > 0) empData.shift();
-    
-    const employees = empData
-      .filter(r => r[0] && r[1] && r[2] && r[3])
-      .map(row => ({
-        name: String(row[0]).trim(),
-        email: String(row[1]).trim(),
-        allowance: Number(row[2]) || 0,
-        role: String(row[3]).trim(),
-        manager: String(row[4] || '').trim(),
-        department: String(row[5] || '').trim(),
-        carryOver: Number(row[6]) || 0
-      }));
-    
-    let currentUser = employees.find(e => e.email === userEmail);
-    if (!currentUser) {
-      currentUser = { name: 'Guest', email: userEmail, allowance: 0, role: 'Guest' };
-    }
-    
-    console.log('[Backend] Current user: ' + currentUser.name + ' (' + currentUser.role + ')');
-    return { currentUser: currentUser };
-  } catch (e) {
-    console.error('[Backend] Error in getCurrentUser: ' + e.toString());
-    return { error: 'Error loading user: ' + e.toString() };
-  }
-}
-
-function getEmployees() {
-  try {
-    console.log('[Backend] getEmployees called');
-    
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const empSheet = ss.getSheetByName('Employees');
-    
-    if (!empSheet) {
-      return { error: 'Employees sheet missing' };
-    }
-    
-    const empData = empSheet.getDataRange().getValues();
-    if (empData.length > 0) empData.shift();
-    
-    const employees = empData
-      .filter(r => r[0] && r[1] && r[2] && r[3])
-      .map(row => ({
-        name: String(row[0]).trim(),
-        email: String(row[1]).trim(),
-        allowance: Number(row[2]) || 0,
-        role: String(row[3]).trim(),
-        manager: String(row[4] || '').trim(),
-        department: String(row[5] || '').trim(),
-        carryOver: Number(row[6]) || 0
-      }));
-    
-    console.log('[Backend] Returning ' + employees.length + ' employees');
-    return { employees: employees };
-  } catch (e) {
-    console.error('[Backend] Error in getEmployees: ' + e.toString());
-    return { error: 'Error loading employees: ' + e.toString() };
-  }
-}
-
-function getBookings() {
-  try {
-    console.log('[Backend] getBookings called');
-    
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const bookSheet = ss.getSheetByName('Bookings');
-    
-    if (!bookSheet) {
-      return { error: 'Bookings sheet missing' };
-    }
-    
-    const bookData = bookSheet.getDataRange().getValues();
-    let bookings = [];
-    
-    if (bookData.length > 1) {
-      bookData.shift();
-      bookings = bookData
-        .filter(r => r[0] && r[1] && r[2] && r[3] && r[4] && r[6])
-        .map(row => ({
-          id: String(row[0]).trim(),
-          email: String(row[1]).trim(),
-          type: String(row[2]).trim(),
-          startDate: row[3] ? new Date(row[3]).toISOString() : null,
-          endDate: row[4] ? new Date(row[4]).toISOString() : null,
-          daysCount: Number(row[5]) || 0,
-          status: String(row[6]).trim(),
-          hours: Number(row[7]) || 7.5
-        }));
-    }
-    
-    console.log('[Backend] Returning ' + bookings.length + ' bookings');
-    return { bookings: bookings };
-  } catch (e) {
-    console.error('[Backend] Error in getBookings: ' + e.toString());
-    return { error: 'Error loading bookings: ' + e.toString() };
-  }
-}
-
-function getSchedules() {
-  try {
-    console.log('[Backend] getSchedules called');
-    
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const schedSheet = ss.getSheetByName('Schedules');
-    
-    if (!schedSheet) {
-      return { schedules: [] };
-    }
-    
-    const schedData = schedSheet.getDataRange().getValues();
-    const schedules = {};
-    
-    if (schedData.length > 1) {
-      schedData.shift();
-      schedData.forEach(row => {
-        if (row[0] && row[1] && row[2]) {
-          const email = String(row[0]).trim();
-          const day = String(row[1]).trim();
-          if (!schedules[email]) schedules[email] = {};
-          schedules[email][day] = {
-            type: String(row[2]).trim(),
-            hours: Number(row[3]) || 7.5
-          };
-        }
-      });
-    }
-    
-    // Convert to array format
-    const schedulesArray = [];
-    for (const email in schedules) {
-      if (schedules.hasOwnProperty(email)) {
-        schedulesArray.push({
-          email: email,
-          schedule: schedules[email]
-        });
-      }
-    }
-    
-    console.log('[Backend] Returning schedules for ' + schedulesArray.length + ' users');
-    return { schedules: schedulesArray };
-  } catch (e) {
-    console.error('[Backend] Error in getSchedules: ' + e.toString());
-    return { error: 'Error loading schedules: ' + e.toString() };
-  }
-}
-
-function getAuditLogs() {
-  try {
-    console.log('[Backend] getAuditLogs called');
-    
-    const userEmail = Session.getActiveUser().getEmail();
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const empSheet = ss.getSheetByName('Employees');
-    
-    // Check if user is admin
-    const empData = empSheet.getDataRange().getValues();
-    if (empData.length > 0) empData.shift();
-    const employees = empData.filter(r => r[0] && r[1] && r[2] && r[3]);
-    const currentUser = employees.find(r => String(r[1]).trim() === userEmail);
-    
-    if (!currentUser || String(currentUser[3]).trim() !== 'Admin') {
-      console.log('[Backend] Non-admin user, returning empty logs');
-      return { auditLogs: [] };
-    }
-    
-    const auditSheet = ss.getSheetByName('AuditLogs');
-    let auditLogs = [];
-    
-    if (auditSheet) {
-      try {
-        const lastRow = auditSheet.getLastRow();
-        const startRow = Math.max(2, lastRow - 49);
-        
-        if (lastRow > 1) {
-          const range = auditSheet.getRange(startRow, 1, (lastRow - startRow + 1), 4);
-          const rawLogs = range.getValues();
-          auditLogs = rawLogs
-            .filter(r => r[0] && r[1] && r[2])
-            .reverse()
-            .map(r => ({
-              timestamp: r[0] instanceof Date ? r[0].toISOString() : String(r[0]),
-              actor: String(r[1]).trim(),
-              action: String(r[2]).trim(),
-              details: String(r[3] || '').trim()
-            }));
-        }
-      } catch (auditError) {
-        console.error('[Backend] Error loading audit logs: ' + auditError.toString());
-        auditLogs = [];
-      }
-    }
-    
-    console.log('[Backend] Returning ' + auditLogs.length + ' audit logs');
-    return { auditLogs: auditLogs };
-  } catch (e) {
-    console.error('[Backend] Error in getAuditLogs: ' + e.toString());
-    return { error: 'Error loading audit logs: ' + e.toString() };
-  }
-}
-
-// Keep legacy function for backward compatibility, but mark as deprecated
 function getInitialData() {
-  console.warn('[Backend] DEPRECATED: getInitialData() is deprecated. Use chunked API functions instead.');
   try {
     console.log('[Backend] getInitialData called');
     
@@ -435,6 +203,34 @@ function getInitialData() {
       }
     }
 
+    // 5. Get Carryover Requests
+    let carryoverRequests = [];
+    if (currentUser.role === 'Admin') {
+      const carryoverSheet = ss.getSheetByName('CarryoverRequests');
+      if (carryoverSheet) {
+        try {
+          const carryoverData = carryoverSheet.getDataRange().getValues();
+          if (carryoverData.length > 1) {
+            carryoverData.shift();
+            carryoverRequests = carryoverData
+              .filter(r => r[0] && r[1] && r[3]) // Email, Days, Status
+              .map(r => ({
+                email: String(r[0]).trim(),
+                days: Number(r[1]) || 0,
+                reason: String(r[2] || '').trim(),
+                status: String(r[3]).trim(),
+                timestamp: r[4] ? (r[4] instanceof Date ? r[4].toISOString() : String(r[4])) : null,
+                processedBy: String(r[5] || '').trim(),
+                processedAt: r[6] ? (r[6] instanceof Date ? r[6].toISOString() : String(r[6])) : null
+              }));
+          }
+        } catch (carryoverError) {
+          console.error('[Backend] Error loading carryover requests: ' + carryoverError.toString());
+          carryoverRequests = [];
+        }
+      }
+    }
+
     console.log('[Backend] Returning data successfully');
     console.log('[Backend] Employees count: ' + employees.length);
     console.log('[Backend] Bookings count: ' + bookings.length);
@@ -445,7 +241,8 @@ function getInitialData() {
       employees: employees,
       bookings: bookings,
       schedules: schedulesArray,
-      auditLogs: auditLogs
+      auditLogs: auditLogs,
+      carryoverRequests: carryoverRequests
     };
     
     // Verify the result is valid before returning
@@ -499,6 +296,10 @@ function setupDatabase(ss) {
   if (!ss.getSheetByName('AuditLogs')) {
     const s = ss.insertSheet('AuditLogs');
     s.appendRow(['Timestamp', 'Actor', 'Action', 'Details']);
+  }
+  if (!ss.getSheetByName('CarryoverRequests')) {
+    const s = ss.insertSheet('CarryoverRequests');
+    s.appendRow(['Email', 'Days', 'Reason', 'Status', 'Timestamp', 'ProcessedBy', 'ProcessedAt']);
   }
 }
 
@@ -722,5 +523,166 @@ function saveUserSchedule(email, scheduleMap) {
     }
   });
   logAction(actor, 'Schedule Updated', `Updated schedule for ${email}`);
+  return { success: true };
+}
+
+// --- CARRYOVER REQUEST FUNCTIONS ---
+
+function submitCarryoverRequest(data) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('CarryoverRequests');
+  if (!sheet) {
+    setupDatabase(ss);
+  }
+  
+  const userEmail = Session.getActiveUser().getEmail();
+  const actor = userEmail;
+  
+  // Check if user already has a pending request
+  const existingData = sheet.getDataRange().getValues();
+  for (let i = 1; i < existingData.length; i++) {
+    if (existingData[i][0] === userEmail && existingData[i][3] === 'Pending') {
+      return { success: false, message: 'You already have a pending carryover request.' };
+    }
+  }
+  
+  // Validate days (max 5)
+  if (data.days > 5 || data.days < 1) {
+    return { success: false, message: 'Carryover must be between 1 and 5 days.' };
+  }
+  
+  sheet.appendRow([
+    userEmail,
+    data.days,
+    data.reason || '',
+    'Pending',
+    new Date(),
+    '',
+    ''
+  ]);
+  
+  logAction(actor, 'Carryover Requested', `Requested ${data.days} days carryover`);
+  
+  // Send email notification to manager
+  try {
+    const empSheet = ss.getSheetByName('Employees');
+    const empData = empSheet.getDataRange().getValues();
+    const employee = empData.find(r => String(r[1]).trim() === userEmail);
+    
+    if (employee && employee[4]) { // Has manager
+      const managerEmail = String(employee[4]).trim();
+      const employeeName = String(employee[0]).trim();
+      
+      MailApp.sendEmail({
+        to: managerEmail,
+        subject: 'Holiday Carryover Request from ' + employeeName,
+        body: `Hello,\n\n${employeeName} has submitted a request to carry over ${data.days} days of holiday allowance to the next fiscal year.\n\nReason: ${data.reason || 'No reason provided'}\n\nPlease review this request in the admin panel.\n\nThank you,\nRota System`
+      });
+    }
+  } catch (e) {
+    console.error('Failed to send email notification: ' + e.toString());
+  }
+  
+  return { success: true };
+}
+
+function approveCarryoverRequest(email, days) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const carryoverSheet = ss.getSheetByName('CarryoverRequests');
+  const empSheet = ss.getSheetByName('Employees');
+  const actor = Session.getActiveUser().getEmail();
+  
+  // Find and update the request
+  const carryoverData = carryoverSheet.getDataRange().getValues();
+  let requestRow = -1;
+  for (let i = 1; i < carryoverData.length; i++) {
+    if (carryoverData[i][0] === email && carryoverData[i][3] === 'Pending') {
+      requestRow = i + 1;
+      break;
+    }
+  }
+  
+  if (requestRow === -1) {
+    return { success: false, message: 'Request not found or already processed.' };
+  }
+  
+  // Update the request status
+  carryoverSheet.getRange(requestRow, 4).setValue('Approved');
+  carryoverSheet.getRange(requestRow, 6).setValue(actor);
+  carryoverSheet.getRange(requestRow, 7).setValue(new Date());
+  
+  // Update employee's CarryOver field
+  const empData = empSheet.getDataRange().getValues();
+  for (let i = 1; i < empData.length; i++) {
+    if (String(empData[i][1]).trim() === email) {
+      const currentCarryover = Number(empData[i][6]) || 0;
+      empSheet.getRange(i + 1, 7).setValue(days);
+      break;
+    }
+  }
+  
+  logAction(actor, 'Carryover Approved', `Approved ${days} days carryover for ${email}`);
+  
+  // Send email notification
+  try {
+    const empData = empSheet.getDataRange().getValues();
+    const employee = empData.find(r => String(r[1]).trim() === email);
+    const employeeName = employee ? String(employee[0]).trim() : email;
+    
+    MailApp.sendEmail({
+      to: email,
+      subject: 'Holiday Carryover Request Approved',
+      body: `Hello ${employeeName},\n\nYour request to carry over ${days} days of holiday allowance has been approved!\n\nThis will be added to your allowance for the next fiscal year.\n\nThank you,\nRota System`
+    });
+  } catch (e) {
+    console.error('Failed to send email notification: ' + e.toString());
+  }
+  
+  return { success: true };
+}
+
+function rejectCarryoverRequest(email, days) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const carryoverSheet = ss.getSheetByName('CarryoverRequests');
+  const empSheet = ss.getSheetByName('Employees');
+  const actor = Session.getActiveUser().getEmail();
+  
+  // Find and update the request
+  const carryoverData = carryoverSheet.getDataRange().getValues();
+  let requestRow = -1;
+  for (let i = 1; i < carryoverData.length; i++) {
+    if (carryoverData[i][0] === email && carryoverData[i][3] === 'Pending') {
+      requestRow = i + 1;
+      break;
+    }
+  }
+  
+  if (requestRow === -1) {
+    return { success: false, message: 'Request not found or already processed.' };
+  }
+  
+  // Update the request status
+  carryoverSheet.getRange(requestRow, 4).setValue('Rejected');
+  carryoverSheet.getRange(requestRow, 6).setValue(actor);
+  carryoverSheet.getRange(requestRow, 7).setValue(new Date());
+  
+  logAction(actor, 'Carryover Rejected', `Rejected carryover request for ${email}`);
+  
+  // Send email notification
+  try {
+    const empData = empSheet.getDataRange().getValues();
+    const employee = empData.find(r => String(r[1]).trim() === email);
+    const employeeName = employee ? String(employee[0]).trim() : email;
+    const requestDays = carryoverData[requestRow - 1][1];
+    
+    MailApp.sendEmail({
+      to: email,
+      subject: 'Holiday Carryover Request Update',
+      body: `Hello ${employeeName},\n\nYour request to carry over ${requestDays} days of holiday allowance has been reviewed.\n\nUnfortunately, this request could not be approved at this time. Please contact your manager for more information.\n\nThank you,\nRota System`
+    });
+  } catch (e) {
+    console.error('Failed to send email notification: ' + e.toString());
+  }
+  
   return { success: true };
 }

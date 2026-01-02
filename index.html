@@ -72,11 +72,7 @@
       <!-- LOADING OVERLAY -->
       <div id="loading-screen" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 z-50">
         <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4"></div>
-        <h2 class="text-center text-gray-500 text-xl font-semibold mb-4">Loading Rota...</h2>
-        <div class="w-80 bg-gray-200 rounded-full h-2 mb-2">
-          <div id="loading-progress-bar" class="bg-green-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
-        </div>
-        <p id="loading-status" class="text-sm text-gray-400">Initializing...</p>
+        <h2 class="text-center text-gray-500 text-xl font-semibold">Loading...</h2>
       </div>
 
       <div class="h-full overflow-y-auto">
@@ -123,9 +119,12 @@
               </div>
             </div>
             <!-- Action -->
-            <div class="bg-white rounded-xl shadow-md p-6 border-t-4 border-green-800 flex flex-col justify-center items-center">
+            <div class="bg-white rounded-xl shadow-md p-6 border-t-4 border-green-800 flex flex-col justify-center items-center space-y-2">
                <button onclick="openBookingModal()" class="w-full btn-primary font-bold py-3 px-4 rounded-lg shadow hover:shadow-lg transition transform hover:-translate-y-1 flex items-center justify-center">
                  <i class="fa-solid fa-plus mr-2"></i> Book Time Off
+               </button>
+               <button id="carryover-btn" onclick="openCarryoverModal()" class="hidden w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg shadow hover:shadow-lg transition transform hover:-translate-y-1 flex items-center justify-center">
+                 <i class="fa-solid fa-forward mr-2"></i> Request Carryover
                </button>
             </div>
           </div>
@@ -262,6 +261,14 @@
             <div id="admin-inbox-container" class="overflow-x-auto"></div>
           </div>
 
+          <!-- CARRYOVER REQUESTS -->
+          <div id="admin-carryover-section" class="hidden bg-white rounded-xl shadow overflow-hidden border-t-4 border-purple-400">
+            <div class="px-6 py-4 border-b border-gray-100 bg-purple-50 flex justify-between items-center">
+              <h3 class="font-bold text-purple-900"><i class="fa-solid fa-forward mr-2"></i>Carryover Requests (<span id="carryover-count">0</span>)</h3>
+            </div>
+            <div id="admin-carryover-container" class="overflow-x-auto"></div>
+          </div>
+
           <!-- SICKNESS INSIGHTS -->
           <div class="bg-white rounded-xl shadow overflow-hidden border-t-4 border-red-500">
             <div onclick="toggleElement('sickness-insights-container', 'sickness-icon')" class="px-6 py-4 border-b border-gray-100 bg-red-50 flex justify-between items-center cursor-pointer select-none">
@@ -297,16 +304,81 @@
           <!-- COLLEAGUE MANAGEMENT -->
           <div class="bg-white rounded-xl shadow overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-               <h3 class="font-bold text-gray-700">Colleague Management</h3>
+               <h3 class="font-bold text-gray-700"><i class="fa-solid fa-users mr-2"></i>Colleague Management & Insights</h3>
                <div class="space-x-2">
+                 <button onclick="exportColleaguesCSV()" class="bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm px-3 py-2 rounded shadow border border-blue-300"><i class="fa-solid fa-download mr-2"></i> Export CSV</button>
                  <button onclick="openChaserModal()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm px-3 py-2 rounded shadow border border-gray-300"><i class="fa-solid fa-envelope mr-2"></i> Email Chaser</button>
                  <button onclick="openEmployeeModal()" class="btn-primary text-sm px-3 py-2 rounded shadow"><i class="fa-solid fa-user-plus mr-2"></i> Add</button>
                </div>
             </div>
-            <table class="w-full text-left">
-              <thead><tr class="bg-gray-100 text-gray-600 text-xs uppercase"><th class="p-4">Name</th><th class="p-4 text-center">Allowance</th><th class="p-4 text-center text-gray-500">Taken</th><th class="p-4 text-center text-blue-600">Planned</th><th class="p-4 text-center font-bold">Unbooked</th><th class="p-4 w-1/3">Insight / Risk</th><th class="p-4 text-right">Manage</th></tr></thead>
-              <tbody id="admin-emp-body" class="divide-y divide-gray-100"></tbody>
-            </table>
+            
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-4 p-6 bg-gray-50 border-b">
+              <div class="bg-white p-4 rounded-lg border border-gray-200 text-center">
+                <div class="text-2xl font-bold text-gray-800" id="summary-total-employees">--</div>
+                <div class="text-xs text-gray-500 uppercase">Total Employees</div>
+              </div>
+              <div class="bg-white p-4 rounded-lg border border-red-200 text-center">
+                <div class="text-2xl font-bold text-red-600" id="summary-at-risk">--</div>
+                <div class="text-xs text-gray-500 uppercase">At Risk</div>
+              </div>
+              <div class="bg-white p-4 rounded-lg border border-green-200 text-center">
+                <div class="text-2xl font-bold text-green-600" id="summary-avg-util">--</div>
+                <div class="text-xs text-gray-500 uppercase">Avg Utilization</div>
+              </div>
+              <div class="bg-white p-4 rounded-lg border border-yellow-200 text-center">
+                <div class="text-2xl font-bold text-yellow-600" id="summary-pending">--</div>
+                <div class="text-xs text-gray-500 uppercase">Pending Requests</div>
+              </div>
+              <div class="bg-white p-4 rounded-lg border border-blue-200 text-center">
+                <div class="text-2xl font-bold text-blue-600" id="summary-away">--</div>
+                <div class="text-xs text-gray-500 uppercase">Currently Away</div>
+              </div>
+              <div class="bg-white p-4 rounded-lg border border-purple-200 text-center">
+                <div class="text-2xl font-bold text-purple-600" id="summary-high-bradford">--</div>
+                <div class="text-xs text-gray-500 uppercase">High Bradford</div>
+              </div>
+            </div>
+            
+            <!-- Filters -->
+            <div class="px-6 py-3 bg-gray-50 border-b flex flex-wrap gap-2 items-center">
+              <span class="text-xs font-bold text-gray-600 uppercase">Filters:</span>
+              <select id="filter-department" onchange="renderEnhancedColleagueTable()" class="border border-gray-300 rounded px-2 py-1 text-xs">
+                <option value="all">All Departments</option>
+              </select>
+              <select id="filter-risk" onchange="renderEnhancedColleagueTable()" class="border border-gray-300 rounded px-2 py-1 text-xs">
+                <option value="all">All Risk Levels</option>
+                <option value="red">🔴 High Risk</option>
+                <option value="yellow">🟡 Needs Attention</option>
+                <option value="green">🟢 Healthy</option>
+                <option value="blue">🔵 On Leave</option>
+              </select>
+              <select id="filter-manager" onchange="renderEnhancedColleagueTable()" class="border border-gray-300 rounded px-2 py-1 text-xs">
+                <option value="all">All Managers</option>
+              </select>
+              <button onclick="resetColleagueFilters()" class="text-xs text-gray-500 hover:text-gray-700 underline ml-2">Clear Filters</button>
+            </div>
+            
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm">
+                <thead>
+                  <tr class="bg-gray-100 text-gray-600 text-xs uppercase">
+                    <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('status')">Status</th>
+                    <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('name')">Name <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
+                    <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('department')">Department <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
+                    <th class="p-3 text-center cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('remaining')">Days Left <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
+                    <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('utilization')">Utilization <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
+                    <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('lastHoliday')">Last Holiday <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
+                    <th class="p-3 text-center cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('sickDays')">Sick Days <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
+                    <th class="p-3 text-center cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('bradford')">Bradford <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
+                    <th class="p-3 text-center">Pending</th>
+                    <th class="p-3">Manager</th>
+                    <th class="p-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-emp-body-enhanced" class="divide-y divide-gray-100"></tbody>
+              </table>
+            </div>
           </div>
 
           <!-- SYSTEM AUDIT LOGS -->
@@ -382,6 +454,35 @@
       </div>
     </div>
 
+    <div id="modal-carryover" class="hidden fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div class="bg-purple-600 p-4 text-white flex justify-between items-center border-b-4 border-purple-700"><h3 class="font-bold">Request Holiday Carryover</h3><button onclick="closeModals()" class="text-white"><i class="fa-solid fa-times"></i></button></div>
+        <form onsubmit="handleCarryoverRequest(event)" class="p-6">
+          <div class="mb-4 p-4 bg-purple-50 rounded border border-purple-200">
+            <p class="text-sm text-purple-900 mb-2"><i class="fa-solid fa-info-circle mr-1"></i> <strong>Current Year Summary</strong></p>
+            <div class="text-xs text-purple-700">
+              <div class="flex justify-between mb-1"><span>Total Allowance:</span><span id="carryover-total" class="font-bold">--</span></div>
+              <div class="flex justify-between mb-1"><span>Used:</span><span id="carryover-used" class="font-bold">--</span></div>
+              <div class="flex justify-between"><span>Remaining:</span><span id="carryover-available" class="font-bold text-green-600">--</span></div>
+            </div>
+          </div>
+          <div class="mb-4">
+            <label class="text-xs font-bold uppercase text-gray-500 block mb-1">Days to Carry Over</label>
+            <input type="number" id="carryover-days" name="days" min="1" max="5" required class="w-full border rounded p-2">
+            <p class="text-xs text-gray-400 mt-1">Maximum: 5 days</p>
+          </div>
+          <div class="mb-6">
+            <label class="text-xs font-bold uppercase text-gray-500 block mb-1">Reason (Optional)</label>
+            <textarea name="reason" rows="3" class="w-full border rounded p-2 text-sm" placeholder="e.g., Did not have opportunity to use all days..."></textarea>
+          </div>
+          <div class="flex justify-end space-x-2">
+            <button type="button" onclick="closeModals()" class="px-4 py-2 text-gray-500">Cancel</button>
+            <button type="submit" id="btn-submit-carryover" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded font-bold">Submit Request</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <script>
       // Helper function to get unique values from array (ES5 compatible)
       function getUniqueValues(arr) {
@@ -425,45 +526,6 @@
             run: { 
               withSuccessHandler: function(s) { this._s = s; return this; }, 
               withFailureHandler: function(f) { this._f = f; return this; },
-              // Chunked API functions
-              getCurrentUser: function() {
-                var self = this;
-                setTimeout(function() {
-                  if(self._s) self._s({ 
-                    currentUser: { name: 'Preview Admin', email: 'admin@preview.com', allowance: 25, role: 'Admin' }
-                  });
-                }, 200);
-              },
-              getEmployees: function() {
-                var self = this;
-                setTimeout(function() {
-                  if(self._s) self._s({ 
-                    employees: [
-                      { name: 'Preview Admin', email: 'admin@preview.com', allowance: 25, role: 'Admin', department: 'IT', carryOver: 0 },
-                      { name: 'Preview User', email: 'user@preview.com', allowance: 25, role: 'User', department: 'Sales', carryOver: 0 }
-                    ]
-                  });
-                }, 200);
-              },
-              getBookings: function() {
-                var self = this;
-                setTimeout(function() {
-                  if(self._s) self._s({ bookings: [] });
-                }, 200);
-              },
-              getSchedules: function() {
-                var self = this;
-                setTimeout(function() {
-                  if(self._s) self._s({ schedules: [] });
-                }, 200);
-              },
-              getAuditLogs: function() {
-                var self = this;
-                setTimeout(function() {
-                  if(self._s) self._s({ auditLogs: [] });
-                }, 200);
-              },
-              // Legacy function for backward compatibility
               getInitialData: function() { 
                 var self = this;
                 setTimeout(function() { 
@@ -529,7 +591,7 @@
         return result;
       }
 
-var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, auditLogs: [] };
+var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, auditLogs: [], carryoverRequests: [] };
       var calendarDate = new Date();
       var myTeamCalendarDate = new Date();
       var expandedManagers = [];
@@ -577,96 +639,29 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       }
 
       window.onload = function() {
-        console.log('[Rota App] Window loaded, starting chunked data loading...');
-        loadDataChunked();
+        console.log('[Rota App] Window loaded, loading data...');
+        loadData();
       };
 
-      // Chunked data loading to avoid Google Apps Script transfer limits
-      function loadDataChunked() {
-        var loadedData = {
-          currentUser: null,
-          employees: [],
-          bookings: [],
-          schedules: [],
-          auditLogs: []
-        };
-        
-        var loadingSteps = [
-          { name: 'Loading user info...', fn: 'getCurrentUser', progress: 20 },
-          { name: 'Loading employees...', fn: 'getEmployees', progress: 40 },
-          { name: 'Loading bookings...', fn: 'getBookings', progress: 60 },
-          { name: 'Loading schedules...', fn: 'getSchedules', progress: 80 },
-          { name: 'Loading audit logs...', fn: 'getAuditLogs', progress: 100 }
-        ];
-        
-        var currentStep = 0;
-        
-        function updateProgress(status, progress) {
-          document.getElementById('loading-status').textContent = status;
-          document.getElementById('loading-progress-bar').style.width = progress + '%';
+      // Load all data in a single call for fast performance
+      function loadData() {
+        console.log('[Rota App] Calling getInitialData...');
+        try {
+          google.script.run
+            .withSuccessHandler(onDataLoaded)
+            .withFailureHandler(function(err) {
+              console.error('[Rota App] Error loading data:', err);
+              var errorMsg = "Error loading data: " + escapeHtml((err && err.message) || (typeof err === 'string' ? err : 'Unknown error'));
+              var buttons = '<button onclick="location.reload()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Retry</button>';
+              showErrorScreen('Failed to Load Data', errorMsg, buttons);
+            })
+            .getInitialData();
+        } catch (e) {
+          console.error('[Rota App] Exception loading data:', e);
+          var errorMsg = escapeHtml((e && e.message) || (typeof e === 'string' ? e : 'Loading error'));
+          var buttons = '<button onclick="location.reload()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Retry</button>';
+          showErrorScreen('Loading Failed', errorMsg, buttons);
         }
-        
-        function loadNextChunk() {
-          if (currentStep >= loadingSteps.length) {
-            // All data loaded successfully
-            console.log('[Rota App] All chunks loaded successfully');
-            onDataLoaded(loadedData);
-            return;
-          }
-          
-          var step = loadingSteps[currentStep];
-          console.log('[Rota App] Loading chunk ' + (currentStep + 1) + '/' + loadingSteps.length + ': ' + step.fn);
-          updateProgress(step.name, step.progress);
-          
-          try {
-            google.script.run
-              .withSuccessHandler(function(data) {
-                console.log('[Rota App] Chunk ' + step.fn + ' loaded successfully');
-                
-                if (!data) {
-                  console.error('[Rota App] Chunk ' + step.fn + ' returned null');
-                  var message = '<p class="text-gray-700 mb-4">Failed to load ' + step.name + '</p>';
-                  var buttons = '<button onclick="location.reload()" class="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600">Retry</button>';
-                  showErrorScreen('Data Loading Failed', message, buttons);
-                  return;
-                }
-                
-                if (data.error) {
-                  console.error('[Rota App] Error in chunk ' + step.fn + ': ' + data.error);
-                  var message = '<p class="text-gray-700 mb-4">' + escapeHtml(data.error) + '</p>';
-                  var buttons = '<button onclick="location.reload()" class="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600">Retry</button>';
-                  showErrorScreen('Data Loading Error', message, buttons);
-                  return;
-                }
-                
-                // Merge the loaded chunk into our data
-                if (data.currentUser) loadedData.currentUser = data.currentUser;
-                if (data.employees) loadedData.employees = data.employees;
-                if (data.bookings) loadedData.bookings = data.bookings;
-                if (data.schedules) loadedData.schedules = data.schedules;
-                if (data.auditLogs) loadedData.auditLogs = data.auditLogs;
-                
-                // Move to next chunk
-                currentStep++;
-                setTimeout(loadNextChunk, 100); // Small delay between chunks
-              })
-              .withFailureHandler(function(err) {
-                console.error('[Rota App] Error loading chunk ' + step.fn + ':', err);
-                var errorMsg = "Error loading " + step.name + ": " + escapeHtml((err && err.message) || (typeof err === 'string' ? err : 'Unknown error'));
-                var buttons = '<button onclick="location.reload()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Retry</button>';
-                showErrorScreen('Failed to Load Data', errorMsg, buttons);
-              })
-              [step.fn]();
-          } catch (e) {
-            console.error('[Rota App] Exception loading chunk ' + step.fn + ':', e);
-            var errorMsg = escapeHtml((e && e.message) || (typeof e === 'string' ? e : 'Loading error'));
-            var buttons = '<button onclick="location.reload()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Retry</button>';
-            showErrorScreen('Loading Failed', errorMsg, buttons);
-          }
-        }
-        
-        // Start loading the first chunk
-        loadNextChunk();
       }
 
       function onDataLoaded(data) {
@@ -694,6 +689,9 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         // Convert schedules array back to object for easier lookup
         convertSchedulesToObject(data);
         
+        // Ensure carryoverRequests exists
+        if (!data.carryoverRequests) data.carryoverRequests = [];
+        
         appData = data;
         console.log('[Rota App] Hiding loading screen');
         document.getElementById('loading-screen').classList.add('hidden');
@@ -717,48 +715,19 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       function startPolling() {
         if (pollingInterval) clearInterval(pollingInterval);
         pollingInterval = setInterval(function() {
-          // Use chunked loading for background refresh too
-          loadDataChunkedBackground();
+          // Use single call for background refresh
+          loadDataBackground();
         }, 30000);
       }
 
-      function loadDataChunkedBackground() {
-        var loadedData = {
-          currentUser: null,
-          employees: [],
-          bookings: [],
-          schedules: [],
-          auditLogs: []
-        };
-        
-        var steps = ['getCurrentUser', 'getEmployees', 'getBookings', 'getSchedules', 'getAuditLogs'];
-        var completed = 0;
-        
-        function checkComplete() {
-          completed++;
-          if (completed === steps.length) {
-            onBackgroundDataLoaded(loadedData);
-          }
-        }
-        
-        // Load all chunks in parallel for background refresh (faster)
-        steps.forEach(function(fnName) {
-          google.script.run
-            .withSuccessHandler(function(data) {
-              if (data && !data.error) {
-                if (data.currentUser) loadedData.currentUser = data.currentUser;
-                if (data.employees) loadedData.employees = data.employees;
-                if (data.bookings) loadedData.bookings = data.bookings;
-                if (data.schedules) loadedData.schedules = data.schedules;
-                if (data.auditLogs) loadedData.auditLogs = data.auditLogs;
-              }
-              checkComplete();
-            })
-            .withFailureHandler(function() {
-              checkComplete(); // Continue even if one chunk fails
-            })
-            [fnName]();
-        });
+      function loadDataBackground() {
+        console.log('[Rota App] Background refresh...');
+        google.script.run
+          .withSuccessHandler(onBackgroundDataLoaded)
+          .withFailureHandler(function() {
+            console.log('[Rota App] Background refresh failed, will retry on next interval');
+          })
+          .getInitialData();
       }
 
       function onBackgroundDataLoaded(data) {
@@ -926,6 +895,15 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           document.getElementById('dash-next-type').textContent = "--";
         }
         
+        // Show/hide carryover button (only in March)
+        var currentMonth = new Date().getMonth();
+        var carryoverBtn = document.getElementById('carryover-btn');
+        if (currentMonth === 2) { // March is month 2 (0-indexed)
+          carryoverBtn.classList.remove('hidden');
+        } else {
+          carryoverBtn.classList.add('hidden');
+        }
+        
         var adminAlertContainer = document.getElementById('admin-dashboard-alert');
         if (adminAlertContainer) adminAlertContainer.remove(); 
 
@@ -955,7 +933,8 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           } else {
              upcomingBody.innerHTML = '';
              teamUpcoming.forEach(function(b) {
-                var name = appData.employees.find(function(e) { return e.email === b.email; })?.name || b.email;
+                var emp = appData.employees.find(function(e) { return e.email === b.email; });
+                var name = (emp || {}).name || b.email;
                 upcomingBody.innerHTML += '<tr class="border-b border-gray-100 last:border-0 hover:bg-blue-50 cursor-pointer transition" onclick="jumpToCalendar(\'' + b.startDate + '\')"><td class="p-3 font-bold text-gray-700">' + name + '</td><td class="p-3 text-right text-gray-500 text-xs"><span class="font-medium text-blue-600">' + formatDate(b.startDate) + ' - ' + formatDate(b.endDate) + '</span></td></tr>';
              });
           }
@@ -970,7 +949,8 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           else {
              currentBody.innerHTML = '';
              currentHolidays.forEach(function(b) {
-                var name = appData.employees.find(function(e) { return e.email === b.email; })?.name || b.email;
+                var emp = appData.employees.find(function(e) { return e.email === b.email; });
+                var name = (emp || {}).name || b.email;
                 var isSick = b.type === 'Sickness';
                 currentBody.innerHTML += '<tr class="border-b border-gray-100 last:border-0 hover:bg-red-50 cursor-pointer transition" onclick="jumpToCalendar(\'' + b.startDate + '\')"><td class="p-3 font-bold text-gray-700">' + name + '</td><td class="p-3 text-right text-gray-500 text-xs"><span class="font-medium ' + (isSick ? 'text-red-600 font-bold' : 'text-blue-600') + '">' + (isSick ? 'SICK' : 'HOLIDAY') + ' (' + formatDate(b.endDate) + ')</span></td></tr>';
              });
@@ -1173,8 +1153,8 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         
         var filterSel = document.getElementById('admin-pending-filter');
         if (filterSel.options.length <= 1) {
-           var uniqueEmails = [...new Set(pending.map(function(b) { return b.email; }))];
-           uniqueEmails.forEach(function(email) { var name = appData.employees.find(function(e) { return e.email === email; })?.name || email; var opt = document.createElement('option'); opt.value = email; opt.textContent = name; filterSel.appendChild(opt); });
+           var uniqueEmails = getUniqueValues(pending.map(function(b) { return b.email; }));
+           uniqueEmails.forEach(function(email) { var emp = appData.employees.find(function(e) { return e.email === email; }); var name = (emp || {}).name || email; var opt = document.createElement('option'); opt.value = email; opt.textContent = name; filterSel.appendChild(opt); });
         }
         var displayPending = filterVal === 'all' ? pending : pending.filter(function(b) { return b.email === filterVal; });
         var inbox = document.getElementById('admin-inbox-container');
@@ -1183,7 +1163,8 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         } else {
           var h='<table class="w-full text-left text-sm"><thead class="bg-yellow-50 text-green-900"><tr><th class="p-3">Colleague</th><th class="p-3">Request</th><th class="p-3">Dates</th><th class="p-3 text-right">Action</th></tr></thead><tbody>';
           displayPending.forEach(function(b) {
-            var n=appData.employees.find(function(e) { return e.email===b.email; })?.name||b.email;
+            var empFound=appData.employees.find(function(e) { return e.email===b.email; });
+            var n=(empFound || {}).name||b.email;
             var canApprove = isManagerOf(appData.currentUser.email, b.email);
             var actionButtons = '';
             if (canApprove) {
@@ -1194,7 +1175,8 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
                 }
             } else {
                 var emp = appData.employees.find(function(e) { return e.email === b.email; });
-                var mgrName = emp && emp.manager ? (appData.employees.find(function(m) { return m.email === emp.manager; })?.name || emp.manager) : 'Manager';
+                var mgr = emp && emp.manager ? appData.employees.find(function(m) { return m.email === emp.manager; }) : null;
+                var mgrName = emp && emp.manager ? ((mgr || {}).name || emp.manager) : 'Manager';
                 actionButtons = '<span class="text-xs text-gray-400 italic">Awaiting ' + mgrName + '</span>';
             }
 
@@ -1205,6 +1187,40 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
             }
           });
           inbox.innerHTML=h+'</tbody></table>';
+        }
+
+        // CARRYOVER REQUESTS RENDER
+        var carryoverRequests = appData.carryoverRequests || [];
+        var pendingCarryover = carryoverRequests.filter(function(r) { return r.status === 'Pending'; });
+        document.getElementById('carryover-count').textContent = pendingCarryover.length;
+        
+        var carryoverContainer = document.getElementById('admin-carryover-container');
+        var carryoverSection = document.getElementById('admin-carryover-section');
+        
+        if (pendingCarryover.length === 0) {
+          carryoverSection.classList.add('hidden');
+        } else {
+          carryoverSection.classList.remove('hidden');
+          var carryoverHtml = '<table class="w-full text-left text-sm"><thead class="bg-purple-50 text-purple-900"><tr><th class="p-3">Colleague</th><th class="p-3">Days Requested</th><th class="p-3">Reason</th><th class="p-3">Requested On</th><th class="p-3 text-right">Action</th></tr></thead><tbody>';
+          
+          pendingCarryover.forEach(function(req) {
+            var empFound = appData.employees.find(function(e) { return e.email === req.email; });
+            var empName = (empFound || {}).name || req.email;
+            var requestDate = req.timestamp ? formatDate(req.timestamp) : '--';
+            var reason = req.reason || 'No reason provided';
+            
+            var canApprove = isManagerOf(appData.currentUser.email, req.email);
+            var actionButtons = '';
+            if (canApprove) {
+              actionButtons = '<button onclick="handleCarryoverStatus(\'' + req.email + '\', \'approve\', ' + req.days + ')" class="text-green-600 font-bold mr-2">Approve</button><button onclick="handleCarryoverStatus(\'' + req.email + '\', \'reject\', 0)" class="text-red-500">Reject</button>';
+            } else {
+              actionButtons = '<span class="text-xs text-gray-400 italic">Awaiting Manager</span>';
+            }
+            
+            carryoverHtml += '<tr class="border-b border-gray-100 hover:bg-purple-50"><td class="p-3 font-bold text-gray-700">' + empName + '</td><td class="p-3 font-bold text-purple-600">' + req.days + ' days</td><td class="p-3 text-sm text-gray-600">' + reason + '</td><td class="p-3 text-xs text-gray-500">' + requestDate + '</td><td class="p-3 text-right">' + actionButtons + '</td></tr>';
+          });
+          
+          carryoverContainer.innerHTML = carryoverHtml + '</tbody></table>';
         }
 
         // SICKNESS INSIGHTS RENDER
@@ -1229,7 +1245,8 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
             sicknessBody.innerHTML = '';
             Object.keys(stats).forEach(function(email) {
                 var s = stats[email];
-                var n = appData.employees.find(function(e) { return e.email === email; })?.name || email;
+                var empFound = appData.employees.find(function(e) { return e.email === email; });
+                var n = (empFound || {}).name || email;
                 var bf = (s.episodes * s.episodes * s.days); // Bradford Factor Proxy
                 var riskClass = 'text-green-600';
                 if(bf > 200) riskClass = 'text-red-600 font-bold';
@@ -1257,8 +1274,8 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         var allApproved = appData.bookings.filter(function(b) { return b.status === 'Approved' || b.status === 'Pending'; }).sort(function(a, b) { return new Date(b.startDate) - new Date(a.startDate); });
         var activeFilterSel = document.getElementById('admin-active-filter');
         if (activeFilterSel.options.length <= 1) {
-           var uniqueEmails = [...new Set(allApproved.map(function(b) { return b.email; }))];
-           uniqueEmails.forEach(function(email) { var name = appData.employees.find(function(e) { return e.email === email; })?.name || email; var opt = document.createElement('option'); opt.value = email; opt.textContent = name; activeFilterSel.appendChild(opt); });
+           var uniqueEmails = getUniqueValues(allApproved.map(function(b) { return b.email; }));
+           uniqueEmails.forEach(function(email) { var emp = appData.employees.find(function(e) { return e.email === email; }); var name = (emp || {}).name || email; var opt = document.createElement('option'); opt.value = email; opt.textContent = name; activeFilterSel.appendChild(opt); });
         }
         if (activeFilterVal !== 'all') { allApproved = allApproved.filter(function(b) { return b.email === activeFilterVal; }); }
         if (allApproved.length === 0) {
@@ -1266,35 +1283,287 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         } else {
             var abHtml = '';
             allApproved.forEach(function(b) {
-                var name = appData.employees.find(function(e) { return e.email === b.email; })?.name || b.email;
+                var empFound = appData.employees.find(function(e) { return e.email === b.email; });
+                var name = (empFound || {}).name || b.email;
                 abHtml += '<tr class="border-b border-gray-100 hover:bg-gray-50"><td class="p-3 font-bold text-gray-700">' + name + '</td><td class="p-3">' + b.type + '</td><td class="p-3">' + formatDate(b.startDate) + ' - ' + formatDate(b.endDate) + '</td><td class="p-3"><span class="px-2 py-1 rounded text-xs font-bold ' + (b.status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700') + '">' + b.status + '</span></td><td class="p-3 text-right"><a href="mailto:' + b.email + '?subject=Regarding Holiday ' + formatDate(b.startDate) + '" class="text-blue-500 hover:text-blue-700 mr-3" title="Email"><i class="fa-solid fa-envelope"></i></a><button onclick="handleAdminCancellation(\'' + b.id + '\', \'approve\')" class="text-red-400 hover:text-red-600" title="Cancel Booking"><i class="fa-solid fa-ban"></i></button></td></tr>';
             });
             allBookingsBody.innerHTML = abHtml;
         }
 
-        var tbodyEmp = document.getElementById('admin-emp-body'); tbodyEmp.innerHTML='';
-        var today = new Date(); // Fix: Define today
-        var range = getCurrentFiscalYearRange(); var start = range.start; var end = range.end;
-        var totalDays=(end-start)/86400000;
-        var passed=(today-start)/86400000;
-        var frac=Math.max(0,Math.min(1,passed/totalDays));
-        var remMonths=((end-today)/86400000)/30;
+        // Enhanced Colleague Management Table
+        renderEnhancedColleagueTable();
+      }
+
+      // Global variables for sorting and filtering
+      var colleagueSortField = 'name';
+      var colleagueSortDirection = 'asc';
+
+      function renderEnhancedColleagueTable() {
+        var tbody = document.getElementById('admin-emp-body-enhanced');
+        if (!tbody) return; // Not on admin page
+        
+        tbody.innerHTML = '';
+        var today = new Date();
+        var range = getCurrentFiscalYearRange();
+        var start = range.start;
+        var end = range.end;
+        var totalDays = (end - start) / 86400000;
+        var passed = (today - start) / 86400000;
+        var frac = Math.max(0, Math.min(1, passed / totalDays));
+        var remMonths = ((end - today) / 86400000) / 30;
+        
+        // Calculate sickness stats
+        var sickBookings = appData.bookings.filter(function(b) { return b.type === 'Sickness' && b.status !== 'Cancelled'; });
+        var sicknessStats = {};
+        sickBookings.forEach(function(b) {
+          if (!sicknessStats[b.email]) sicknessStats[b.email] = { days: 0, episodes: 0, lastEnd: null };
+          var s = sicknessStats[b.email];
+          s.days += b.daysCount;
+          var start = new Date(b.startDate);
+          if (!s.lastEnd || (start - s.lastEnd) > (2 * 86400000)) s.episodes++;
+          s.lastEnd = new Date(b.endDate);
+        });
+        
+        // Calculate metrics for each employee
+        var employeeMetrics = appData.employees.map(function(emp) {
+          var totalAllowance = (Number(emp.allowance) || 0) + (Number(emp.carryOver) || 0);
+          var books = appData.bookings.filter(function(b) { return b.email === emp.email && b.type === 'Holiday' && b.status !== 'Cancelled' && isDateInCurrentFY(b.startDate); });
+          var taken = books.filter(function(b) { return b.status === 'Approved' && new Date(b.startDate) < today; }).reduce(function(a, c) { return a + c.daysCount; }, 0);
+          var plan = books.filter(function(b) { return (b.status === 'Approved' || b.status === 'Pending') && new Date(b.startDate) >= today; }).reduce(function(a, c) { return a + c.daysCount; }, 0);
+          var total = taken + plan;
+          var unbooked = totalAllowance - total;
+          var pct = totalAllowance > 0 ? (total / totalAllowance) * 100 : 0;
+          
+          // Last holiday date
+          var holidayBookings = appData.bookings.filter(function(b) { return b.email === emp.email && b.type === 'Holiday' && b.status === 'Approved' && new Date(b.endDate) < today; });
+          var lastHoliday = holidayBookings.length > 0 ? holidayBookings.sort(function(a, b) { return new Date(b.endDate) - new Date(a.endDate); })[0].endDate : null;
+          var daysSinceLastHoliday = lastHoliday ? Math.floor((today - new Date(lastHoliday)) / 86400000) : 999;
+          
+          // Currently away
+          var currentlyAway = appData.bookings.some(function(b) {
+            var s = new Date(b.startDate);
+            var e = new Date(b.endDate);
+            s.setHours(0, 0, 0, 0);
+            e.setHours(0, 0, 0, 0);
+            var now = new Date();
+            now.setHours(0, 0, 0, 0);
+            return b.email === emp.email && (b.type === 'Holiday' || b.type === 'Sickness') && b.status === 'Approved' && s <= now && e >= now;
+          });
+          
+          // Pending requests
+          var pendingCount = appData.bookings.filter(function(b) { return b.email === emp.email && (b.status === 'Pending' || b.status === 'Cancellation Requested'); }).length;
+          
+          // Sickness
+          var sickStats = sicknessStats[emp.email] || { days: 0, episodes: 0 };
+          var bradford = sickStats.episodes * sickStats.episodes * sickStats.days;
+          
+          // Status determination
+          var status = 'green';
+          if (currentlyAway) status = 'blue';
+          else if (unbooked > 10 && remMonths < 1) status = 'red';
+          else if (bradford > 100) status = 'red';
+          else if (daysSinceLastHoliday > 90 || (unbooked > 5 && pct < 40)) status = 'yellow';
+          
+          // Manager name
+          var mgrEmail = emp.manager || '';
+          var mgrEmp = appData.employees.find(function(e) { return e.email === mgrEmail; });
+          var mgrName = (mgrEmp || {}).name || (mgrEmail ? mgrEmail : '--');
+          
+          return {
+            emp: emp,
+            totalAllowance: totalAllowance,
+            taken: taken,
+            plan: plan,
+            unbooked: unbooked,
+            utilization: pct,
+            lastHoliday: lastHoliday,
+            daysSinceLastHoliday: daysSinceLastHoliday,
+            currentlyAway: currentlyAway,
+            pendingCount: pendingCount,
+            sickDays: sickStats.days,
+            bradford: bradford,
+            status: status,
+            mgrName: mgrName
+          };
+        });
+        
+        // Apply filters
+        var deptFilter = document.getElementById('filter-department').value;
+        var riskFilter = document.getElementById('filter-risk').value;
+        var mgrFilter = document.getElementById('filter-manager').value;
+        
+        employeeMetrics = employeeMetrics.filter(function(m) {
+          if (deptFilter !== 'all' && m.emp.department !== deptFilter) return false;
+          if (riskFilter !== 'all' && m.status !== riskFilter) return false;
+          if (mgrFilter !== 'all' && m.emp.manager !== mgrFilter) return false;
+          return true;
+        });
+        
+        // Sort
+        employeeMetrics.sort(function(a, b) {
+          var aVal, bVal;
+          switch (colleagueSortField) {
+            case 'name': aVal = a.emp.name; bVal = b.emp.name; break;
+            case 'department': aVal = a.emp.department || ''; bVal = b.emp.department || ''; break;
+            case 'remaining': aVal = a.unbooked; bVal = b.unbooked; break;
+            case 'utilization': aVal = a.utilization; bVal = b.utilization; break;
+            case 'lastHoliday': aVal = a.daysSinceLastHoliday; bVal = b.daysSinceLastHoliday; break;
+            case 'sickDays': aVal = a.sickDays; bVal = b.sickDays; break;
+            case 'bradford': aVal = a.bradford; bVal = b.bradford; break;
+            default: aVal = a.emp.name; bVal = b.emp.name;
+          }
+          
+          if (colleagueSortDirection === 'asc') {
+            return aVal > bVal ? 1 : (aVal < bVal ? -1 : 0);
+          } else {
+            return aVal < bVal ? 1 : (aVal > bVal ? -1 : 0);
+          }
+        });
+        
+        // Calculate summary stats
+        var totalEmployees = appData.employees.length;
+        var atRisk = employeeMetrics.filter(function(m) { return m.status === 'red'; }).length;
+        var avgUtil = totalEmployees > 0 ? employeeMetrics.reduce(function(sum, m) { return sum + m.utilization; }, 0) / totalEmployees : 0;
+        var totalPending = appData.bookings.filter(function(b) { return b.status === 'Pending' || b.status === 'Cancellation Requested'; }).length;
+        var currentlyAway = employeeMetrics.filter(function(m) { return m.currentlyAway; }).length;
+        var highBradford = employeeMetrics.filter(function(m) { return m.bradford > 100; }).length;
+        
+        document.getElementById('summary-total-employees').textContent = totalEmployees;
+        document.getElementById('summary-at-risk').textContent = atRisk;
+        document.getElementById('summary-avg-util').textContent = Math.round(avgUtil) + '%';
+        document.getElementById('summary-pending').textContent = totalPending;
+        document.getElementById('summary-away').textContent = currentlyAway;
+        document.getElementById('summary-high-bradford').textContent = highBradford;
+        
+        // Populate filter dropdowns
+        var deptFilterEl = document.getElementById('filter-department');
+        if (deptFilterEl.options.length === 1) {
+          var depts = getUniqueValues(appData.employees.map(function(e) { return e.department; }).filter(function(d) { return d; }));
+          depts.forEach(function(d) {
+            var opt = document.createElement('option');
+            opt.value = d;
+            opt.textContent = d;
+            deptFilterEl.appendChild(opt);
+          });
+        }
+        
+        var mgrFilterEl = document.getElementById('filter-manager');
+        if (mgrFilterEl.options.length === 1) {
+          var mgrs = getUniqueValues(appData.employees.filter(function(e) { return e.manager; }).map(function(e) { return e.manager; }));
+          mgrs.forEach(function(mEmail) {
+            var mEmp = appData.employees.find(function(e) { return e.email === mEmail; });
+            var opt = document.createElement('option');
+            opt.value = mEmail;
+            opt.textContent = (mEmp || {}).name || mEmail;
+            mgrFilterEl.appendChild(opt);
+          });
+        }
+        
+        // Render rows
+        employeeMetrics.forEach(function(m) {
+          var emp = m.emp;
+          
+          // Status icon
+          var statusIcon = '🟢';
+          if (m.status === 'red') statusIcon = '🔴';
+          else if (m.status === 'yellow') statusIcon = '🟡';
+          else if (m.status === 'blue') statusIcon = '🔵';
+          
+          // Utilization bar
+          var utilBarWidth = Math.min(100, Math.round(m.utilization));
+          var utilBarColor = m.utilization > 80 ? 'bg-green-500' : (m.utilization > 40 ? 'bg-yellow-500' : 'bg-red-500');
+          var utilBar = '<div class="w-full bg-gray-200 rounded h-2 mb-1"><div class="' + utilBarColor + ' h-2 rounded" style="width: ' + utilBarWidth + '%"></div></div><span class="text-xs font-bold">' + Math.round(m.utilization) + '%</span>';
+          
+          // Last holiday display
+          var lastHolDisplay = m.lastHoliday ? m.daysSinceLastHoliday + ' days ago' : 'Never';
+          if (m.daysSinceLastHoliday > 90) lastHolDisplay = '<span class="text-red-600 font-bold">' + lastHolDisplay + '</span>';
+          
+          // Bradford color
+          var bradfordClass = m.bradford > 200 ? 'text-red-600 font-bold' : (m.bradford > 50 ? 'text-yellow-600 font-bold' : 'text-green-600');
+          
+          var row = '<tr class="hover:bg-gray-50 border-b border-gray-100">';
+          row += '<td class="p-3 text-center text-xl">' + statusIcon + '</td>';
+          row += '<td class="p-3"><div class="font-bold text-gray-700">' + emp.name + '</div><div class="text-xs text-gray-400">' + emp.email + '</div></td>';
+          row += '<td class="p-3 text-sm text-gray-600">' + (emp.department || '--') + '</td>';
+          row += '<td class="p-3 text-center"><div class="font-bold text-gray-800">' + m.unbooked + ' / ' + m.totalAllowance + '</div></td>';
+          row += '<td class="p-3">' + utilBar + '</td>';
+          row += '<td class="p-3 text-xs text-gray-600">' + lastHolDisplay + '</td>';
+          row += '<td class="p-3 text-center font-mono text-gray-700">' + m.sickDays + '</td>';
+          row += '<td class="p-3 text-center font-mono ' + bradfordClass + '">' + m.bradford + '</td>';
+          row += '<td class="p-3 text-center">' + (m.pendingCount > 0 ? '<span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded font-bold text-xs">' + m.pendingCount + '</span>' : '--') + '</td>';
+          row += '<td class="p-3 text-xs text-gray-600">' + m.mgrName + '</td>';
+          row += '<td class="p-3 text-right space-x-1"><a href="mailto:' + emp.email + '" class="text-blue-500 hover:text-blue-700" title="Email"><i class="fa-solid fa-envelope text-sm"></i></a><button onclick="openBookingModal(\'' + emp.email + '\')" class="text-gray-400 hover:text-green-600" title="Book"><i class="fa-solid fa-calendar-plus text-sm"></i></button><button onclick="openScheduleModal(\'' + emp.email + '\',\'' + emp.name + '\')" class="text-gray-400 hover:text-green-600" title="Schedule"><i class="fa-solid fa-clock text-sm"></i></button><button onclick="openEmployeeModal(\'' + emp.email + '\')" class="text-gray-400 hover:text-blue-600" title="Edit"><i class="fa-solid fa-pen text-sm"></i></button><button onclick="deleteEmployee(\'' + emp.email + '\')" class="text-gray-400 hover:text-red-600" title="Delete"><i class="fa-solid fa-trash text-sm"></i></button></td>';
+          row += '</tr>';
+          
+          tbody.innerHTML += row;
+        });
+        
+        if (employeeMetrics.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="11" class="p-6 text-center text-gray-400 italic">No employees match the current filters.</td></tr>';
+        }
+      }
+
+      function sortColleagueTable(field) {
+        if (colleagueSortField === field) {
+          colleagueSortDirection = colleagueSortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+          colleagueSortField = field;
+          colleagueSortDirection = 'asc';
+        }
+        renderEnhancedColleagueTable();
+      }
+
+      function resetColleagueFilters() {
+        document.getElementById('filter-department').value = 'all';
+        document.getElementById('filter-risk').value = 'all';
+        document.getElementById('filter-manager').value = 'all';
+        renderEnhancedColleagueTable();
+      }
+
+      function exportColleaguesCSV() {
+        var csv = 'Name,Email,Department,Days Remaining,Total Allowance,Utilization %,Last Holiday,Sick Days YTD,Bradford Factor,Pending Requests,Manager\n';
         
         appData.employees.forEach(function(emp) {
-          var totalAllowance = (Number(emp.allowance)||0) + (Number(emp.carryOver)||0);
-          var books=appData.bookings.filter(function(b) { return b.email===emp.email && b.type==='Holiday' && b.status!=='Cancelled' && isDateInCurrentFY(b.startDate); });
-          var taken=books.filter(function(b) { return b.status==='Approved' && new Date(b.startDate)<today; }).reduce(function(a, c) { return a+c.daysCount; },0);
-          var plan=books.filter(function(b) { return (b.status==='Approved'||b.status==='Pending') && new Date(b.startDate)>=today; }).reduce(function(a, c) { return a+c.daysCount; },0);
-          var total=taken+plan, unbooked=totalAllowance-total, pct=total/totalAllowance;
-          var msg='', cls='text-gray-500';
-          if(unbooked<0) { msg='🛑 <strong>Overbooked!</strong> (' + Math.abs(unbooked) + ' days)'; cls='bg-red-100 text-red-800'; }
-          else if(total===totalAllowance) { msg='✅ <strong>Fully Booked.</strong>'; cls='bg-green-100 text-green-800'; }
-          else if(remMonths<3 && unbooked>5) { msg='⚠️ <strong>CRITICAL:</strong> ' + unbooked + ' days left.'; cls='bg-red-50 text-red-600 animate-pulse'; }
-          else if(frac>0.6 && pct<0.4) { msg='📉 <strong>Hoarding:</strong> Push to book.'; cls='bg-yellow-100 text-yellow-800'; }
-          else { msg='✔️ <strong>On Track.</strong>'; cls='text-green-700 bg-green-50'; }
+          var totalAllowance = (Number(emp.allowance) || 0) + (Number(emp.carryOver) || 0);
+          var books = appData.bookings.filter(function(b) { return b.email === emp.email && b.type === 'Holiday' && b.status !== 'Cancelled' && isDateInCurrentFY(b.startDate); });
+          var today = new Date();
+          var taken = books.filter(function(b) { return b.status === 'Approved' && new Date(b.startDate) < today; }).reduce(function(a, c) { return a + c.daysCount; }, 0);
+          var plan = books.filter(function(b) { return (b.status === 'Approved' || b.status === 'Pending') && new Date(b.startDate) >= today; }).reduce(function(a, c) { return a + c.daysCount; }, 0);
+          var unbooked = totalAllowance - (taken + plan);
+          var pct = totalAllowance > 0 ? Math.round((taken + plan) / totalAllowance * 100) : 0;
           
-          tbodyEmp.innerHTML+='<tr class="hover:bg-gray-50 border-b border-gray-50"><td class="p-4 font-bold text-gray-700">' + emp.name + '<div class="text-xs text-gray-400 font-normal">' + emp.email + '</div><div class="text-xs text-blue-400">' + (emp.department || '') + '</div></td><td class="p-4 text-center font-mono">' + totalAllowance + '<br><span class="text-xs text-gray-400">(+' + (emp.carryOver || 0) + ')</span></td><td class="p-4 text-center font-mono text-gray-600">' + taken + '</td><td class="p-4 text-center font-mono text-blue-600">' + plan + '</td><td class="p-4 text-center font-mono font-bold text-gray-800">' + unbooked + '</td><td class="p-4"><div class="p-2 rounded text-xs ' + cls + '">' + msg + '</div></td><td class="p-4 text-right space-x-2"><button onclick="openBookingModal(\'' + emp.email + '\')" class="text-gray-400 hover:text-green-600" title="Book for Colleague"><i class="fa-solid fa-calendar-plus"></i></button><button onclick="openScheduleModal(\'' + emp.email + '\',\'' + emp.name + '\')" class="text-gray-400 hover:text-green-600" title="Schedule"><i class="fa-solid fa-clock"></i></button><button onclick="openEmployeeModal(\'' + emp.email + '\')" class="text-gray-400 hover:text-blue-600" title="Edit"><i class="fa-solid fa-pen"></i></button><button onclick="deleteEmployee(\'' + emp.email + '\')" class="text-gray-400 hover:text-red-600" title="Delete"><i class="fa-solid fa-trash"></i></button></td></tr>';
+          var holidayBookings = appData.bookings.filter(function(b) { return b.email === emp.email && b.type === 'Holiday' && b.status === 'Approved' && new Date(b.endDate) < today; });
+          var lastHoliday = holidayBookings.length > 0 ? formatDate(holidayBookings.sort(function(a, b) { return new Date(b.endDate) - new Date(a.endDate); })[0].endDate) : 'Never';
+          
+          var sickBookings = appData.bookings.filter(function(b) { return b.email === emp.email && b.type === 'Sickness' && b.status !== 'Cancelled'; });
+          var sickDays = sickBookings.reduce(function(a, c) { return a + c.daysCount; }, 0);
+          var sickEpisodes = 0;
+          var lastEnd = null;
+          sickBookings.sort(function(a, b) { return new Date(a.startDate) - new Date(b.startDate); }).forEach(function(b) {
+            var start = new Date(b.startDate);
+            if (!lastEnd || (start - lastEnd) > (2 * 86400000)) sickEpisodes++;
+            lastEnd = new Date(b.endDate);
+          });
+          var bradford = sickEpisodes * sickEpisodes * sickDays;
+          
+          var pending = appData.bookings.filter(function(b) { return b.email === emp.email && (b.status === 'Pending' || b.status === 'Cancellation Requested'); }).length;
+          
+          var mgrEmail = emp.manager || '';
+          var mgrEmp = appData.employees.find(function(e) { return e.email === mgrEmail; });
+          var mgrName = (mgrEmp || {}).name || (mgrEmail ? mgrEmail : '');
+          
+          csv += '"' + emp.name + '","' + emp.email + '","' + (emp.department || '') + '",' + unbooked + ',' + totalAllowance + ',' + pct + ',"' + lastHoliday + '",' + sickDays + ',' + bradford + ',' + pending + ',"' + mgrName + '"\n';
         });
+        
+        var blob = new Blob([csv], { type: 'text/csv' });
+        var url = window.URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'colleague-management-' + new Date().toISOString().split('T')[0] + '.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
       }
 
       function handleBooking(e) {
@@ -1413,7 +1682,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       }
 
       function closeModals() {
-        ['modal-booking','modal-employee','modal-schedule','modal-chaser'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
+        ['modal-booking','modal-employee','modal-schedule','modal-chaser','modal-carryover'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
       }
 
       function sendChaser() {
@@ -1425,6 +1694,74 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
 
       function openChaserModal() {
         document.getElementById('modal-chaser').classList.remove('hidden');
+      }
+
+      function openCarryoverModal() {
+        document.getElementById('modal-carryover').classList.remove('hidden');
+        
+        // Calculate current year stats
+        var myBookings = appData.bookings.filter(function(b) { return b.email === appData.currentUser.email && b.status !== 'Cancelled'; });
+        var myProfile = appData.employees.find(function(e) { return e.email === appData.currentUser.email; }) || appData.currentUser;
+        var totalAllowance = (Number(myProfile.allowance) || 0) + (Number(myProfile.carryOver) || 0);
+        var used = myBookings.filter(function(b) { return b.type === 'Holiday' && b.status === 'Approved' && isDateInCurrentFY(b.startDate); }).reduce(function(acc, c) { return acc + c.daysCount; }, 0);
+        var remaining = totalAllowance - used;
+        
+        document.getElementById('carryover-total').textContent = totalAllowance + ' days';
+        document.getElementById('carryover-used').textContent = used + ' days';
+        document.getElementById('carryover-available').textContent = remaining + ' days';
+        document.getElementById('carryover-days').max = Math.min(5, remaining);
+      }
+
+      function handleCarryoverRequest(e) {
+        e.preventDefault();
+        var btn = document.getElementById('btn-submit-carryover');
+        btn.innerHTML = 'Submitting...';
+        btn.disabled = true;
+        
+        var fd = {
+          days: Number(e.target.days.value),
+          reason: e.target.reason.value || ''
+        };
+        
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res.success === false) {
+              alert(res.message);
+              btn.innerHTML = 'Submit Request';
+              btn.disabled = false;
+              return;
+            }
+            
+            alert('Carryover request submitted! Your manager will review it shortly.');
+            closeModals();
+            btn.innerHTML = 'Submit Request';
+            btn.disabled = false;
+            
+            // Reload data to show updated requests
+            loadDataBackground();
+          })
+          .withFailureHandler(function(err) {
+            btn.innerHTML = 'Submit Request';
+            btn.disabled = false;
+            handleServerError(err);
+          })
+          .submitCarryoverRequest(fd);
+      }
+
+      function handleCarryoverStatus(requestEmail, action, days) {
+        if (!confirm('Are you sure you want to ' + action + ' this carryover request?')) return;
+        
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res.success) {
+              alert('Carryover request ' + action + 'd successfully!');
+              loadDataBackground();
+            } else {
+              alert(res.message || 'Failed to process request');
+            }
+          })
+          .withFailureHandler(handleServerError)
+          [action === 'approve' ? 'approveCarryoverRequest' : 'rejectCarryoverRequest'](requestEmail, days);
       }
     </script>
   </body>
