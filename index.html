@@ -204,7 +204,7 @@
           </div>
           <div class="bg-white rounded-xl shadow flex-1 flex flex-col overflow-hidden border border-gray-200">
              <div class="flex border-b border-gray-200 bg-gray-50">
-               <div class="w-48 shrink-0 p-3 font-bold text-gray-600 border-r border-gray-200 bg-gray-100 z-10 sticky left-0 bg-gray-50">Colleague</div>
+               <div class="w-48 shrink-0 p-3 font-bold text-gray-600 border-r border-gray-200 bg-gray-50 z-10 sticky left-0">Colleague</div>
                <div class="overflow-x-auto hide-scroll flex-1">
                  <div id="calendar-header-dates" class="flex"></div>
                </div>
@@ -234,7 +234,7 @@
           </div>
           <div class="bg-white rounded-xl shadow flex-1 flex flex-col overflow-hidden border border-t-4 border-purple-500">
              <div class="flex border-b border-gray-200 bg-gray-50">
-               <div class="w-48 shrink-0 p-3 font-bold text-gray-600 border-r border-gray-200 bg-gray-100 z-10 sticky left-0 bg-gray-50">My Team</div>
+               <div class="w-48 shrink-0 p-3 font-bold text-gray-600 border-r border-gray-200 bg-gray-50 z-10 sticky left-0">My Team</div>
                <div class="overflow-x-auto hide-scroll flex-1">
                  <div id="my-team-header-dates" class="flex"></div>
                </div>
@@ -1013,7 +1013,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
             var currentY = y + Math.floor((m + i) / 12);
             var daysInM = new Date(currentY, currentM + 1, 0).getDate();
             if (monthsToShow > 1) {
-              header.innerHTML += '<div class="bg-gray-100 text-gray-700 font-bold text-xs p-1 border-r border-gray-300 w-20 shrink-0">' + mNames[currentM] + '</div>';
+              header.innerHTML += '<div class="bg-gray-100 text-gray-700 font-bold text-xs p-1 border-r border-gray-300 w-20 shrink-0 sticky left-0 z-10">' + mNames[currentM] + '</div>';
             }
             for(var d=1; d<=daysInM; d++) {
                 var dt = new Date(currentY, currentM, d);
