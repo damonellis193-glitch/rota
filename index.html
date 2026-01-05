@@ -204,10 +204,16 @@
           </div>
           <div class="bg-white rounded-xl shadow flex-1 flex flex-col overflow-hidden border border-gray-200">
              <div class="flex border-b border-gray-200 bg-gray-50">
-               <div class="w-48 shrink-0 p-3 font-bold text-gray-600 border-r border-gray-200 bg-gray-100 z-10">Colleague</div>
-               <div id="calendar-header-dates" class="flex flex-1 overflow-x-auto hide-scroll"></div>
+               <div class="w-48 shrink-0 p-3 font-bold text-gray-600 border-r border-gray-200 bg-gray-100 z-10 sticky left-0">Colleague</div>
+               <div class="overflow-x-auto hide-scroll flex-1">
+                 <div id="calendar-header-dates" class="flex"></div>
+               </div>
              </div>
-             <div class="flex-1 overflow-y-auto relative"><div id="calendar-grid-body" class="overflow-x-auto hide-scroll"></div></div>
+             <div class="flex-1 overflow-y-auto relative">
+               <div class="overflow-x-auto hide-scroll">
+                 <div id="calendar-grid-body"></div>
+               </div>
+             </div>
           </div>
         </div>
 
@@ -228,10 +234,16 @@
           </div>
           <div class="bg-white rounded-xl shadow flex-1 flex flex-col overflow-hidden border border-t-4 border-purple-500">
              <div class="flex border-b border-gray-200 bg-gray-50">
-               <div class="w-48 shrink-0 p-3 font-bold text-gray-600 border-r border-gray-200 bg-gray-100 z-10">My Team</div>
-               <div id="my-team-header-dates" class="flex flex-1 overflow-x-auto hide-scroll"></div>
+               <div class="w-48 shrink-0 p-3 font-bold text-gray-600 border-r border-gray-200 bg-gray-100 z-10 sticky left-0">My Team</div>
+               <div class="overflow-x-auto hide-scroll flex-1">
+                 <div id="my-team-header-dates" class="flex"></div>
+               </div>
              </div>
-             <div class="flex-1 overflow-y-auto relative"><div id="my-team-grid-body" class="overflow-x-auto hide-scroll"></div></div>
+             <div class="flex-1 overflow-y-auto relative">
+               <div class="overflow-x-auto hide-scroll">
+                 <div id="my-team-grid-body"></div>
+               </div>
+             </div>
           </div>
         </div>
 
@@ -1001,14 +1013,14 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
             var currentY = y + Math.floor((m + i) / 12);
             var daysInM = new Date(currentY, currentM + 1, 0).getDate();
             if (monthsToShow > 1) {
-              header.innerHTML += '<div class="bg-gray-100 text-gray-700 font-bold text-xs p-1 border-r border-gray-300 sticky left-0">' + mNames[currentM] + '</div>';
+              header.innerHTML += '<div class="bg-gray-100 text-gray-700 font-bold text-xs p-1 border-r border-gray-300 w-20 shrink-0">' + mNames[currentM] + '</div>';
             }
             for(var d=1; d<=daysInM; d++) {
                 var dt = new Date(currentY, currentM, d);
                 allDates.push(dt);
                 var isW = dt.getDay()===0||dt.getDay()===6;
                 var isToday = dt.getDate() === today.getDate() && dt.getMonth() === today.getMonth() && dt.getFullYear() === today.getFullYear();
-                var classes = 'flex-1 min-w-[30px] text-center text-xs py-2 border-r border-gray-100 ';
+                var classes = 'w-12 shrink-0 text-center text-xs py-2 border-r border-gray-100 ';
                 if (isToday) { classes += 'bg-green-600 text-white font-bold shadow-sm'; } else { classes += isW ? 'bg-gray-100 text-gray-400' : 'text-gray-600'; }
                 header.innerHTML += '<div class="' + classes + '"><div class="font-bold">' + d + '</div><div>' + dt.toLocaleDateString('en-US',{weekday:'short'})[0] + '</div></div>';
             }
@@ -1018,12 +1030,13 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
 
         employeeList.forEach(function(emp) {
           var indentStyle = 'padding-left: 0.75rem;'; 
-          var borderStyle = ''; var fontStyle = 'font-bold bg-gray-50'; 
+          var borderStyle = ''; var fontStyle = 'font-bold'; var bgStyle = 'bg-gray-50';
           if (emp.depth > 0) {
              var paddingRem = 0.75 + (emp.depth * 1.5); 
              indentStyle = 'padding-left: ' + paddingRem + 'rem;';
              borderStyle = 'border-l-4 border-green-100';
              fontStyle = ''; 
+             bgStyle = 'bg-white';
           }
           var expandBtn = '';
           if (targetDivBody === 'my-team-grid-body' && emp.hasSubTeam) {
@@ -1032,8 +1045,8 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           }
 
           var row = document.createElement('div'); row.className="flex border-b border-gray-100 hover:bg-gray-50 transition";
-          row.innerHTML = '<div class="w-48 shrink-0 text-sm text-gray-700 border-r border-gray-200 sticky left-0 z-10 flex items-center ' + borderStyle + ' ' + fontStyle + '" style="' + indentStyle + '">' + expandBtn + (emp.depth > 0 && !expandBtn ? '<i class="fa-solid fa-turn-up rotate-90 mr-2 text-gray-300 text-xs"></i>' : '') + emp.name + '</div>';
-          var cont = document.createElement('div'); cont.className="flex flex-1 overflow-visible";
+          row.innerHTML = '<div class="w-48 shrink-0 text-sm text-gray-700 border-r border-gray-200 sticky left-0 z-10 flex items-center ' + bgStyle + ' ' + borderStyle + ' ' + fontStyle + '" style="' + indentStyle + '">' + expandBtn + (emp.depth > 0 && !expandBtn ? '<i class="fa-solid fa-turn-up rotate-90 mr-2 text-gray-300 text-xs"></i>' : '') + emp.name + '</div>';
+          var cont = document.createElement('div'); cont.className="flex";
           var sched = appData.schedules[emp.email] || {};
           
           allDates.forEach(function(cur) {
@@ -1049,7 +1062,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
             }
 
             var cell = document.createElement('div'); 
-            cell.className='flex-1 min-w-[30px] border-r border-gray-100 h-10 ' + (isWorkingDay ? '' : 'bg-gray-50 pattern-dots') + ' relative';
+            cell.className='w-12 shrink-0 border-r border-gray-100 h-10 ' + (isWorkingDay ? '' : 'bg-gray-50 pattern-dots') + ' relative';
             
             var b = appData.bookings.find(function(x) { return x.email===emp.email && x.status!=='Rejected' && x.status!=='Cancelled' && cur>=new Date(x.startDate) && cur<=new Date(x.endDate); });
             var def = sched[dayName];
@@ -1062,7 +1075,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
             }
 
             if(b && shouldShow && isWorkingDay) {
-               var div = document.createElement('div'); div.className="absolute inset-1 rounded-sm shadow-sm flex items-center justify-center text-[10px] font-bold text-white overflow-hidden";
+               var div = document.createElement('div'); div.className="absolute inset-1 rounded-sm shadow-sm flex items-center justify-center text-xs font-bold text-white overflow-hidden";
                if(b.status==='Pending' || b.status==='Cancellation Requested') {
                  div.classList.add('bg-gray-400','bg-stripe','text-gray-800');
                  div.innerHTML='<i class="fa-solid fa-hourglass"></i>';
@@ -1074,7 +1087,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
                }
                cell.appendChild(div);
             } else if(def && isWorkingDay && def.type !== 'None') {
-               var div = document.createElement('div'); div.className="absolute inset-1 rounded-sm flex items-center justify-center text-[9px] font-semibold text-gray-600";
+               var div = document.createElement('div'); div.className="absolute inset-1 rounded-sm flex items-center justify-center text-[10px] font-semibold text-gray-600";
                div.classList.add(def.type === 'WFH' ? 'bg-blue-50' : 'bg-yellow-50', def.type === 'WFH' ? 'text-blue-700' : 'text-yellow-700');
                div.textContent = def.hours+'h';
                cell.appendChild(div);
