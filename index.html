@@ -207,7 +207,7 @@
                <div class="w-48 shrink-0 p-3 font-bold text-gray-600 border-r border-gray-200 bg-gray-100 z-10">Colleague</div>
                <div id="calendar-header-dates" class="flex flex-1 overflow-x-auto hide-scroll"></div>
              </div>
-             <div class="flex-1 overflow-y-auto relative"><div id="calendar-grid-body"></div></div>
+             <div class="flex-1 overflow-y-auto relative"><div id="calendar-grid-body" class="overflow-x-auto hide-scroll"></div></div>
           </div>
         </div>
 
@@ -231,7 +231,7 @@
                <div class="w-48 shrink-0 p-3 font-bold text-gray-600 border-r border-gray-200 bg-gray-100 z-10">My Team</div>
                <div id="my-team-header-dates" class="flex flex-1 overflow-x-auto hide-scroll"></div>
              </div>
-             <div class="flex-1 overflow-y-auto relative"><div id="my-team-grid-body"></div></div>
+             <div class="flex-1 overflow-y-auto relative"><div id="my-team-grid-body" class="overflow-x-auto hide-scroll"></div></div>
           </div>
         </div>
 
@@ -1028,7 +1028,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           var expandBtn = '';
           if (targetDivBody === 'my-team-grid-body' && emp.hasSubTeam) {
              var isExpanded = arrayContains(expandedManagers, emp.email);
-             expandBtn = '<button onclick="toggleSubTeam(\'' + emp.email + '\')" class="mr-2 text-purple-600 hover:bg-purple-100 rounded px-1 text-xs font-bold w-5 h-5 flex items-center justify-center border border-purple-200">' + isExpanded ? '-' : '+' + '</button>';
+             expandBtn = '<button onclick="toggleSubTeam(\'' + emp.email + '\')" class="mr-2 text-purple-600 hover:bg-purple-100 rounded px-1 text-xs font-bold w-5 h-5 flex items-center justify-center border border-purple-200">' + (isExpanded ? '-' : '+') + '</button>';
           }
 
           var row = document.createElement('div'); row.className="flex border-b border-gray-100 hover:bg-gray-50 transition";
