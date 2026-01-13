@@ -231,6 +231,26 @@ function getInitialData() {
       }
     }
 
+    // 6. Get Capacity Settings
+    let capacitySettings = {};
+    try {
+      const capSheet = ss.getSheetByName('CapacitySettings');
+      if (capSheet) {
+        const capData = capSheet.getDataRange().getValues();
+        if (capData.length > 1) {
+          capData.shift();
+          capData.forEach(row => {
+            if (row[0]) {
+              capacitySettings[String(row[0]).trim()] = Number(row[1]) || 0;
+            }
+          });
+        }
+      }
+    } catch (capError) {
+      console.error('[Backend] Error loading capacity settings: ' + capError.toString());
+      capacitySettings = {};
+    }
+
     console.log('[Backend] Returning data successfully');
     console.log('[Backend] Employees count: ' + employees.length);
     console.log('[Backend] Bookings count: ' + bookings.length);
@@ -242,7 +262,8 @@ function getInitialData() {
       bookings: bookings,
       schedules: schedulesArray,
       auditLogs: auditLogs,
-      carryoverRequests: carryoverRequests
+      carryoverRequests: carryoverRequests,
+      capacitySettings: capacitySettings
     };
     
     // Verify the result is valid before returning
@@ -283,7 +304,7 @@ function setupDatabase(ss) {
   if (!ss) ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   if (!ss.getSheetByName('Employees')) {
     const s = ss.insertSheet('Employees');
-    s.appendRow(['Name', 'Email', 'Annual Allowance', 'Role', 'Manager', 'Department', 'CarryOver']);
+    s.appendRow(['Name', 'Email', 'Annual Allowance (Hours)', 'Role', 'Manager', 'Department', 'CarryOver (Hours)']);
   }
   if (!ss.getSheetByName('Bookings')) {
     const s = ss.insertSheet('Bookings');
@@ -300,6 +321,17 @@ function setupDatabase(ss) {
   if (!ss.getSheetByName('CarryoverRequests')) {
     const s = ss.insertSheet('CarryoverRequests');
     s.appendRow(['Email', 'Days', 'Reason', 'Status', 'Timestamp', 'ProcessedBy', 'ProcessedAt']);
+  }
+  if (!ss.getSheetByName('CapacitySettings')) {
+    const s = ss.insertSheet('CapacitySettings');
+    s.appendRow(['DayOfWeek', 'TargetCount']);
+    // Initialize with default values
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    days.forEach(day => s.appendRow([day, 0]));
+  }
+  if (!ss.getSheetByName('MyMorriConfirmations')) {
+    const s = ss.insertSheet('MyMorriConfirmations');
+    s.appendRow(['BookingID', 'ConfirmedBy', 'ConfirmedAt', 'ConfirmedDate']);
   }
 }
 
@@ -335,8 +367,9 @@ function submitBooking(formObj) {
     });
   }
 
-  // Calculate Days Used - STRICTLY based on Schedule
+  // Calculate Days Used and Hours - STRICTLY based on Schedule
   let daysUsed = 0;
+  let hoursUsed = 0;
   const start = new Date(formObj.startDate);
   const end = new Date(formObj.endDate);
   let cur = new Date(start);
@@ -347,6 +380,7 @@ function submitBooking(formObj) {
     
     // Default Logic: Mon-Fri are working days
     let isWorkingDay = (dayOfWeekIndex !== 0 && dayOfWeekIndex !== 6);
+    let dayHours = 7.5; // Default hours per day
     
     // Override if Custom Schedule exists
     if (Object.keys(userSchedule).length > 0) {
@@ -362,14 +396,19 @@ function submitBooking(formObj) {
         }
     }
 
-    // Special Types that don't consume allowance
-    if (['Sickness', 'Maternity', 'Travel', 'WFH'].includes(formObj.type)) {
-        // We still count "days covered" but we might treat allowance differently in frontend.
-        // For DB, we usually store the working days involved.
+    // Get hours from schedule if available
+    if (isWorkingDay && schedData.length > 1) {
+      const schedRow = schedData.find(row => row[0] === bookingEmail && row[1] === dayName);
+      if (schedRow && schedRow[3]) {
+        dayHours = Number(schedRow[3]) || 7.5;
+      }
     }
 
     if (isWorkingDay) {
       daysUsed++;
+      // Use the hours provided in the form (for granular bookings) or default day hours
+      const bookingHours = Number(formObj.hours) || dayHours;
+      hoursUsed += bookingHours;
     }
     cur.setDate(cur.getDate() + 1);
   }
@@ -377,6 +416,16 @@ function submitBooking(formObj) {
   // Override if user manually adjusted (though we trust the calc usually)
   // We'll stick to the calculated business days for consistency unless 0
   if (daysUsed === 0 && formObj.daysCount > 0) daysUsed = Number(formObj.daysCount);
+  
+  // If hours not calculated (single day booking with custom hours), use form value
+  if (hoursUsed === 0 && formObj.hours) {
+    hoursUsed = Number(formObj.hours);
+  }
+  
+  // Ensure minimum hours for working day bookings
+  if (hoursUsed === 0 && daysUsed > 0) {
+    hoursUsed = daysUsed * 7.5;
+  }
 
   let status = 'Pending';
   if (formObj.targetEmail && formObj.targetEmail !== currentUserEmail) {
@@ -391,12 +440,12 @@ function submitBooking(formObj) {
     formObj.endDate,
     daysUsed,
     status,
-    formObj.hours || 7.5
+    hoursUsed
   ]);
   
-  logAction(currentUserEmail, 'Booking Submitted', `Type: ${formObj.type}, For: ${bookingEmail}, Status: ${status}, Days: ${daysUsed}`);
+  logAction(currentUserEmail, 'Booking Submitted', `Type: ${formObj.type}, For: ${bookingEmail}, Status: ${status}, Days: ${daysUsed}, Hours: ${hoursUsed}`);
 
-  return { success: true, id: id, status: status, daysCount: daysUsed };
+  return { success: true, id: id, status: status, daysCount: daysUsed, hours: hoursUsed };
 }
 
 function updateBookingStatus(bookingId, newStatus) {
@@ -685,4 +734,153 @@ function rejectCarryoverRequest(email, days) {
   }
   
   return { success: true };
+}
+
+// --- CAPACITY SETTINGS FUNCTIONS ---
+
+function getCapacitySettings() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('CapacitySettings');
+  if (!sheet) {
+    setupDatabase(ss);
+    return getCapacitySettings();
+  }
+  
+  const data = sheet.getDataRange().getValues();
+  const settings = {};
+  if (data.length > 1) {
+    data.shift(); // Remove header
+    data.forEach(row => {
+      if (row[0]) {
+        settings[String(row[0]).trim()] = Number(row[1]) || 0;
+      }
+    });
+  }
+  
+  return settings;
+}
+
+function saveCapacitySettings(settingsObj) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sheet = ss.getSheetByName('CapacitySettings');
+  if (!sheet) {
+    setupDatabase(ss);
+    sheet = ss.getSheetByName('CapacitySettings');
+  }
+  
+  const actor = Session.getActiveUser().getEmail();
+  
+  // Clear existing data (except header)
+  const lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    sheet.deleteRows(2, lastRow - 1);
+  }
+  
+  // Write new settings
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  days.forEach(day => {
+    const target = settingsObj[day] || 0;
+    sheet.appendRow([day, target]);
+  });
+  
+  logAction(actor, 'Capacity Settings Updated', `Updated capacity targets for all days`);
+  return { success: true };
+}
+
+// --- MY MORRI CONFIRMATIONS FUNCTIONS ---
+
+function getMyMorriBookings() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const bookSheet = ss.getSheetByName('Bookings');
+  const confirmSheet = ss.getSheetByName('MyMorriConfirmations');
+  const empSheet = ss.getSheetByName('Employees');
+  const currentUserEmail = Session.getActiveUser().getEmail();
+  
+  if (!confirmSheet) {
+    setupDatabase(ss);
+  }
+  
+  // Get confirmed booking IDs
+  const confirmedIds = {};
+  if (confirmSheet) {
+    const confirmData = confirmSheet.getDataRange().getValues();
+    if (confirmData.length > 1) {
+      confirmData.shift();
+      confirmData.forEach(row => {
+        if (row[0]) confirmedIds[String(row[0])] = true;
+      });
+    }
+  }
+  
+  // Get all employees to check manager hierarchy
+  const empData = empSheet.getDataRange().getValues();
+  empData.shift();
+  const employees = empData.map(row => ({
+    email: String(row[1]).trim(),
+    name: String(row[0]).trim(),
+    manager: String(row[4] || '').trim()
+  }));
+  
+  // Helper function to check if current user is manager of employee
+  function isManagerOf(managerEmail, employeeEmail) {
+    if (managerEmail === employeeEmail) return false;
+    let current = employees.find(e => e.email === employeeEmail);
+    while (current && current.manager) {
+      if (current.manager === managerEmail) return true;
+      current = employees.find(e => e.email === current.manager);
+    }
+    return false;
+  }
+  
+  // Get bookings
+  const bookData = bookSheet.getDataRange().getValues();
+  const bookings = [];
+  if (bookData.length > 1) {
+    bookData.shift();
+    bookData.forEach(row => {
+      const bookingId = String(row[0]).trim();
+      const email = String(row[1]).trim();
+      const type = String(row[2]).trim();
+      const status = String(row[6]).trim();
+      
+      // Filter: Only approved Holiday and Sickness, not already confirmed, user is manager
+      if ((type === 'Holiday' || type === 'Sickness') && 
+          status === 'Approved' && 
+          !confirmedIds[bookingId] &&
+          isManagerOf(currentUserEmail, email)) {
+        
+        const emp = employees.find(e => e.email === email);
+        bookings.push({
+          id: bookingId,
+          name: (emp || {}).name || email,
+          email: email,
+          type: type,
+          startDate: row[3] ? new Date(row[3]).toISOString() : null,
+          endDate: row[4] ? new Date(row[4]).toISOString() : null,
+          hours: Number(row[7]) || 0
+        });
+      }
+    });
+  }
+  
+  return { success: true, bookings: bookings };
+}
+
+function confirmMyMorriBookings(bookingIds) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sheet = ss.getSheetByName('MyMorriConfirmations');
+  if (!sheet) {
+    setupDatabase(ss);
+    sheet = ss.getSheetByName('MyMorriConfirmations');
+  }
+  
+  const actor = Session.getActiveUser().getEmail();
+  const now = new Date();
+  
+  bookingIds.forEach(id => {
+    sheet.appendRow([id, actor, now, now]);
+  });
+  
+  logAction(actor, 'My Morri Confirmations', `Confirmed ${bookingIds.length} booking(s)`);
+  return { success: true, count: bookingIds.length };
 }

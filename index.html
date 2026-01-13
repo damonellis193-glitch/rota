@@ -197,10 +197,14 @@
                 </div>
                 <button onclick="resetCalendarToToday()" class="bg-white text-green-900 border border-green-200 hover:bg-green-50 px-3 py-1 rounded shadow text-sm font-bold transition">Today</button>
             </div>
-            <div class="hidden md:flex text-xs space-x-3">
+            <div class="hidden md:flex text-xs space-x-3 flex-wrap">
+               <span class="flex items-center"><span class="w-3 h-3 bg-gray-400 bg-stripe rounded mr-1"></span> Pending</span>
                <span class="flex items-center"><span class="w-3 h-3 bg-green-500 rounded mr-1"></span> Holiday</span>
                <span class="flex items-center"><span class="w-3 h-3 bg-blue-500 rounded mr-1"></span> WFH</span>
+               <span class="flex items-center"><span class="w-3 h-3 bg-orange-500 rounded mr-1"></span> Office</span>
                <span class="flex items-center"><span class="w-3 h-3 bg-red-500 rounded mr-1"></span> Sick</span>
+               <span class="flex items-center"><span class="w-3 h-3 bg-yellow-400 rounded mr-1"></span> Travel</span>
+               <span class="flex items-center"><span class="w-3 h-3 bg-pink-400 rounded mr-1"></span> Maternity</span>
             </div>
           </div>
           <div class="bg-white rounded-xl shadow flex-1 flex flex-col overflow-hidden border border-gray-200">
@@ -419,6 +423,7 @@
           <div class="mb-5 grid grid-cols-2 gap-2">
               <label class="cursor-pointer"><input type="radio" name="type" value="Holiday" class="peer sr-only" checked><div class="text-center py-2 border rounded hover:bg-gray-50 peer-checked:bg-green-100 peer-checked:text-green-700 transition">Holiday</div></label>
               <label class="cursor-pointer"><input type="radio" name="type" value="WFH" class="peer sr-only"><div class="text-center py-2 border rounded hover:bg-gray-50 peer-checked:bg-blue-100 peer-checked:text-blue-700 transition">WFH</div></label>
+              <label class="cursor-pointer"><input type="radio" name="type" value="Office" class="peer sr-only"><div class="text-center py-2 border rounded hover:bg-gray-50 peer-checked:bg-orange-100 peer-checked:text-orange-700 transition">Office</div></label>
               <label class="cursor-pointer"><input type="radio" name="type" value="Travel" class="peer sr-only"><div class="text-center py-2 border rounded hover:bg-gray-50 peer-checked:bg-yellow-100 peer-checked:text-yellow-700 transition">Travel</div></label>
               <label class="cursor-pointer"><input type="radio" name="type" value="Maternity" class="peer sr-only"><div class="text-center py-2 border rounded hover:bg-gray-50 peer-checked:bg-pink-100 peer-checked:text-pink-700 transition">Maternity</div></label>
               <label class="cursor-pointer col-span-2"><input type="radio" name="type" value="Sickness" class="peer sr-only"><div class="text-center py-2 border rounded hover:bg-gray-50 peer-checked:bg-red-100 peer-checked:text-red-700 transition border-red-100 text-red-600"><i class="fa-solid fa-notes-medical mr-2"></i>Sickness (Private)</div></label>
@@ -427,7 +432,7 @@
             <div><label class="text-xs font-bold uppercase mb-1">From</label><input type="date" id="booking-start-date" name="startDate" onchange="autoFillHours()" required class="w-full border rounded p-2"></div>
             <div><label class="text-xs font-bold uppercase mb-1">To</label><input type="date" name="endDate" required class="w-full border rounded p-2"></div>
           </div>
-          <div class="mb-6"><label class="text-xs font-bold uppercase mb-1">Daily Hours</label><input type="number" id="booking-hours" name="hours" value="7.5" step="0.1" max="24" class="w-24 border rounded p-2"></div>
+          <div class="mb-6"><label class="text-xs font-bold uppercase mb-1">Hours (0.5 increments)</label><input type="number" id="booking-hours" name="hours" value="7.5" step="0.5" min="0.5" max="24" class="w-24 border rounded p-2"></div>
           <div class="flex justify-end space-x-2"><button type="button" onclick="closeModals()" class="px-4 py-2 text-gray-500">Cancel</button><button type="submit" id="btn-submit-booking" class="btn-primary px-6 py-2 rounded font-bold">Submit</button></div>
         </form>
       </div>
@@ -440,8 +445,8 @@
           <div class="mb-3"><label class="text-xs font-bold uppercase text-gray-500 block">Name</label><input type="text" name="name" required class="w-full border rounded p-2"></div>
           <div class="mb-3"><label class="text-xs font-bold uppercase text-gray-500 block">Email</label><input type="email" name="email" required class="w-full border rounded p-2"></div>
           <div class="grid grid-cols-2 gap-3 mb-6">
-            <div><label class="text-xs font-bold uppercase text-gray-500 block">Allowance</label><input type="number" name="allowance" value="25" required class="w-full border rounded p-2"></div>
-            <div><label class="text-xs font-bold uppercase text-gray-500 block">Carry Over</label><input type="number" name="carryOver" value="0" class="w-full border rounded p-2"></div>
+            <div><label class="text-xs font-bold uppercase text-gray-500 block">Allowance (Hours)</label><input type="number" name="allowance" value="187.5" step="0.5" required class="w-full border rounded p-2"></div>
+            <div><label class="text-xs font-bold uppercase text-gray-500 block">Carry Over (Hours)</label><input type="number" name="carryOver" value="0" step="0.5" class="w-full border rounded p-2"></div>
           </div>
           <div class="mb-3"><label class="text-xs font-bold uppercase text-gray-500 block">Role</label><select name="role" class="w-full border rounded p-2"><option value="User">User</option><option value="Admin">Admin</option></select></div>
           <div class="mb-3"><label class="text-xs font-bold uppercase text-gray-500 block">Department</label><input type="text" name="department" placeholder="e.g. Bakery" class="w-full border rounded p-2"></div>
@@ -896,8 +901,11 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         var myProfile = appData.employees.find(function(e) { return e.email === appData.currentUser.email; }) || appData.currentUser;
         var totalAllowance = (Number(myProfile.allowance) || 0) + (Number(myProfile.carryOver) || 0);
         
-        var used = myBookings.filter(function(b) { return b.type === 'Holiday' && b.status === 'Approved' && isDateInCurrentFY(b.startDate); }).reduce(function(acc, c) { return acc + c.daysCount; }, 0);
-        document.getElementById('dash-remaining').textContent = totalAllowance - used;
+        // Calculate used hours (only Holiday bookings deduct from allowance)
+        var usedHours = myBookings.filter(function(b) { return b.type === 'Holiday' && b.status === 'Approved' && isDateInCurrentFY(b.startDate); }).reduce(function(acc, c) { return acc + (Number(c.hours) || (c.daysCount * 7.5)); }, 0);
+        var remainingHours = totalAllowance - usedHours;
+        var remainingDays = Math.floor(remainingHours / 7.5 * 10) / 10; // Round to 1 decimal
+        document.getElementById('dash-remaining').innerHTML = remainingHours.toFixed(1) + ' <span class="text-sm">hrs</span><br><span class="text-xs text-gray-400">(' + remainingDays.toFixed(1) + ' days)</span>';
         
         var future = myBookings.filter(function(b) { return new Date(b.startDate) >= new Date() && b.status === 'Approved'; }).sort(function(a, b) { return new Date(a.startDate)-new Date(b.startDate); });
         if (future.length > 0) {
@@ -1083,10 +1091,11 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
                  div.classList.add('bg-gray-400','bg-stripe','text-gray-800');
                  div.innerHTML='<i class="fa-solid fa-hourglass"></i>';
                } else { 
-                   div.classList.add(b.type === 'Holiday' ? 'bg-green-600' : (b.type === 'WFH' ? 'bg-blue-600' : (b.type === 'Maternity' ? 'bg-pink-400' : (b.type === 'Sickness' ? 'bg-red-500' : 'bg-yellow-400')))); 
-                   if(b.type==='Office' || b.type==='Travel') div.classList.add('text-green-900'); 
+                   div.classList.add(b.type === 'Holiday' ? 'bg-green-600' : (b.type === 'WFH' ? 'bg-blue-600' : (b.type === 'Maternity' ? 'bg-pink-400' : (b.type === 'Sickness' ? 'bg-red-500' : (b.type === 'Office' ? 'bg-orange-500' : 'bg-yellow-400'))))); 
+                   if(b.type==='Office') div.classList.add('text-white');
+                   else if(b.type==='Travel') div.classList.add('text-green-900'); 
                    if(b.type==='Sickness') div.innerHTML = '<i class="fa-solid fa-notes-medical"></i>';
-                   else div.textContent=b.hours+'h'; 
+                   else div.textContent=(Number(b.hours) || 0).toFixed(1)+'h'; 
                }
                cell.appendChild(div);
             } else if(def && isWorkingDay && def.type !== 'None') {
