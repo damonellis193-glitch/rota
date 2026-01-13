@@ -102,7 +102,8 @@
               <div class="flex justify-between items-start relative z-10">
                 <div>
                   <p class="text-xs font-bold text-gray-400 uppercase tracking-wide">Allowance Remaining</p>
-                  <h3 class="text-4xl font-extrabold text-green-800 mt-2"><span id="dash-remaining">--</span></h3>
+                  <h3 class="text-3xl font-extrabold text-green-800 mt-2"><span id="dash-remaining-days">--</span> <span class="text-lg text-gray-500">days</span></h3>
+                  <p class="text-sm text-green-600 font-bold mt-1"><span id="dash-remaining-hours">--</span> hrs</p>
                   <p class="text-xs text-gray-400 mt-1">Includes Carry Over</p>
                 </div>
                 <div class="p-3 bg-green-50 rounded-full text-green-600"><i class="fa-solid fa-umbrella-beach text-2xl"></i></div>
@@ -131,8 +132,37 @@
           </div>
 
           <!-- ADMIN: DASHBOARD WIDGETS -->
-          <div id="admin-dashboard-widgets" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div id="admin-dashboard-widgets" class="hidden space-y-6">
              
+            
+            <!-- Weekly Office Capacity View -->
+            <div class="bg-white rounded-xl shadow overflow-hidden border-t-4 border-indigo-500">
+              <div class="px-6 py-4 border-b border-gray-100 bg-indigo-50 flex justify-between items-center">
+                <h3 class="font-bold text-indigo-900"><i class="fa-solid fa-building mr-2"></i>Weekly Office Capacity</h3>
+                <div class="flex items-center space-x-2">
+                  <button onclick="changeCapacityWeek(-1)" class="p-1 px-2 bg-white text-indigo-700 hover:bg-indigo-100 rounded shadow text-sm"><i class="fa-solid fa-chevron-left"></i></button>
+                  <span id="capacity-week-label" class="text-xs font-bold text-indigo-900 w-32 text-center">...</span>
+                  <button onclick="changeCapacityWeek(1)" class="p-1 px-2 bg-white text-indigo-700 hover:bg-indigo-100 rounded shadow text-sm"><i class="fa-solid fa-chevron-right"></i></button>
+                  <button onclick="loadView('capacity-settings')" class="ml-2 text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded shadow"><i class="fa-solid fa-cog mr-1"></i> Settings</button>
+                </div>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead class="bg-indigo-100 text-indigo-900">
+                    <tr>
+                      <th class="p-3 text-left">Day</th>
+                      <th class="p-3 text-center">In Office</th>
+                      <th class="p-3 text-center">Target</th>
+                      <th class="p-3 text-center">Status</th>
+                      <th class="p-3 text-left">Names</th>
+                    </tr>
+                  </thead>
+                  <tbody id="capacity-week-body"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
              <!-- 1. Currently Away -->
              <div class="bg-white rounded-xl shadow overflow-hidden border-t-4 border-red-500">
                <div class="px-6 py-4 border-b border-gray-100 bg-red-50 flex justify-between items-center">
@@ -168,6 +198,7 @@
                 <h3 class="text-lg font-bold text-gray-800">Work Patterns</h3>
                 <button onclick="loadView('patterns')" class="mt-2 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded shadow text-sm transition">View Patterns</button>
              </div>
+            </div>
           </div>
 
           <!-- History -->
@@ -266,6 +297,52 @@
            </div>
         </div>
 
+        <!-- CAPACITY SETTINGS -->
+        <div id="view-capacity-settings" class="hidden w-full space-y-8 p-4 md:p-6">
+           <div class="flex justify-between items-center">
+             <h2 class="text-2xl font-bold text-gray-800">Daily Capacity Settings</h2>
+             <button onclick="loadView('dashboard')" class="text-sm text-gray-600 hover:underline"><i class="fa-solid fa-arrow-left mr-1"></i> Back</button>
+           </div>
+           <div class="bg-white rounded-xl shadow p-6">
+             <p class="text-sm text-gray-600 mb-6">Set the target number of people required in the office for each day of the week. These targets are used to flag understaffed days in the Weekly Capacity View.</p>
+             <form id="capacity-settings-form" onsubmit="handleCapacitySettingsSave(event)">
+               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div>
+                   <label class="block text-sm font-bold text-gray-700 mb-2">Monday</label>
+                   <input type="number" name="Monday" min="0" class="w-full border rounded p-2" value="0">
+                 </div>
+                 <div>
+                   <label class="block text-sm font-bold text-gray-700 mb-2">Tuesday</label>
+                   <input type="number" name="Tuesday" min="0" class="w-full border rounded p-2" value="0">
+                 </div>
+                 <div>
+                   <label class="block text-sm font-bold text-gray-700 mb-2">Wednesday</label>
+                   <input type="number" name="Wednesday" min="0" class="w-full border rounded p-2" value="0">
+                 </div>
+                 <div>
+                   <label class="block text-sm font-bold text-gray-700 mb-2">Thursday</label>
+                   <input type="number" name="Thursday" min="0" class="w-full border rounded p-2" value="0">
+                 </div>
+                 <div>
+                   <label class="block text-sm font-bold text-gray-700 mb-2">Friday</label>
+                   <input type="number" name="Friday" min="0" class="w-full border rounded p-2" value="0">
+                 </div>
+                 <div>
+                   <label class="block text-sm font-bold text-gray-700 mb-2">Saturday</label>
+                   <input type="number" name="Saturday" min="0" class="w-full border rounded p-2" value="0">
+                 </div>
+                 <div>
+                   <label class="block text-sm font-bold text-gray-700 mb-2">Sunday</label>
+                   <input type="number" name="Sunday" min="0" class="w-full border rounded p-2" value="0">
+                 </div>
+               </div>
+               <div class="mt-6 flex justify-end">
+                 <button type="submit" class="btn-primary px-6 py-2 rounded font-bold">Save Settings</button>
+               </div>
+             </form>
+           </div>
+        </div>
+
         <!-- ADMIN -->
         <div id="view-admin" class="hidden w-full space-y-8 p-4 md:p-6">
           <div class="bg-white rounded-xl shadow overflow-hidden border-t-4 border-yellow-400">
@@ -315,6 +392,33 @@
             </div>
             <div id="active-bookings-container" class="hidden max-h-96 overflow-y-auto border-t border-blue-100">
                <table class="w-full text-left text-sm"><thead class="bg-blue-100 text-blue-900"><tr><th class="p-3">Colleague</th><th class="p-3">Type</th><th class="p-3">Dates</th><th class="p-3">Status</th><th class="p-3 text-right">Actions</th></tr></thead><tbody id="admin-all-bookings-body"></tbody></table>
+            </div>
+          </div>
+
+          <!-- BOOK IN MY MORRI -->
+          <div id="my-morri-section" class="hidden bg-white rounded-xl shadow overflow-hidden border-t-4 border-teal-500">
+            <div class="px-6 py-4 border-b border-gray-100 bg-teal-50 flex justify-between items-center">
+              <h3 class="font-bold text-teal-900"><i class="fa-solid fa-clipboard-check mr-2"></i>Book in My Morri (<span id="mymorri-count">0</span>)</h3>
+              <div class="space-x-2">
+                <button onclick="exportMyMorriCSV()" class="bg-teal-100 hover:bg-teal-200 text-teal-700 text-sm px-3 py-2 rounded shadow border border-teal-300"><i class="fa-solid fa-download mr-2"></i> Download CSV</button>
+                <button onclick="confirmSelectedMyMorri()" id="btn-confirm-mymorri" class="bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm px-4 py-2 rounded shadow"><i class="fa-solid fa-check mr-2"></i> Confirm Selected</button>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm">
+                <thead class="bg-teal-100 text-teal-900">
+                  <tr>
+                    <th class="p-3"><input type="checkbox" id="mymorri-select-all" onchange="toggleMyMorriSelectAll()"></th>
+                    <th class="p-3">Employee Name</th>
+                    <th class="p-3">Email</th>
+                    <th class="p-3">Booking Type</th>
+                    <th class="p-3">Start Date</th>
+                    <th class="p-3">End Date</th>
+                    <th class="p-3">Hours</th>
+                  </tr>
+                </thead>
+                <tbody id="mymorri-body"></tbody>
+              </table>
             </div>
           </div>
 
@@ -548,11 +652,12 @@
                 var self = this;
                 setTimeout(function() { 
                   if(self._s) self._s({ 
-                    currentUser: { name: 'Preview Admin', email: 'admin@preview.com', allowance: 25, role: 'Admin' }, 
-                    employees: [{ name: 'Preview Admin', email: 'admin@preview.com', allowance: 25, role: 'Admin', department: 'IT', carryOver: 0 }], 
+                    currentUser: { name: 'Preview Admin', email: 'admin@preview.com', allowance: 187.5, role: 'Admin' }, 
+                    employees: [{ name: 'Preview Admin', email: 'admin@preview.com', allowance: 187.5, role: 'Admin', department: 'IT', carryOver: 0 }], 
                     bookings: [], 
                     schedules: [], 
-                    auditLogs: [] 
+                    auditLogs: [],
+                    capacitySettings: {Monday:5, Tuesday:5, Wednesday:5, Thursday:5, Friday:5, Saturday:0, Sunday:0}
                   }); 
                 }, 500); 
               }, 
@@ -583,6 +688,18 @@
               sendChaserEmails: function() { 
                 var self = this;
                 setTimeout(function() { self._s({success:true, count:1}); }, 500); 
+              },
+              saveCapacitySettings: function() {
+                var self = this;
+                setTimeout(function() { self._s({success:true}); }, 500);
+              },
+              getMyMorriBookings: function() {
+                var self = this;
+                setTimeout(function() { self._s({success:true, bookings:[]}); }, 500);
+              },
+              confirmMyMorriBookings: function() {
+                var self = this;
+                setTimeout(function() { self._s({success:true, count:0}); }, 500);
               } 
             } 
           } 
@@ -769,13 +886,22 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         if (!myTeamView.classList.contains('hidden')) renderMyTeamCalendar();
         var patternsView = document.getElementById('view-patterns');
         if (!patternsView.classList.contains('hidden')) renderPatternsView();
+        if (appData.currentUser.role === 'Admin') {
+          renderWeeklyCapacity();
+          loadMyMorriBookings();
+        }
       }
 
       function loadView(viewName) {
-        ['view-dashboard', 'view-team', 'view-admin', 'view-my-team', 'view-patterns'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
+        ['view-dashboard', 'view-team', 'view-admin', 'view-my-team', 'view-patterns', 'view-capacity-settings'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
         document.getElementById('view-' + viewName).classList.remove('hidden');
         if (viewName === 'my-team') renderMyTeamCalendar();
         if (viewName === 'patterns') renderPatternsView();
+        if (viewName === 'capacity-settings') loadCapacitySettings();
+        if (viewName === 'dashboard' && appData.currentUser.role === 'Admin') {
+          renderWeeklyCapacity();
+          loadMyMorriBookings();
+        }
       }
 
       function getCurrentFiscalYearRange() {
@@ -905,7 +1031,10 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         var usedHours = myBookings.filter(function(b) { return b.type === 'Holiday' && b.status === 'Approved' && isDateInCurrentFY(b.startDate); }).reduce(function(acc, c) { return acc + (Number(c.hours) || (c.daysCount * 7.5)); }, 0);
         var remainingHours = totalAllowance - usedHours;
         var remainingDays = Math.floor(remainingHours / 7.5 * 10) / 10; // Round to 1 decimal
-        document.getElementById('dash-remaining').innerHTML = remainingHours.toFixed(1) + ' <span class="text-sm">hrs</span><br><span class="text-xs text-gray-400">(' + remainingDays.toFixed(1) + ' days)</span>';
+        
+        // Update dashboard display with both days and hours
+        document.getElementById('dash-remaining-days').textContent = remainingDays.toFixed(1);
+        document.getElementById('dash-remaining-hours').textContent = remainingHours.toFixed(1);
         
         var future = myBookings.filter(function(b) { return new Date(b.startDate) >= new Date() && b.status === 'Approved'; }).sort(function(a, b) { return new Date(a.startDate)-new Date(b.startDate); });
         if (future.length > 0) {
@@ -1795,6 +1924,292 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           .withFailureHandler(handleServerError)
           [action === 'approve' ? 'approveCarryoverRequest' : 'rejectCarryoverRequest'](requestEmail, days);
       }
+
+      // --- WEEKLY CAPACITY FUNCTIONS ---
+      var capacityWeekDate = new Date();
+      
+      function changeCapacityWeek(offset) {
+        capacityWeekDate.setDate(capacityWeekDate.getDate() + (offset * 7));
+        renderWeeklyCapacity();
+      }
+      
+      function renderWeeklyCapacity() {
+        if (!appData.capacitySettings) appData.capacitySettings = {};
+        
+        // Get Monday of current week
+        var curr = new Date(capacityWeekDate);
+        var day = curr.getDay();
+        var diff = curr.getDate() - day + (day === 0 ? -6 : 1);
+        var monday = new Date(curr.setDate(diff));
+        
+        // Format week label
+        var sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        var monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        document.getElementById('capacity-week-label').textContent = 
+          monthNames[monday.getMonth()] + ' ' + monday.getDate() + ' - ' + 
+          monthNames[sunday.getMonth()] + ' ' + sunday.getDate() + ', ' + monday.getFullYear();
+        
+        var tbody = document.getElementById('capacity-week-body');
+        tbody.innerHTML = '';
+        var today = new Date();
+        today.setHours(0,0,0,0);
+        
+        var dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        
+        for (var i = 0; i < 7; i++) {
+          var currentDay = new Date(monday);
+          currentDay.setDate(monday.getDate() + i);
+          var dayName = dayNames[i];
+          
+          // Count people in office
+          var inOfficeCount = 0;
+          var inOfficeNames = [];
+          
+          appData.employees.forEach(function(emp) {
+            var isInOffice = false;
+            
+            // Check if they have a booking for this day
+            var hasBooking = appData.bookings.some(function(b) {
+              if (b.email !== emp.email || b.status !== 'Approved') return false;
+              var start = new Date(b.startDate);
+              var end = new Date(b.endDate);
+              start.setHours(0,0,0,0);
+              end.setHours(0,0,0,0);
+              return currentDay >= start && currentDay <= end && b.type !== 'Office';
+            });
+            
+            // Check if they have an Office booking
+            var hasOfficeBooking = appData.bookings.some(function(b) {
+              if (b.email !== emp.email || b.status !== 'Approved') return false;
+              var start = new Date(b.startDate);
+              var end = new Date(b.endDate);
+              start.setHours(0,0,0,0);
+              end.setHours(0,0,0,0);
+              return currentDay >= start && currentDay <= end && b.type === 'Office';
+            });
+            
+            // Check schedule
+            var schedule = appData.schedules[emp.email] || {};
+            var daySchedule = schedule[dayName];
+            var isWorkingDay = daySchedule && daySchedule.type !== 'None';
+            
+            // Default: Mon-Fri are working days if no schedule
+            if (Object.keys(schedule).length === 0) {
+              isWorkingDay = (i < 5); // Mon-Fri
+            }
+            
+            // In office if: working day + no booking (except Office)
+            if (isWorkingDay && !hasBooking) {
+              isInOffice = true;
+            }
+            if (hasOfficeBooking) {
+              isInOffice = true;
+            }
+            
+            if (isInOffice) {
+              inOfficeCount++;
+              inOfficeNames.push(emp.name);
+            }
+          });
+          
+          var target = appData.capacitySettings[dayName] || 0;
+          var diff = inOfficeCount - target;
+          
+          var statusClass = 'bg-green-100 text-green-700';
+          var statusIcon = '✓';
+          var statusText = 'OK';
+          
+          if (target > 0) {
+            if (diff < -2) {
+              statusClass = 'bg-red-100 text-red-700';
+              statusIcon = '✗';
+              statusText = 'Understaffed';
+            } else if (diff < 0) {
+              statusClass = 'bg-yellow-100 text-yellow-700';
+              statusIcon = '⚠';
+              statusText = 'Low';
+            }
+          }
+          
+          var isToday = currentDay.getTime() === today.getTime();
+          var rowClass = isToday ? 'bg-indigo-50 font-bold' : '';
+          
+          var namesHtml = inOfficeNames.slice(0, 5).join(', ');
+          if (inOfficeNames.length > 5) {
+            namesHtml += ' and ' + (inOfficeNames.length - 5) + ' more';
+          }
+          if (inOfficeNames.length === 0) {
+            namesHtml = '<span class="text-gray-400 italic">None</span>';
+          }
+          
+          tbody.innerHTML += '<tr class="border-b border-gray-100 hover:bg-gray-50 ' + rowClass + '">' +
+            '<td class="p-3">' + dayName + (isToday ? ' <span class="text-xs bg-indigo-600 text-white px-2 py-1 rounded">TODAY</span>' : '') + '</td>' +
+            '<td class="p-3 text-center font-bold text-indigo-700">' + inOfficeCount + '</td>' +
+            '<td class="p-3 text-center text-gray-600">' + (target > 0 ? target : '--') + '</td>' +
+            '<td class="p-3 text-center"><span class="px-2 py-1 rounded text-xs font-bold ' + statusClass + '">' + statusIcon + ' ' + statusText + '</span></td>' +
+            '<td class="p-3 text-xs">' + namesHtml + '</td>' +
+            '</tr>';
+        }
+      }
+      
+      // --- CAPACITY SETTINGS FUNCTIONS ---
+      
+      function handleCapacitySettingsSave(e) {
+        e.preventDefault();
+        var settings = {};
+        var days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        days.forEach(function(day) {
+          settings[day] = Number(e.target[day].value) || 0;
+        });
+        
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res.success) {
+              appData.capacitySettings = settings;
+              alert('Capacity settings saved successfully!');
+              loadView('dashboard');
+              renderWeeklyCapacity();
+            }
+          })
+          .withFailureHandler(handleServerError)
+          .saveCapacitySettings(settings);
+      }
+      
+      function loadCapacitySettings() {
+        var form = document.getElementById('capacity-settings-form');
+        if (!form) return;
+        
+        var days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        days.forEach(function(day) {
+          var input = form[day];
+          if (input && appData.capacitySettings) {
+            input.value = appData.capacitySettings[day] || 0;
+          }
+        });
+      }
+      
+      // --- MY MORRI FUNCTIONS ---
+      
+      var myMorriBookings = [];
+      var selectedMyMorriIds = [];
+      
+      function loadMyMorriBookings() {
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res.success) {
+              myMorriBookings = res.bookings || [];
+              renderMyMorriBookings();
+            }
+          })
+          .withFailureHandler(handleServerError)
+          .getMyMorriBookings();
+      }
+      
+      function renderMyMorriBookings() {
+        var section = document.getElementById('my-morri-section');
+        var tbody = document.getElementById('mymorri-body');
+        
+        if (!section || !tbody) return;
+        
+        // Show section only for managers
+        if (appData.currentUser.role === 'Admin') {
+          section.classList.remove('hidden');
+        } else {
+          section.classList.add('hidden');
+          return;
+        }
+        
+        document.getElementById('mymorri-count').textContent = myMorriBookings.length;
+        tbody.innerHTML = '';
+        selectedMyMorriIds = [];
+        
+        if (myMorriBookings.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No bookings to confirm</td></tr>';
+          return;
+        }
+        
+        myMorriBookings.forEach(function(booking) {
+          var row = '<tr class="border-b border-gray-100 hover:bg-teal-50">' +
+            '<td class="p-3"><input type="checkbox" class="mymorri-checkbox" data-id="' + booking.id + '"></td>' +
+            '<td class="p-3 font-bold text-gray-700">' + booking.name + '</td>' +
+            '<td class="p-3 text-sm text-gray-600">' + booking.email + '</td>' +
+            '<td class="p-3"><span class="px-2 py-1 rounded text-xs font-bold ' + (booking.type === 'Holiday' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') + '">' + booking.type + '</span></td>' +
+            '<td class="p-3 text-sm">' + formatDate(booking.startDate) + '</td>' +
+            '<td class="p-3 text-sm">' + formatDate(booking.endDate) + '</td>' +
+            '<td class="p-3 font-mono text-sm">' + booking.hours.toFixed(1) + '</td>' +
+            '</tr>';
+          tbody.innerHTML += row;
+        });
+      }
+      
+      function toggleMyMorriSelectAll() {
+        var selectAll = document.getElementById('mymorri-select-all');
+        var checkboxes = document.querySelectorAll('.mymorri-checkbox');
+        checkboxes.forEach(function(cb) {
+          cb.checked = selectAll.checked;
+        });
+      }
+      
+      function confirmSelectedMyMorri() {
+        var checkboxes = document.querySelectorAll('.mymorri-checkbox:checked');
+        var selectedIds = [];
+        checkboxes.forEach(function(cb) {
+          selectedIds.push(cb.getAttribute('data-id'));
+        });
+        
+        if (selectedIds.length === 0) {
+          alert('Please select at least one booking to confirm.');
+          return;
+        }
+        
+        if (!confirm('Are you sure you want to confirm ' + selectedIds.length + ' booking(s) in My Morri?')) {
+          return;
+        }
+        
+        var btn = document.getElementById('btn-confirm-mymorri');
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Confirming...';
+        btn.disabled = true;
+        
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res.success) {
+              alert(res.count + ' booking(s) confirmed successfully!');
+              loadMyMorriBookings();
+            }
+            btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i> Confirm Selected';
+            btn.disabled = false;
+          })
+          .withFailureHandler(function(err) {
+            btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i> Confirm Selected';
+            btn.disabled = false;
+            handleServerError(err);
+          })
+          .confirmMyMorriBookings(selectedIds);
+      }
+      
+      function exportMyMorriCSV() {
+        if (myMorriBookings.length === 0) {
+          alert('No bookings to export');
+          return;
+        }
+        
+        var csv = 'Name,Email,Start Date,End Date,Hours\n';
+        myMorriBookings.forEach(function(b) {
+          csv += '"' + b.name + '","' + b.email + '","' + formatDate(b.startDate) + '","' + formatDate(b.endDate) + '",' + b.hours.toFixed(1) + '\n';
+        });
+        
+        var blob = new Blob([csv], { type: 'text/csv' });
+        var url = window.URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'my-morri-bookings-' + new Date().toISOString().split('T')[0] + '.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }
+
     </script>
   </body>
 </html>
