@@ -487,7 +487,7 @@
                     <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('status')">Status</th>
                     <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('name')">Name <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
                     <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('department')">Department <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
-                    <th class="p-3 text-center cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('remaining')">Days Left <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
+                    <th class="p-3 text-center cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('remaining')">Hours Left <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
                     <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('utilization')">Utilization <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
                     <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('lastHoliday')">Last Holiday <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
                     <th class="p-3 text-center cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('sickDays')">Sick Days <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
@@ -1489,11 +1489,13 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         var employeeMetrics = appData.employees.map(function(emp) {
           var totalAllowance = (Number(emp.allowance) || 0) + (Number(emp.carryOver) || 0);
           var books = appData.bookings.filter(function(b) { return b.email === emp.email && b.type === 'Holiday' && b.status !== 'Cancelled' && isDateInCurrentFY(b.startDate); });
-          var taken = books.filter(function(b) { return b.status === 'Approved' && new Date(b.startDate) < today; }).reduce(function(a, c) { return a + c.daysCount; }, 0);
-          var plan = books.filter(function(b) { return (b.status === 'Approved' || b.status === 'Pending') && new Date(b.startDate) >= today; }).reduce(function(a, c) { return a + c.daysCount; }, 0);
-          var total = taken + plan;
-          var unbooked = totalAllowance - total;
-          var pct = totalAllowance > 0 ? (total / totalAllowance) * 100 : 0;
+          
+          // Calculate using hours
+          var takenHours = books.filter(function(b) { return b.status === 'Approved' && new Date(b.startDate) < today; }).reduce(function(a, c) { return a + (Number(c.hours) || (c.daysCount * 7.5)); }, 0);
+          var planHours = books.filter(function(b) { return (b.status === 'Approved' || b.status === 'Pending') && new Date(b.startDate) >= today; }).reduce(function(a, c) { return a + (Number(c.hours) || (c.daysCount * 7.5)); }, 0);
+          var totalHours = takenHours + planHours;
+          var unbookedHours = totalAllowance - totalHours;
+          var pct = totalAllowance > 0 ? (totalHours / totalAllowance) * 100 : 0;
           
           // Last holiday date
           var holidayBookings = appData.bookings.filter(function(b) { return b.email === emp.email && b.type === 'Holiday' && b.status === 'Approved' && new Date(b.endDate) < today; });
@@ -1518,12 +1520,12 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           var sickStats = sicknessStats[emp.email] || { days: 0, episodes: 0 };
           var bradford = sickStats.episodes * sickStats.episodes * sickStats.days;
           
-          // Status determination
+          // Status determination (use hours for thresholds, convert to days where needed)
           var status = 'green';
           if (currentlyAway) status = 'blue';
-          else if (unbooked > 10 && remMonths < 1) status = 'red';
+          else if (unbookedHours > 75 && remMonths < 1) status = 'red'; // >10 days (75 hrs)
           else if (bradford > 100) status = 'red';
-          else if (daysSinceLastHoliday > 90 || (unbooked > 5 && pct < 40)) status = 'yellow';
+          else if (daysSinceLastHoliday > 90 || (unbookedHours > 37.5 && pct < 40)) status = 'yellow'; // >5 days (37.5 hrs)
           
           // Manager name
           var mgrEmail = emp.manager || '';
@@ -1533,9 +1535,9 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           return {
             emp: emp,
             totalAllowance: totalAllowance,
-            taken: taken,
-            plan: plan,
-            unbooked: unbooked,
+            takenHours: takenHours,
+            planHours: planHours,
+            unbookedHours: unbookedHours,
             utilization: pct,
             lastHoliday: lastHoliday,
             daysSinceLastHoliday: daysSinceLastHoliday,
@@ -1646,7 +1648,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           row += '<td class="p-3 text-center text-xl">' + statusIcon + '</td>';
           row += '<td class="p-3"><div class="font-bold text-gray-700">' + emp.name + '</div><div class="text-xs text-gray-400">' + emp.email + '</div></td>';
           row += '<td class="p-3 text-sm text-gray-600">' + (emp.department || '--') + '</td>';
-          row += '<td class="p-3 text-center"><div class="font-bold text-gray-800">' + m.unbooked + ' / ' + m.totalAllowance + '</div></td>';
+          row += '<td class="p-3 text-center"><div class="font-bold text-gray-800">' + m.unbookedHours.toFixed(1) + ' hrs</div><div class="text-xs text-gray-500">(' + (m.unbookedHours / 7.5).toFixed(1) + ' days)</div></td>';
           row += '<td class="p-3">' + utilBar + '</td>';
           row += '<td class="p-3 text-xs text-gray-600">' + lastHolDisplay + '</td>';
           row += '<td class="p-3 text-center font-mono text-gray-700">' + m.sickDays + '</td>';
@@ -1682,16 +1684,16 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       }
 
       function exportColleaguesCSV() {
-        var csv = 'Name,Email,Department,Days Remaining,Total Allowance,Utilization %,Last Holiday,Sick Days YTD,Bradford Factor,Pending Requests,Manager\n';
+        var csv = 'Name,Email,Department,Hours Remaining,Total Allowance (Hrs),Utilization %,Last Holiday,Sick Days YTD,Bradford Factor,Pending Requests,Manager\n';
         
         appData.employees.forEach(function(emp) {
           var totalAllowance = (Number(emp.allowance) || 0) + (Number(emp.carryOver) || 0);
           var books = appData.bookings.filter(function(b) { return b.email === emp.email && b.type === 'Holiday' && b.status !== 'Cancelled' && isDateInCurrentFY(b.startDate); });
           var today = new Date();
-          var taken = books.filter(function(b) { return b.status === 'Approved' && new Date(b.startDate) < today; }).reduce(function(a, c) { return a + c.daysCount; }, 0);
-          var plan = books.filter(function(b) { return (b.status === 'Approved' || b.status === 'Pending') && new Date(b.startDate) >= today; }).reduce(function(a, c) { return a + c.daysCount; }, 0);
-          var unbooked = totalAllowance - (taken + plan);
-          var pct = totalAllowance > 0 ? Math.round((taken + plan) / totalAllowance * 100) : 0;
+          var takenHours = books.filter(function(b) { return b.status === 'Approved' && new Date(b.startDate) < today; }).reduce(function(a, c) { return a + (Number(c.hours) || (c.daysCount * 7.5)); }, 0);
+          var planHours = books.filter(function(b) { return (b.status === 'Approved' || b.status === 'Pending') && new Date(b.startDate) >= today; }).reduce(function(a, c) { return a + (Number(c.hours) || (c.daysCount * 7.5)); }, 0);
+          var unbookedHours = totalAllowance - (takenHours + planHours);
+          var pct = totalAllowance > 0 ? Math.round((takenHours + planHours) / totalAllowance * 100) : 0;
           
           var holidayBookings = appData.bookings.filter(function(b) { return b.email === emp.email && b.type === 'Holiday' && b.status === 'Approved' && new Date(b.endDate) < today; });
           var lastHoliday = holidayBookings.length > 0 ? formatDate(holidayBookings.sort(function(a, b) { return new Date(b.endDate) - new Date(a.endDate); })[0].endDate) : 'Never';
@@ -1713,7 +1715,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           var mgrEmp = appData.employees.find(function(e) { return e.email === mgrEmail; });
           var mgrName = (mgrEmp || {}).name || (mgrEmail ? mgrEmail : '');
           
-          csv += '"' + emp.name + '","' + emp.email + '","' + (emp.department || '') + '",' + unbooked + ',' + totalAllowance + ',' + pct + ',"' + lastHoliday + '",' + sickDays + ',' + bradford + ',' + pending + ',"' + mgrName + '"\n';
+          csv += '"' + emp.name + '","' + emp.email + '","' + (emp.department || '') + '",' + unbookedHours.toFixed(1) + ',' + totalAllowance.toFixed(1) + ',' + pct + ',"' + lastHoliday + '",' + sickDays + ',' + bradford + ',' + pending + ',"' + mgrName + '"\n';
         });
         
         var blob = new Blob([csv], { type: 'text/csv' });
