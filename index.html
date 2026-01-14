@@ -1270,7 +1270,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
                    // Set color and label based on booking type
                    if (b.type === 'Holiday') {
                      div.classList.add('bg-green-600');
-                     label = 'HOL';
+                     label = (Number(b.hours) || 0).toFixed(1) + 'h';
                    } else if (b.type === 'WFH') {
                      div.classList.add('bg-blue-600');
                      label = 'WFH';
