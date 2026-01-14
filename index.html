@@ -1260,29 +1260,58 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
             if(b && shouldShow && isWorkingDay) {
                var div = document.createElement('div'); div.className="absolute inset-1 rounded-sm shadow-sm flex items-center justify-center text-xs font-bold text-white overflow-hidden";
                if(b.status==='Pending' || b.status==='Cancellation Requested') {
+                 // Pending - keep striped pattern with hourglass icon
                  div.classList.add('bg-gray-400','bg-stripe','text-gray-800');
                  div.innerHTML='<i class="fa-solid fa-hourglass"></i>';
                } else { 
-                   div.classList.add(b.type === 'Holiday' ? 'bg-green-600' : (b.type === 'WFH' ? 'bg-blue-600' : (b.type === 'Maternity' ? 'bg-pink-400' : (b.type === 'Sickness' ? 'bg-red-500' : (b.type === 'Office' ? 'bg-orange-500' : 'bg-yellow-400'))))); 
-                   if(b.type==='Office') div.classList.add('text-white');
-                   else if(b.type==='Travel') div.classList.add('text-green-900'); 
-                   if(b.type==='Sickness') div.innerHTML = '<i class="fa-solid fa-notes-medical"></i>';
-                   else div.textContent=(Number(b.hours) || 0).toFixed(1)+'h'; 
+                   // Approved bookings - show with text labels
+                   var label = '';
+                   
+                   // Set color and label based on booking type
+                   if (b.type === 'Holiday') {
+                     div.classList.add('bg-green-600');
+                     label = (Number(b.hours) || 0).toFixed(1) + 'h';
+                   } else if (b.type === 'WFH') {
+                     div.classList.add('bg-blue-600');
+                     label = 'WFH';
+                   } else if (b.type === 'Office') {
+                     div.classList.add('bg-orange-500', 'text-white');
+                     label = 'IN';
+                   } else if (b.type === 'Travel') {
+                     div.classList.add('bg-yellow-400', 'text-green-900');
+                     label = 'TRV';
+                   } else if (b.type === 'Sickness') {
+                     div.classList.add('bg-red-500');
+                     label = 'ILL';
+                   } else if (b.type === 'Maternity') {
+                     div.classList.add('bg-pink-400');
+                     label = 'MAT';
+                   } else {
+                     // Fallback for unknown booking types
+                     div.classList.add('bg-gray-600');
+                     var typeStr = String(b.type || '').trim();
+                     label = typeStr ? typeStr.substring(0, 3).toUpperCase() : 'UNK';
+                   }
+                   
+                   div.textContent = label;
                }
                cell.appendChild(div);
-            } else if(def && isWorkingDay && def.type !== 'None') {
+            } else if(def && isWorkingDay && (def.type === 'Office' || def.type === 'WFH')) {
                var schedDiv = document.createElement('div');
-               schedDiv.className = "absolute inset-1 rounded-sm opacity-30";
+               schedDiv.className = "absolute inset-1 rounded-sm opacity-30 flex items-center justify-center text-xs font-bold text-white";
                
-               // Fix color assignment based on schedule type
+               var schedLabel = '';
+               
+               // Set color and label for Office and WFH schedules only
                if (def.type === 'Office') {
-                 schedDiv.classList.add('bg-orange-500'); // Office = orange
+                 schedDiv.classList.add('bg-orange-500');
+                 schedLabel = 'IN';
                } else if (def.type === 'WFH') {
-                 schedDiv.classList.add('bg-blue-500'); // WFH = blue
-               } else if (def.type === 'Travel') {
-                 schedDiv.classList.add('bg-yellow-400'); // Travel = yellow
+                 schedDiv.classList.add('bg-blue-500');
+                 schedLabel = 'WFH';
                }
                
+               schedDiv.textContent = schedLabel;
                cell.appendChild(schedDiv);
             }
             cont.appendChild(cell);
