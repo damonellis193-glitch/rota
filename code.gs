@@ -333,6 +333,10 @@ function setupDatabase(ss) {
     const s = ss.insertSheet('MyMorriConfirmations');
     s.appendRow(['BookingID', 'ConfirmedBy', 'ConfirmedAt', 'ConfirmedDate']);
   }
+  if (!ss.getSheetByName('MyMorriRemovals')) {
+    const s = ss.insertSheet('MyMorriRemovals');
+    s.appendRow(['BookingID', 'RemovedBy', 'RemovedAt', 'RemovalDate']);
+  }
 }
 
 function logAction(actorEmail, action, details) {
@@ -843,9 +847,10 @@ function getMyMorriBookings() {
       const type = String(row[2]).trim();
       const status = String(row[6]).trim();
       
-      // Filter: Only approved Holiday and Sickness, not already confirmed, user is manager
+      // Filter: Only approved Holiday and Sickness, not already confirmed, NOT cancellation requested, user is manager
       if ((type === 'Holiday' || type === 'Sickness') && 
           status === 'Approved' && 
+          status !== 'Cancellation Requested' &&
           !confirmedIds[bookingId] &&
           isManagerOf(currentUserEmail, email)) {
         
@@ -882,5 +887,114 @@ function confirmMyMorriBookings(bookingIds) {
   });
   
   logAction(actor, 'My Morri Confirmations', `Confirmed ${bookingIds.length} booking(s)`);
+  return { success: true, count: bookingIds.length };
+}
+
+function getMyMorriRemovals() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const bookSheet = ss.getSheetByName('Bookings');
+  const confirmSheet = ss.getSheetByName('MyMorriConfirmations');
+  const removalSheet = ss.getSheetByName('MyMorriRemovals');
+  const empSheet = ss.getSheetByName('Employees');
+  const currentUserEmail = Session.getActiveUser().getEmail();
+  
+  if (!removalSheet) {
+    setupDatabase(ss);
+  }
+  
+  // Get already removed booking IDs
+  const removedIds = {};
+  if (removalSheet) {
+    const removalData = removalSheet.getDataRange().getValues();
+    if (removalData.length > 1) {
+      removalData.shift();
+      removalData.forEach(row => {
+        if (row[0]) removedIds[String(row[0])] = true;
+      });
+    }
+  }
+  
+  // Get confirmed booking IDs (from My Morri)
+  const confirmedIds = {};
+  if (confirmSheet) {
+    const confirmData = confirmSheet.getDataRange().getValues();
+    if (confirmData.length > 1) {
+      confirmData.shift();
+      confirmData.forEach(row => {
+        if (row[0]) confirmedIds[String(row[0])] = true;
+      });
+    }
+  }
+  
+  // Get employees for manager hierarchy
+  const empData = empSheet.getDataRange().getValues();
+  empData.shift();
+  const employees = empData.map(row => ({
+    email: String(row[1]).trim(),
+    name: String(row[0]).trim(),
+    manager: String(row[4] || '').trim()
+  }));
+  
+  // Helper function
+  function isManagerOf(managerEmail, employeeEmail) {
+    if (managerEmail === employeeEmail) return false;
+    let current = employees.find(e => e.email === employeeEmail);
+    while (current && current.manager) {
+      if (current.manager === managerEmail) return true;
+      current = employees.find(e => e.email === current.manager);
+    }
+    return false;
+  }
+  
+  // Get bookings
+  const bookData = bookSheet.getDataRange().getValues();
+  const removals = [];
+  if (bookData.length > 1) {
+    bookData.shift();
+    bookData.forEach(row => {
+      const bookingId = String(row[0]).trim();
+      const email = String(row[1]).trim();
+      const type = String(row[2]).trim();
+      const status = String(row[6]).trim();
+      
+      // Filter: Only Holiday, Cancelled status, was confirmed in My Morri, not yet removed, user is manager
+      if (type === 'Holiday' && 
+          status === 'Cancelled' &&
+          confirmedIds[bookingId] &&
+          !removedIds[bookingId] &&
+          isManagerOf(currentUserEmail, email)) {
+        
+        const emp = employees.find(e => e.email === email);
+        removals.push({
+          id: bookingId,
+          name: (emp || {}).name || email,
+          email: email,
+          startDate: row[3] ? new Date(row[3]).toISOString() : null,
+          endDate: row[4] ? new Date(row[4]).toISOString() : null,
+          hours: Number(row[7]) || 0
+        });
+      }
+    });
+  }
+  
+  return { success: true, removals: removals };
+}
+
+function confirmMyMorriRemovals(bookingIds) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sheet = ss.getSheetByName('MyMorriRemovals');
+  if (!sheet) {
+    setupDatabase(ss);
+    sheet = ss.getSheetByName('MyMorriRemovals');
+  }
+  
+  const actor = Session.getActiveUser().getEmail();
+  const now = new Date();
+  
+  bookingIds.forEach(id => {
+    sheet.appendRow([id, actor, now, now]);
+  });
+  
+  logAction(actor, 'My Morri Removals Confirmed', `Removed ${bookingIds.length} cancelled booking(s) from My Morri`);
   return { success: true, count: bookingIds.length };
 }
