@@ -659,6 +659,13 @@
     </div>
 
     <script>
+      // Helper function to escape HTML to prevent XSS
+      function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
       // Helper function to get unique values from array (ES5 compatible)
       function getUniqueValues(arr) {
         var unique = [];
@@ -2217,8 +2224,8 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         var modal = document.getElementById('capacity-alert-modal');
         if (!modal) return;
         
-        // Close if clicking backdrop or close button
-        if (!event || event.target === modal || event.type === 'click') {
+        // Close if clicking backdrop or called without event (from close button)
+        if (!event || event.target === modal) {
           modal.classList.add('hidden');
         }
       }
@@ -2350,8 +2357,8 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           var rowClass = isToday ? 'bg-indigo-50 font-bold' : '';
           
           // New expandable name list logic
-          var dayId = 'capacity-day-' + i;
-          var shortNames = inOfficeNames.slice(0, 3).join(', ');
+          var dayId = 'capacity-day-' + currentDay.getTime();
+          var shortNames = inOfficeNames.slice(0, 3).map(escapeHtml).join(', ');
           var hasMore = inOfficeNames.length > 3;
           
           if (inOfficeNames.length === 0) {
@@ -2375,7 +2382,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
               '<div class="text-sm"><strong class="text-indigo-900">All people in office (' + inOfficeNames.length + '):</strong></div>' +
               '<div class="mt-2 flex flex-wrap gap-2">' +
               inOfficeNames.map(function(name) {
-                return '<span class="bg-white px-3 py-1 rounded border border-indigo-200 text-sm">' + name + '</span>';
+                return '<span class="bg-white px-3 py-1 rounded border border-indigo-200 text-sm">' + escapeHtml(name) + '</span>';
               }).join('') +
               '</div>' +
               '</td>' +
