@@ -102,7 +102,8 @@
               <div class="flex justify-between items-start relative z-10">
                 <div>
                   <p class="text-xs font-bold text-gray-400 uppercase tracking-wide">Allowance Remaining</p>
-                  <h3 class="text-4xl font-extrabold text-green-800 mt-2"><span id="dash-remaining">--</span></h3>
+                  <h3 class="text-3xl font-extrabold text-green-800 mt-2"><span id="dash-remaining-days">--</span> <span class="text-lg text-gray-500">days</span></h3>
+                  <p class="text-sm text-green-600 font-bold mt-1"><span id="dash-remaining-hours">--</span> hrs</p>
                   <p class="text-xs text-gray-400 mt-1">Includes Carry Over</p>
                 </div>
                 <div class="p-3 bg-green-50 rounded-full text-green-600"><i class="fa-solid fa-umbrella-beach text-2xl"></i></div>
@@ -131,8 +132,37 @@
           </div>
 
           <!-- ADMIN: DASHBOARD WIDGETS -->
-          <div id="admin-dashboard-widgets" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div id="admin-dashboard-widgets" class="hidden space-y-6">
              
+            
+            <!-- Weekly Office Capacity View -->
+            <div class="bg-white rounded-xl shadow overflow-hidden border-t-4 border-indigo-500">
+              <div class="px-6 py-4 border-b border-gray-100 bg-indigo-50 flex justify-between items-center">
+                <h3 class="font-bold text-indigo-900"><i class="fa-solid fa-building mr-2"></i>Weekly Office Capacity</h3>
+                <div class="flex items-center space-x-2">
+                  <button onclick="changeCapacityWeek(-1)" class="p-1 px-2 bg-white text-indigo-700 hover:bg-indigo-100 rounded shadow text-sm"><i class="fa-solid fa-chevron-left"></i></button>
+                  <span id="capacity-week-label" class="text-xs font-bold text-indigo-900 w-32 text-center">...</span>
+                  <button onclick="changeCapacityWeek(1)" class="p-1 px-2 bg-white text-indigo-700 hover:bg-indigo-100 rounded shadow text-sm"><i class="fa-solid fa-chevron-right"></i></button>
+                  <button onclick="loadView('capacity-settings')" class="ml-2 text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded shadow"><i class="fa-solid fa-cog mr-1"></i> Settings</button>
+                </div>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead class="bg-indigo-100 text-indigo-900">
+                    <tr>
+                      <th class="p-3 text-left">Day</th>
+                      <th class="p-3 text-center">In Office</th>
+                      <th class="p-3 text-center">Target</th>
+                      <th class="p-3 text-center">Status</th>
+                      <th class="p-3 text-left">Names</th>
+                    </tr>
+                  </thead>
+                  <tbody id="capacity-week-body"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
              <!-- 1. Currently Away -->
              <div class="bg-white rounded-xl shadow overflow-hidden border-t-4 border-red-500">
                <div class="px-6 py-4 border-b border-gray-100 bg-red-50 flex justify-between items-center">
@@ -168,6 +198,7 @@
                 <h3 class="text-lg font-bold text-gray-800">Work Patterns</h3>
                 <button onclick="loadView('patterns')" class="mt-2 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded shadow text-sm transition">View Patterns</button>
              </div>
+            </div>
           </div>
 
           <!-- History -->
@@ -197,10 +228,14 @@
                 </div>
                 <button onclick="resetCalendarToToday()" class="bg-white text-green-900 border border-green-200 hover:bg-green-50 px-3 py-1 rounded shadow text-sm font-bold transition">Today</button>
             </div>
-            <div class="hidden md:flex text-xs space-x-3">
+            <div class="hidden md:flex text-xs space-x-3 flex-wrap">
+               <span class="flex items-center"><span class="w-3 h-3 bg-gray-400 bg-stripe rounded mr-1"></span> Pending</span>
                <span class="flex items-center"><span class="w-3 h-3 bg-green-500 rounded mr-1"></span> Holiday</span>
                <span class="flex items-center"><span class="w-3 h-3 bg-blue-500 rounded mr-1"></span> WFH</span>
+               <span class="flex items-center"><span class="w-3 h-3 bg-orange-500 rounded mr-1"></span> Office</span>
                <span class="flex items-center"><span class="w-3 h-3 bg-red-500 rounded mr-1"></span> Sick</span>
+               <span class="flex items-center"><span class="w-3 h-3 bg-yellow-400 rounded mr-1"></span> Travel</span>
+               <span class="flex items-center"><span class="w-3 h-3 bg-pink-400 rounded mr-1"></span> Maternity</span>
             </div>
           </div>
           <div class="bg-white rounded-xl shadow flex-1 flex flex-col overflow-hidden border border-gray-200">
@@ -262,6 +297,52 @@
            </div>
         </div>
 
+        <!-- CAPACITY SETTINGS -->
+        <div id="view-capacity-settings" class="hidden w-full space-y-8 p-4 md:p-6">
+           <div class="flex justify-between items-center">
+             <h2 class="text-2xl font-bold text-gray-800">Daily Capacity Settings</h2>
+             <button onclick="loadView('dashboard')" class="text-sm text-gray-600 hover:underline"><i class="fa-solid fa-arrow-left mr-1"></i> Back</button>
+           </div>
+           <div class="bg-white rounded-xl shadow p-6">
+             <p class="text-sm text-gray-600 mb-6">Set the target number of people required in the office for each day of the week. These targets are used to flag understaffed days in the Weekly Capacity View.</p>
+             <form id="capacity-settings-form" onsubmit="handleCapacitySettingsSave(event)">
+               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div>
+                   <label class="block text-sm font-bold text-gray-700 mb-2">Monday</label>
+                   <input type="number" name="Monday" min="0" class="w-full border rounded p-2" value="0">
+                 </div>
+                 <div>
+                   <label class="block text-sm font-bold text-gray-700 mb-2">Tuesday</label>
+                   <input type="number" name="Tuesday" min="0" class="w-full border rounded p-2" value="0">
+                 </div>
+                 <div>
+                   <label class="block text-sm font-bold text-gray-700 mb-2">Wednesday</label>
+                   <input type="number" name="Wednesday" min="0" class="w-full border rounded p-2" value="0">
+                 </div>
+                 <div>
+                   <label class="block text-sm font-bold text-gray-700 mb-2">Thursday</label>
+                   <input type="number" name="Thursday" min="0" class="w-full border rounded p-2" value="0">
+                 </div>
+                 <div>
+                   <label class="block text-sm font-bold text-gray-700 mb-2">Friday</label>
+                   <input type="number" name="Friday" min="0" class="w-full border rounded p-2" value="0">
+                 </div>
+                 <div>
+                   <label class="block text-sm font-bold text-gray-700 mb-2">Saturday</label>
+                   <input type="number" name="Saturday" min="0" class="w-full border rounded p-2" value="0">
+                 </div>
+                 <div>
+                   <label class="block text-sm font-bold text-gray-700 mb-2">Sunday</label>
+                   <input type="number" name="Sunday" min="0" class="w-full border rounded p-2" value="0">
+                 </div>
+               </div>
+               <div class="mt-6 flex justify-end">
+                 <button type="submit" class="btn-primary px-6 py-2 rounded font-bold">Save Settings</button>
+               </div>
+             </form>
+           </div>
+        </div>
+
         <!-- ADMIN -->
         <div id="view-admin" class="hidden w-full space-y-8 p-4 md:p-6">
           <div class="bg-white rounded-xl shadow overflow-hidden border-t-4 border-yellow-400">
@@ -311,6 +392,33 @@
             </div>
             <div id="active-bookings-container" class="hidden max-h-96 overflow-y-auto border-t border-blue-100">
                <table class="w-full text-left text-sm"><thead class="bg-blue-100 text-blue-900"><tr><th class="p-3">Colleague</th><th class="p-3">Type</th><th class="p-3">Dates</th><th class="p-3">Status</th><th class="p-3 text-right">Actions</th></tr></thead><tbody id="admin-all-bookings-body"></tbody></table>
+            </div>
+          </div>
+
+          <!-- BOOK IN MY MORRI -->
+          <div id="my-morri-section" class="hidden bg-white rounded-xl shadow overflow-hidden border-t-4 border-teal-500">
+            <div class="px-6 py-4 border-b border-gray-100 bg-teal-50 flex justify-between items-center">
+              <h3 class="font-bold text-teal-900"><i class="fa-solid fa-clipboard-check mr-2"></i>Book in My Morri (<span id="mymorri-count">0</span>)</h3>
+              <div class="space-x-2">
+                <button onclick="exportMyMorriCSV()" class="bg-teal-100 hover:bg-teal-200 text-teal-700 text-sm px-3 py-2 rounded shadow border border-teal-300"><i class="fa-solid fa-download mr-2"></i> Download CSV</button>
+                <button onclick="confirmSelectedMyMorri()" id="btn-confirm-mymorri" class="bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm px-4 py-2 rounded shadow"><i class="fa-solid fa-check mr-2"></i> Confirm Selected</button>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm">
+                <thead class="bg-teal-100 text-teal-900">
+                  <tr>
+                    <th class="p-3"><input type="checkbox" id="mymorri-select-all" onchange="toggleMyMorriSelectAll()"></th>
+                    <th class="p-3">Employee Name</th>
+                    <th class="p-3">Email</th>
+                    <th class="p-3">Booking Type</th>
+                    <th class="p-3">Start Date</th>
+                    <th class="p-3">End Date</th>
+                    <th class="p-3">Hours</th>
+                  </tr>
+                </thead>
+                <tbody id="mymorri-body"></tbody>
+              </table>
             </div>
           </div>
 
@@ -379,7 +487,7 @@
                     <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('status')">Status</th>
                     <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('name')">Name <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
                     <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('department')">Department <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
-                    <th class="p-3 text-center cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('remaining')">Days Left <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
+                    <th class="p-3 text-center cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('remaining')">Hours Left <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
                     <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('utilization')">Utilization <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
                     <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('lastHoliday')">Last Holiday <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
                     <th class="p-3 text-center cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('sickDays')">Sick Days <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
@@ -419,6 +527,7 @@
           <div class="mb-5 grid grid-cols-2 gap-2">
               <label class="cursor-pointer"><input type="radio" name="type" value="Holiday" class="peer sr-only" checked><div class="text-center py-2 border rounded hover:bg-gray-50 peer-checked:bg-green-100 peer-checked:text-green-700 transition">Holiday</div></label>
               <label class="cursor-pointer"><input type="radio" name="type" value="WFH" class="peer sr-only"><div class="text-center py-2 border rounded hover:bg-gray-50 peer-checked:bg-blue-100 peer-checked:text-blue-700 transition">WFH</div></label>
+              <label class="cursor-pointer"><input type="radio" name="type" value="Office" class="peer sr-only"><div class="text-center py-2 border rounded hover:bg-gray-50 peer-checked:bg-orange-100 peer-checked:text-orange-700 transition">Office</div></label>
               <label class="cursor-pointer"><input type="radio" name="type" value="Travel" class="peer sr-only"><div class="text-center py-2 border rounded hover:bg-gray-50 peer-checked:bg-yellow-100 peer-checked:text-yellow-700 transition">Travel</div></label>
               <label class="cursor-pointer"><input type="radio" name="type" value="Maternity" class="peer sr-only"><div class="text-center py-2 border rounded hover:bg-gray-50 peer-checked:bg-pink-100 peer-checked:text-pink-700 transition">Maternity</div></label>
               <label class="cursor-pointer col-span-2"><input type="radio" name="type" value="Sickness" class="peer sr-only"><div class="text-center py-2 border rounded hover:bg-gray-50 peer-checked:bg-red-100 peer-checked:text-red-700 transition border-red-100 text-red-600"><i class="fa-solid fa-notes-medical mr-2"></i>Sickness (Private)</div></label>
@@ -427,7 +536,7 @@
             <div><label class="text-xs font-bold uppercase mb-1">From</label><input type="date" id="booking-start-date" name="startDate" onchange="autoFillHours()" required class="w-full border rounded p-2"></div>
             <div><label class="text-xs font-bold uppercase mb-1">To</label><input type="date" name="endDate" required class="w-full border rounded p-2"></div>
           </div>
-          <div class="mb-6"><label class="text-xs font-bold uppercase mb-1">Daily Hours</label><input type="number" id="booking-hours" name="hours" value="7.5" step="0.1" max="24" class="w-24 border rounded p-2"></div>
+          <div class="mb-6"><label class="text-xs font-bold uppercase mb-1">Hours (0.5 increments)</label><input type="number" id="booking-hours" name="hours" value="7.5" step="0.5" min="0.5" max="24" class="w-24 border rounded p-2"></div>
           <div class="flex justify-end space-x-2"><button type="button" onclick="closeModals()" class="px-4 py-2 text-gray-500">Cancel</button><button type="submit" id="btn-submit-booking" class="btn-primary px-6 py-2 rounded font-bold">Submit</button></div>
         </form>
       </div>
@@ -440,8 +549,8 @@
           <div class="mb-3"><label class="text-xs font-bold uppercase text-gray-500 block">Name</label><input type="text" name="name" required class="w-full border rounded p-2"></div>
           <div class="mb-3"><label class="text-xs font-bold uppercase text-gray-500 block">Email</label><input type="email" name="email" required class="w-full border rounded p-2"></div>
           <div class="grid grid-cols-2 gap-3 mb-6">
-            <div><label class="text-xs font-bold uppercase text-gray-500 block">Allowance</label><input type="number" name="allowance" value="25" required class="w-full border rounded p-2"></div>
-            <div><label class="text-xs font-bold uppercase text-gray-500 block">Carry Over</label><input type="number" name="carryOver" value="0" class="w-full border rounded p-2"></div>
+            <div><label class="text-xs font-bold uppercase text-gray-500 block">Allowance (Hours)</label><input type="number" name="allowance" value="187.5" step="0.5" required class="w-full border rounded p-2"></div>
+            <div><label class="text-xs font-bold uppercase text-gray-500 block">Carry Over (Hours)</label><input type="number" name="carryOver" value="0" step="0.5" class="w-full border rounded p-2"></div>
           </div>
           <div class="mb-3"><label class="text-xs font-bold uppercase text-gray-500 block">Role</label><select name="role" class="w-full border rounded p-2"><option value="User">User</option><option value="Admin">Admin</option></select></div>
           <div class="mb-3"><label class="text-xs font-bold uppercase text-gray-500 block">Department</label><input type="text" name="department" placeholder="e.g. Bakery" class="w-full border rounded p-2"></div>
@@ -543,11 +652,12 @@
                 var self = this;
                 setTimeout(function() { 
                   if(self._s) self._s({ 
-                    currentUser: { name: 'Preview Admin', email: 'admin@preview.com', allowance: 25, role: 'Admin' }, 
-                    employees: [{ name: 'Preview Admin', email: 'admin@preview.com', allowance: 25, role: 'Admin', department: 'IT', carryOver: 0 }], 
+                    currentUser: { name: 'Preview Admin', email: 'admin@preview.com', allowance: 187.5, role: 'Admin' }, 
+                    employees: [{ name: 'Preview Admin', email: 'admin@preview.com', allowance: 187.5, role: 'Admin', department: 'IT', carryOver: 0 }], 
                     bookings: [], 
                     schedules: [], 
-                    auditLogs: [] 
+                    auditLogs: [],
+                    capacitySettings: {Monday:5, Tuesday:5, Wednesday:5, Thursday:5, Friday:5, Saturday:0, Sunday:0}
                   }); 
                 }, 500); 
               }, 
@@ -578,6 +688,18 @@
               sendChaserEmails: function() { 
                 var self = this;
                 setTimeout(function() { self._s({success:true, count:1}); }, 500); 
+              },
+              saveCapacitySettings: function() {
+                var self = this;
+                setTimeout(function() { self._s({success:true}); }, 500);
+              },
+              getMyMorriBookings: function() {
+                var self = this;
+                setTimeout(function() { self._s({success:true, bookings:[]}); }, 500);
+              },
+              confirmMyMorriBookings: function() {
+                var self = this;
+                setTimeout(function() { self._s({success:true, count:0}); }, 500);
               } 
             } 
           } 
@@ -764,13 +886,22 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         if (!myTeamView.classList.contains('hidden')) renderMyTeamCalendar();
         var patternsView = document.getElementById('view-patterns');
         if (!patternsView.classList.contains('hidden')) renderPatternsView();
+        if (appData.currentUser.role === 'Admin') {
+          renderWeeklyCapacity();
+          loadMyMorriBookings();
+        }
       }
 
       function loadView(viewName) {
-        ['view-dashboard', 'view-team', 'view-admin', 'view-my-team', 'view-patterns'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
+        ['view-dashboard', 'view-team', 'view-admin', 'view-my-team', 'view-patterns', 'view-capacity-settings'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
         document.getElementById('view-' + viewName).classList.remove('hidden');
         if (viewName === 'my-team') renderMyTeamCalendar();
         if (viewName === 'patterns') renderPatternsView();
+        if (viewName === 'capacity-settings') loadCapacitySettings();
+        if (viewName === 'dashboard' && appData.currentUser.role === 'Admin') {
+          renderWeeklyCapacity();
+          loadMyMorriBookings();
+        }
       }
 
       function getCurrentFiscalYearRange() {
@@ -896,8 +1027,14 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         var myProfile = appData.employees.find(function(e) { return e.email === appData.currentUser.email; }) || appData.currentUser;
         var totalAllowance = (Number(myProfile.allowance) || 0) + (Number(myProfile.carryOver) || 0);
         
-        var used = myBookings.filter(function(b) { return b.type === 'Holiday' && b.status === 'Approved' && isDateInCurrentFY(b.startDate); }).reduce(function(acc, c) { return acc + c.daysCount; }, 0);
-        document.getElementById('dash-remaining').textContent = totalAllowance - used;
+        // Calculate used hours (only Holiday bookings deduct from allowance)
+        var usedHours = myBookings.filter(function(b) { return b.type === 'Holiday' && b.status === 'Approved' && isDateInCurrentFY(b.startDate); }).reduce(function(acc, c) { return acc + (Number(c.hours) || (c.daysCount * 7.5)); }, 0);
+        var remainingHours = totalAllowance - usedHours;
+        var remainingDays = Math.floor(remainingHours / 7.5 * 10) / 10; // Round to 1 decimal
+        
+        // Update dashboard display with both days and hours
+        document.getElementById('dash-remaining-days').textContent = remainingDays.toFixed(1);
+        document.getElementById('dash-remaining-hours').textContent = remainingHours.toFixed(1);
         
         var future = myBookings.filter(function(b) { return new Date(b.startDate) >= new Date() && b.status === 'Approved'; }).sort(function(a, b) { return new Date(a.startDate)-new Date(b.startDate); });
         if (future.length > 0) {
@@ -1083,10 +1220,11 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
                  div.classList.add('bg-gray-400','bg-stripe','text-gray-800');
                  div.innerHTML='<i class="fa-solid fa-hourglass"></i>';
                } else { 
-                   div.classList.add(b.type === 'Holiday' ? 'bg-green-600' : (b.type === 'WFH' ? 'bg-blue-600' : (b.type === 'Maternity' ? 'bg-pink-400' : (b.type === 'Sickness' ? 'bg-red-500' : 'bg-yellow-400')))); 
-                   if(b.type==='Office' || b.type==='Travel') div.classList.add('text-green-900'); 
+                   div.classList.add(b.type === 'Holiday' ? 'bg-green-600' : (b.type === 'WFH' ? 'bg-blue-600' : (b.type === 'Maternity' ? 'bg-pink-400' : (b.type === 'Sickness' ? 'bg-red-500' : (b.type === 'Office' ? 'bg-orange-500' : 'bg-yellow-400'))))); 
+                   if(b.type==='Office') div.classList.add('text-white');
+                   else if(b.type==='Travel') div.classList.add('text-green-900'); 
                    if(b.type==='Sickness') div.innerHTML = '<i class="fa-solid fa-notes-medical"></i>';
-                   else div.textContent=b.hours+'h'; 
+                   else div.textContent=(Number(b.hours) || 0).toFixed(1)+'h'; 
                }
                cell.appendChild(div);
             } else if(def && isWorkingDay && def.type !== 'None') {
@@ -1351,11 +1489,13 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         var employeeMetrics = appData.employees.map(function(emp) {
           var totalAllowance = (Number(emp.allowance) || 0) + (Number(emp.carryOver) || 0);
           var books = appData.bookings.filter(function(b) { return b.email === emp.email && b.type === 'Holiday' && b.status !== 'Cancelled' && isDateInCurrentFY(b.startDate); });
-          var taken = books.filter(function(b) { return b.status === 'Approved' && new Date(b.startDate) < today; }).reduce(function(a, c) { return a + c.daysCount; }, 0);
-          var plan = books.filter(function(b) { return (b.status === 'Approved' || b.status === 'Pending') && new Date(b.startDate) >= today; }).reduce(function(a, c) { return a + c.daysCount; }, 0);
-          var total = taken + plan;
-          var unbooked = totalAllowance - total;
-          var pct = totalAllowance > 0 ? (total / totalAllowance) * 100 : 0;
+          
+          // Calculate using hours
+          var takenHours = books.filter(function(b) { return b.status === 'Approved' && new Date(b.startDate) < today; }).reduce(function(a, c) { return a + (Number(c.hours) || (c.daysCount * 7.5)); }, 0);
+          var planHours = books.filter(function(b) { return (b.status === 'Approved' || b.status === 'Pending') && new Date(b.startDate) >= today; }).reduce(function(a, c) { return a + (Number(c.hours) || (c.daysCount * 7.5)); }, 0);
+          var totalHours = takenHours + planHours;
+          var unbookedHours = totalAllowance - totalHours;
+          var pct = totalAllowance > 0 ? (totalHours / totalAllowance) * 100 : 0;
           
           // Last holiday date
           var holidayBookings = appData.bookings.filter(function(b) { return b.email === emp.email && b.type === 'Holiday' && b.status === 'Approved' && new Date(b.endDate) < today; });
@@ -1380,12 +1520,12 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           var sickStats = sicknessStats[emp.email] || { days: 0, episodes: 0 };
           var bradford = sickStats.episodes * sickStats.episodes * sickStats.days;
           
-          // Status determination
+          // Status determination (use hours for thresholds, convert to days where needed)
           var status = 'green';
           if (currentlyAway) status = 'blue';
-          else if (unbooked > 10 && remMonths < 1) status = 'red';
+          else if (unbookedHours > 75 && remMonths < 1) status = 'red'; // >10 days (75 hrs)
           else if (bradford > 100) status = 'red';
-          else if (daysSinceLastHoliday > 90 || (unbooked > 5 && pct < 40)) status = 'yellow';
+          else if (daysSinceLastHoliday > 90 || (unbookedHours > 37.5 && pct < 40)) status = 'yellow'; // >5 days (37.5 hrs)
           
           // Manager name
           var mgrEmail = emp.manager || '';
@@ -1395,9 +1535,9 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           return {
             emp: emp,
             totalAllowance: totalAllowance,
-            taken: taken,
-            plan: plan,
-            unbooked: unbooked,
+            takenHours: takenHours,
+            planHours: planHours,
+            unbookedHours: unbookedHours,
             utilization: pct,
             lastHoliday: lastHoliday,
             daysSinceLastHoliday: daysSinceLastHoliday,
@@ -1508,7 +1648,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           row += '<td class="p-3 text-center text-xl">' + statusIcon + '</td>';
           row += '<td class="p-3"><div class="font-bold text-gray-700">' + emp.name + '</div><div class="text-xs text-gray-400">' + emp.email + '</div></td>';
           row += '<td class="p-3 text-sm text-gray-600">' + (emp.department || '--') + '</td>';
-          row += '<td class="p-3 text-center"><div class="font-bold text-gray-800">' + m.unbooked + ' / ' + m.totalAllowance + '</div></td>';
+          row += '<td class="p-3 text-center"><div class="font-bold text-gray-800">' + m.unbookedHours.toFixed(1) + ' hrs</div><div class="text-xs text-gray-500">(' + (m.unbookedHours / 7.5).toFixed(1) + ' days)</div></td>';
           row += '<td class="p-3">' + utilBar + '</td>';
           row += '<td class="p-3 text-xs text-gray-600">' + lastHolDisplay + '</td>';
           row += '<td class="p-3 text-center font-mono text-gray-700">' + m.sickDays + '</td>';
@@ -1544,16 +1684,16 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       }
 
       function exportColleaguesCSV() {
-        var csv = 'Name,Email,Department,Days Remaining,Total Allowance,Utilization %,Last Holiday,Sick Days YTD,Bradford Factor,Pending Requests,Manager\n';
+        var csv = 'Name,Email,Department,Hours Remaining,Total Allowance (Hrs),Utilization %,Last Holiday,Sick Days YTD,Bradford Factor,Pending Requests,Manager\n';
         
         appData.employees.forEach(function(emp) {
           var totalAllowance = (Number(emp.allowance) || 0) + (Number(emp.carryOver) || 0);
           var books = appData.bookings.filter(function(b) { return b.email === emp.email && b.type === 'Holiday' && b.status !== 'Cancelled' && isDateInCurrentFY(b.startDate); });
           var today = new Date();
-          var taken = books.filter(function(b) { return b.status === 'Approved' && new Date(b.startDate) < today; }).reduce(function(a, c) { return a + c.daysCount; }, 0);
-          var plan = books.filter(function(b) { return (b.status === 'Approved' || b.status === 'Pending') && new Date(b.startDate) >= today; }).reduce(function(a, c) { return a + c.daysCount; }, 0);
-          var unbooked = totalAllowance - (taken + plan);
-          var pct = totalAllowance > 0 ? Math.round((taken + plan) / totalAllowance * 100) : 0;
+          var takenHours = books.filter(function(b) { return b.status === 'Approved' && new Date(b.startDate) < today; }).reduce(function(a, c) { return a + (Number(c.hours) || (c.daysCount * 7.5)); }, 0);
+          var planHours = books.filter(function(b) { return (b.status === 'Approved' || b.status === 'Pending') && new Date(b.startDate) >= today; }).reduce(function(a, c) { return a + (Number(c.hours) || (c.daysCount * 7.5)); }, 0);
+          var unbookedHours = totalAllowance - (takenHours + planHours);
+          var pct = totalAllowance > 0 ? Math.round((takenHours + planHours) / totalAllowance * 100) : 0;
           
           var holidayBookings = appData.bookings.filter(function(b) { return b.email === emp.email && b.type === 'Holiday' && b.status === 'Approved' && new Date(b.endDate) < today; });
           var lastHoliday = holidayBookings.length > 0 ? formatDate(holidayBookings.sort(function(a, b) { return new Date(b.endDate) - new Date(a.endDate); })[0].endDate) : 'Never';
@@ -1575,7 +1715,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           var mgrEmp = appData.employees.find(function(e) { return e.email === mgrEmail; });
           var mgrName = (mgrEmp || {}).name || (mgrEmail ? mgrEmail : '');
           
-          csv += '"' + emp.name + '","' + emp.email + '","' + (emp.department || '') + '",' + unbooked + ',' + totalAllowance + ',' + pct + ',"' + lastHoliday + '",' + sickDays + ',' + bradford + ',' + pending + ',"' + mgrName + '"\n';
+          csv += '"' + emp.name + '","' + emp.email + '","' + (emp.department || '') + '",' + unbookedHours.toFixed(1) + ',' + totalAllowance.toFixed(1) + ',' + pct + ',"' + lastHoliday + '",' + sickDays + ',' + bradford + ',' + pending + ',"' + mgrName + '"\n';
         });
         
         var blob = new Blob([csv], { type: 'text/csv' });
@@ -1786,6 +1926,292 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           .withFailureHandler(handleServerError)
           [action === 'approve' ? 'approveCarryoverRequest' : 'rejectCarryoverRequest'](requestEmail, days);
       }
+
+      // --- WEEKLY CAPACITY FUNCTIONS ---
+      var capacityWeekDate = new Date();
+      
+      function changeCapacityWeek(offset) {
+        capacityWeekDate.setDate(capacityWeekDate.getDate() + (offset * 7));
+        renderWeeklyCapacity();
+      }
+      
+      function renderWeeklyCapacity() {
+        if (!appData.capacitySettings) appData.capacitySettings = {};
+        
+        // Get Monday of current week
+        var curr = new Date(capacityWeekDate);
+        var day = curr.getDay();
+        var diff = curr.getDate() - day + (day === 0 ? -6 : 1);
+        var monday = new Date(curr.setDate(diff));
+        
+        // Format week label
+        var sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        var monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        document.getElementById('capacity-week-label').textContent = 
+          monthNames[monday.getMonth()] + ' ' + monday.getDate() + ' - ' + 
+          monthNames[sunday.getMonth()] + ' ' + sunday.getDate() + ', ' + monday.getFullYear();
+        
+        var tbody = document.getElementById('capacity-week-body');
+        tbody.innerHTML = '';
+        var today = new Date();
+        today.setHours(0,0,0,0);
+        
+        var dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        
+        for (var i = 0; i < 7; i++) {
+          var currentDay = new Date(monday);
+          currentDay.setDate(monday.getDate() + i);
+          var dayName = dayNames[i];
+          
+          // Count people in office
+          var inOfficeCount = 0;
+          var inOfficeNames = [];
+          
+          appData.employees.forEach(function(emp) {
+            var isInOffice = false;
+            
+            // Check if they have a booking for this day
+            var hasBooking = appData.bookings.some(function(b) {
+              if (b.email !== emp.email || b.status !== 'Approved') return false;
+              var start = new Date(b.startDate);
+              var end = new Date(b.endDate);
+              start.setHours(0,0,0,0);
+              end.setHours(0,0,0,0);
+              return currentDay >= start && currentDay <= end && b.type !== 'Office';
+            });
+            
+            // Check if they have an Office booking
+            var hasOfficeBooking = appData.bookings.some(function(b) {
+              if (b.email !== emp.email || b.status !== 'Approved') return false;
+              var start = new Date(b.startDate);
+              var end = new Date(b.endDate);
+              start.setHours(0,0,0,0);
+              end.setHours(0,0,0,0);
+              return currentDay >= start && currentDay <= end && b.type === 'Office';
+            });
+            
+            // Check schedule
+            var schedule = appData.schedules[emp.email] || {};
+            var daySchedule = schedule[dayName];
+            var isWorkingDay = daySchedule && daySchedule.type !== 'None';
+            
+            // Default: Mon-Fri are working days if no schedule
+            if (Object.keys(schedule).length === 0) {
+              isWorkingDay = (i < 5); // Mon-Fri
+            }
+            
+            // In office if: working day + no booking (except Office)
+            if (isWorkingDay && !hasBooking) {
+              isInOffice = true;
+            }
+            if (hasOfficeBooking) {
+              isInOffice = true;
+            }
+            
+            if (isInOffice) {
+              inOfficeCount++;
+              inOfficeNames.push(emp.name);
+            }
+          });
+          
+          var target = appData.capacitySettings[dayName] || 0;
+          var diff = inOfficeCount - target;
+          
+          var statusClass = 'bg-green-100 text-green-700';
+          var statusIcon = '✓';
+          var statusText = 'OK';
+          
+          if (target > 0) {
+            if (diff < -2) {
+              statusClass = 'bg-red-100 text-red-700';
+              statusIcon = '✗';
+              statusText = 'Understaffed';
+            } else if (diff < 0) {
+              statusClass = 'bg-yellow-100 text-yellow-700';
+              statusIcon = '⚠';
+              statusText = 'Low';
+            }
+          }
+          
+          var isToday = currentDay.getTime() === today.getTime();
+          var rowClass = isToday ? 'bg-indigo-50 font-bold' : '';
+          
+          var namesHtml = inOfficeNames.slice(0, 5).join(', ');
+          if (inOfficeNames.length > 5) {
+            namesHtml += ' and ' + (inOfficeNames.length - 5) + ' more';
+          }
+          if (inOfficeNames.length === 0) {
+            namesHtml = '<span class="text-gray-400 italic">None</span>';
+          }
+          
+          tbody.innerHTML += '<tr class="border-b border-gray-100 hover:bg-gray-50 ' + rowClass + '">' +
+            '<td class="p-3">' + dayName + (isToday ? ' <span class="text-xs bg-indigo-600 text-white px-2 py-1 rounded">TODAY</span>' : '') + '</td>' +
+            '<td class="p-3 text-center font-bold text-indigo-700">' + inOfficeCount + '</td>' +
+            '<td class="p-3 text-center text-gray-600">' + (target > 0 ? target : '--') + '</td>' +
+            '<td class="p-3 text-center"><span class="px-2 py-1 rounded text-xs font-bold ' + statusClass + '">' + statusIcon + ' ' + statusText + '</span></td>' +
+            '<td class="p-3 text-xs">' + namesHtml + '</td>' +
+            '</tr>';
+        }
+      }
+      
+      // --- CAPACITY SETTINGS FUNCTIONS ---
+      
+      function handleCapacitySettingsSave(e) {
+        e.preventDefault();
+        var settings = {};
+        var days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        days.forEach(function(day) {
+          settings[day] = Number(e.target[day].value) || 0;
+        });
+        
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res.success) {
+              appData.capacitySettings = settings;
+              alert('Capacity settings saved successfully!');
+              loadView('dashboard');
+              renderWeeklyCapacity();
+            }
+          })
+          .withFailureHandler(handleServerError)
+          .saveCapacitySettings(settings);
+      }
+      
+      function loadCapacitySettings() {
+        var form = document.getElementById('capacity-settings-form');
+        if (!form) return;
+        
+        var days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        days.forEach(function(day) {
+          var input = form[day];
+          if (input && appData.capacitySettings) {
+            input.value = appData.capacitySettings[day] || 0;
+          }
+        });
+      }
+      
+      // --- MY MORRI FUNCTIONS ---
+      
+      var myMorriBookings = [];
+      var selectedMyMorriIds = [];
+      
+      function loadMyMorriBookings() {
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res.success) {
+              myMorriBookings = res.bookings || [];
+              renderMyMorriBookings();
+            }
+          })
+          .withFailureHandler(handleServerError)
+          .getMyMorriBookings();
+      }
+      
+      function renderMyMorriBookings() {
+        var section = document.getElementById('my-morri-section');
+        var tbody = document.getElementById('mymorri-body');
+        
+        if (!section || !tbody) return;
+        
+        // Show section only for managers
+        if (appData.currentUser.role === 'Admin') {
+          section.classList.remove('hidden');
+        } else {
+          section.classList.add('hidden');
+          return;
+        }
+        
+        document.getElementById('mymorri-count').textContent = myMorriBookings.length;
+        tbody.innerHTML = '';
+        selectedMyMorriIds = [];
+        
+        if (myMorriBookings.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No bookings to confirm</td></tr>';
+          return;
+        }
+        
+        myMorriBookings.forEach(function(booking) {
+          var row = '<tr class="border-b border-gray-100 hover:bg-teal-50">' +
+            '<td class="p-3"><input type="checkbox" class="mymorri-checkbox" data-id="' + booking.id + '"></td>' +
+            '<td class="p-3 font-bold text-gray-700">' + booking.name + '</td>' +
+            '<td class="p-3 text-sm text-gray-600">' + booking.email + '</td>' +
+            '<td class="p-3"><span class="px-2 py-1 rounded text-xs font-bold ' + (booking.type === 'Holiday' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') + '">' + booking.type + '</span></td>' +
+            '<td class="p-3 text-sm">' + formatDate(booking.startDate) + '</td>' +
+            '<td class="p-3 text-sm">' + formatDate(booking.endDate) + '</td>' +
+            '<td class="p-3 font-mono text-sm">' + booking.hours.toFixed(1) + '</td>' +
+            '</tr>';
+          tbody.innerHTML += row;
+        });
+      }
+      
+      function toggleMyMorriSelectAll() {
+        var selectAll = document.getElementById('mymorri-select-all');
+        var checkboxes = document.querySelectorAll('.mymorri-checkbox');
+        checkboxes.forEach(function(cb) {
+          cb.checked = selectAll.checked;
+        });
+      }
+      
+      function confirmSelectedMyMorri() {
+        var checkboxes = document.querySelectorAll('.mymorri-checkbox:checked');
+        var selectedIds = [];
+        checkboxes.forEach(function(cb) {
+          selectedIds.push(cb.getAttribute('data-id'));
+        });
+        
+        if (selectedIds.length === 0) {
+          alert('Please select at least one booking to confirm.');
+          return;
+        }
+        
+        if (!confirm('Are you sure you want to confirm ' + selectedIds.length + ' booking(s) in My Morri?')) {
+          return;
+        }
+        
+        var btn = document.getElementById('btn-confirm-mymorri');
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Confirming...';
+        btn.disabled = true;
+        
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res.success) {
+              alert(res.count + ' booking(s) confirmed successfully!');
+              loadMyMorriBookings();
+            }
+            btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i> Confirm Selected';
+            btn.disabled = false;
+          })
+          .withFailureHandler(function(err) {
+            btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i> Confirm Selected';
+            btn.disabled = false;
+            handleServerError(err);
+          })
+          .confirmMyMorriBookings(selectedIds);
+      }
+      
+      function exportMyMorriCSV() {
+        if (myMorriBookings.length === 0) {
+          alert('No bookings to export');
+          return;
+        }
+        
+        var csv = 'Name,Email,Start Date,End Date,Hours\n';
+        myMorriBookings.forEach(function(b) {
+          csv += '"' + b.name + '","' + b.email + '","' + formatDate(b.startDate) + '","' + formatDate(b.endDate) + '",' + b.hours.toFixed(1) + '\n';
+        });
+        
+        var blob = new Blob([csv], { type: 'text/csv' });
+        var url = window.URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'my-morri-bookings-' + new Date().toISOString().split('T')[0] + '.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }
+
     </script>
   </body>
 </html>
