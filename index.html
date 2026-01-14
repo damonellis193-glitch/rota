@@ -422,6 +422,35 @@
             </div>
           </div>
 
+          <!-- REMOVE FROM MY MORRI -->
+          <div id="my-morri-removals-section" class="hidden bg-white rounded-xl shadow overflow-hidden border-t-4 border-red-500">
+            <div class="px-6 py-4 border-b border-gray-100 bg-red-50 flex justify-between items-center">
+              <h3 class="font-bold text-red-900"><i class="fa-solid fa-trash-can mr-2"></i>Remove from My Morri (<span id="mymorri-removals-count">0</span>)</h3>
+              <div class="space-x-2">
+                <button onclick="exportMyMorriRemovalsCSV()" class="bg-red-100 hover:bg-red-200 text-red-700 text-sm px-3 py-2 rounded shadow border border-red-300"><i class="fa-solid fa-download mr-2"></i> Download CSV</button>
+                <button onclick="confirmSelectedMyMorriRemovals()" id="btn-confirm-mymorri-removals" class="bg-red-600 hover:bg-red-700 text-white font-bold text-sm px-4 py-2 rounded shadow"><i class="fa-solid fa-check mr-2"></i> Confirm Removals</button>
+              </div>
+            </div>
+            <div class="p-4 bg-red-50 border-b border-red-200">
+              <p class="text-sm text-red-800"><i class="fa-solid fa-exclamation-triangle mr-2"></i><strong>Note:</strong> These holidays were confirmed in My Morri but have since been cancelled. Confirm removal to mark them as corrected in the system.</p>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm">
+                <thead class="bg-red-100 text-red-900">
+                  <tr>
+                    <th class="p-3"><input type="checkbox" id="mymorri-removals-select-all" onchange="toggleMyMorriRemovalsSelectAll()"></th>
+                    <th class="p-3">Employee Name</th>
+                    <th class="p-3">Email</th>
+                    <th class="p-3">Start Date</th>
+                    <th class="p-3">End Date</th>
+                    <th class="p-3">Hours</th>
+                  </tr>
+                </thead>
+                <tbody id="mymorri-removals-body"></tbody>
+              </table>
+            </div>
+          </div>
+
           <!-- COLLEAGUE MANAGEMENT -->
           <div class="bg-white rounded-xl shadow overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
@@ -889,6 +918,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         if (appData.currentUser.role === 'Admin') {
           renderWeeklyCapacity();
           loadMyMorriBookings();
+          loadMyMorriRemovals();
         }
       }
 
@@ -901,6 +931,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         if (viewName === 'dashboard' && appData.currentUser.role === 'Admin') {
           renderWeeklyCapacity();
           loadMyMorriBookings();
+          loadMyMorriRemovals();
         }
       }
 
@@ -1002,11 +1033,19 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       }
 
       function handleUserCancel(bookingId) {
-        if(!confirm('Are you sure you want to cancel/withdraw this booking?')) return;
+        var booking = appData.bookings.find(function(b) { return b.id === bookingId; });
+        if (!booking) return;
+        
+        var message = booking.status === 'Pending' 
+          ? 'Are you sure you want to cancel this pending request? It will be deleted immediately.'
+          : 'Are you sure you want to request cancellation of this approved booking?';
+        
+        if (!confirm(message)) return;
+        
         google.script.run.withSuccessHandler(function(res) {
             if(res.action === 'deleted') {
               appData.bookings = appData.bookings.filter(function(b) { return b.id !== bookingId; });
-              alert('Booking withdrawn.');
+              alert('Booking cancelled.');
             } else if(res.action === 'requested') {
               var b = appData.bookings.find(function(b) { return b.id === bookingId; });
               if(b) b.status = 'Cancellation Requested';
@@ -1115,8 +1154,12 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           if (b.status === 'Cancellation Requested') statusHtml = '<span class="font-bold text-orange-500">Cancel Requested</span>';
           var actionBtn = '';
           var isFuture = new Date(b.startDate) >= new Date();
-          if (isFuture && (b.status === 'Approved' || b.status === 'Pending')) {
-             actionBtn = '<button onclick="handleUserCancel(\'' + b.id + '\')" class="text-xs text-red-500 hover:text-red-700 underline ml-2">Cancel</button>';
+          if (b.status === 'Pending' && isFuture) {
+             actionBtn = '<button onclick="handleUserCancel(\'' + b.id + '\')" class="text-xs text-red-500 hover:text-red-700 font-bold ml-2"><i class="fa-solid fa-times mr-1"></i>Cancel</button>';
+          } else if (b.status === 'Approved' && isFuture) {
+             actionBtn = '<button onclick="handleUserCancel(\'' + b.id + '\')" class="text-xs text-gray-500 hover:text-gray-700 ml-2"><i class="fa-solid fa-ban mr-1"></i>Request Cancel</button>';
+          } else if (b.status === 'Cancellation Requested') {
+             actionBtn = '<span class="text-xs text-orange-400 italic ml-2">Awaiting approval</span>';
           }
           
           var calLink = '';
@@ -1228,10 +1271,19 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
                }
                cell.appendChild(div);
             } else if(def && isWorkingDay && def.type !== 'None') {
-               var div = document.createElement('div'); div.className="absolute inset-1 rounded-sm flex items-center justify-center text-[10px] font-semibold text-gray-600";
-               div.classList.add(def.type === 'WFH' ? 'bg-blue-50' : 'bg-yellow-50', def.type === 'WFH' ? 'text-blue-700' : 'text-yellow-700');
-               div.textContent = def.hours+'h';
-               cell.appendChild(div);
+               var schedDiv = document.createElement('div');
+               schedDiv.className = "absolute inset-1 rounded-sm opacity-30";
+               
+               // Fix color assignment based on schedule type
+               if (def.type === 'Office') {
+                 schedDiv.classList.add('bg-orange-500'); // Office = orange
+               } else if (def.type === 'WFH') {
+                 schedDiv.classList.add('bg-blue-500'); // WFH = blue
+               } else if (def.type === 'Travel') {
+                 schedDiv.classList.add('bg-yellow-400'); // Travel = yellow
+               }
+               
+               cell.appendChild(schedDiv);
             }
             cont.appendChild(cell);
           });
@@ -1969,19 +2021,32 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           var inOfficeNames = [];
           
           appData.employees.forEach(function(emp) {
-            var isInOffice = false;
+            // Check schedule type - MUST be Office to count
+            var isInOfficeBySchedule = false;
+            var schedule = appData.schedules[emp.email] || {};
+            var daySchedule = schedule[dayName];
             
-            // Check if they have a booking for this day
-            var hasBooking = appData.bookings.some(function(b) {
+            if (daySchedule) {
+              // Only count if schedule type is explicitly "Office"
+              isInOfficeBySchedule = (daySchedule.type === 'Office');
+            } else if (Object.keys(schedule).length === 0) {
+              // No custom schedule = default Mon-Fri are office days
+              isInOfficeBySchedule = (i < 5);
+            }
+            
+            // Check for exclusionary bookings (Holiday, Sick, WFH, Travel, Maternity)
+            var hasExclusionaryBooking = appData.bookings.some(function(b) {
               if (b.email !== emp.email || b.status !== 'Approved') return false;
               var start = new Date(b.startDate);
               var end = new Date(b.endDate);
               start.setHours(0,0,0,0);
               end.setHours(0,0,0,0);
-              return currentDay >= start && currentDay <= end && b.type !== 'Office';
+              // Exclude: Holiday, Sickness, WFH, Travel, Maternity
+              return currentDay >= start && currentDay <= end && 
+                     ['Holiday', 'Sickness', 'WFH', 'Travel', 'Maternity'].indexOf(b.type) !== -1;
             });
             
-            // Check if they have an Office booking
+            // Check for Office booking
             var hasOfficeBooking = appData.bookings.some(function(b) {
               if (b.email !== emp.email || b.status !== 'Approved') return false;
               var start = new Date(b.startDate);
@@ -1991,22 +2056,14 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
               return currentDay >= start && currentDay <= end && b.type === 'Office';
             });
             
-            // Check schedule
-            var schedule = appData.schedules[emp.email] || {};
-            var daySchedule = schedule[dayName];
-            var isWorkingDay = daySchedule && daySchedule.type !== 'None';
-            
-            // Default: Mon-Fri are working days if no schedule
-            if (Object.keys(schedule).length === 0) {
-              isWorkingDay = (i < 5); // Mon-Fri
-            }
-            
-            // In office if: working day + no booking (except Office)
-            if (isWorkingDay && !hasBooking) {
-              isInOffice = true;
-            }
+            // Final determination
+            var isInOffice = false;
             if (hasOfficeBooking) {
-              isInOffice = true;
+              isInOffice = true; // Explicit office booking overrides
+            } else if (hasExclusionaryBooking) {
+              isInOffice = false; // Booked away
+            } else {
+              isInOffice = isInOfficeBySchedule; // Use schedule
             }
             
             if (isInOffice) {
@@ -2206,6 +2263,126 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         var a = document.createElement('a');
         a.href = url;
         a.download = 'my-morri-bookings-' + new Date().toISOString().split('T')[0] + '.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }
+
+      // --- MY MORRI REMOVALS FUNCTIONS ---
+
+      var myMorriRemovals = [];
+      var selectedMyMorriRemovalIds = [];
+
+      function loadMyMorriRemovals() {
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res.success) {
+              myMorriRemovals = res.removals || [];
+              renderMyMorriRemovals();
+            }
+          })
+          .withFailureHandler(handleServerError)
+          .getMyMorriRemovals();
+      }
+
+      function renderMyMorriRemovals() {
+        var section = document.getElementById('my-morri-removals-section');
+        var tbody = document.getElementById('mymorri-removals-body');
+        
+        if (!section || !tbody) return;
+        
+        // Show section only for managers
+        if (appData.currentUser.role === 'Admin') {
+          section.classList.remove('hidden');
+        } else {
+          section.classList.add('hidden');
+          return;
+        }
+        
+        document.getElementById('mymorri-removals-count').textContent = myMorriRemovals.length;
+        tbody.innerHTML = '';
+        selectedMyMorriRemovalIds = [];
+        
+        if (myMorriRemovals.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-gray-400 italic">No cancelled bookings to remove</td></tr>';
+          return;
+        }
+        
+        myMorriRemovals.forEach(function(removal) {
+          var row = '<tr class="border-b border-gray-100 hover:bg-red-50">' +
+            '<td class="p-3"><input type="checkbox" class="mymorri-removal-checkbox" data-id="' + removal.id + '"></td>' +
+            '<td class="p-3 font-bold text-gray-700">' + removal.name + '</td>' +
+            '<td class="p-3 text-sm text-gray-600">' + removal.email + '</td>' +
+            '<td class="p-3 text-sm">' + formatDate(removal.startDate) + '</td>' +
+            '<td class="p-3 text-sm">' + formatDate(removal.endDate) + '</td>' +
+            '<td class="p-3 font-mono text-sm">' + removal.hours.toFixed(1) + '</td>' +
+            '</tr>';
+          tbody.innerHTML += row;
+        });
+      }
+
+      function toggleMyMorriRemovalsSelectAll() {
+        var selectAll = document.getElementById('mymorri-removals-select-all');
+        var checkboxes = document.querySelectorAll('.mymorri-removal-checkbox');
+        checkboxes.forEach(function(cb) {
+          cb.checked = selectAll.checked;
+        });
+      }
+
+      function confirmSelectedMyMorriRemovals() {
+        var checkboxes = document.querySelectorAll('.mymorri-removal-checkbox:checked');
+        var selectedIds = [];
+        checkboxes.forEach(function(cb) {
+          selectedIds.push(cb.getAttribute('data-id'));
+        });
+        
+        if (selectedIds.length === 0) {
+          alert('Please select at least one removal to confirm.');
+          return;
+        }
+        
+        if (!confirm('Are you sure you want to confirm ' + selectedIds.length + ' removal(s) from My Morri? This will mark these cancelled holidays as corrected.')) {
+          return;
+        }
+        
+        var btn = document.getElementById('btn-confirm-mymorri-removals');
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Confirming...';
+        btn.disabled = true;
+        
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res.success) {
+              alert(res.count + ' removal(s) confirmed successfully!');
+              loadMyMorriRemovals();
+            }
+            btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i> Confirm Removals';
+            btn.disabled = false;
+          })
+          .withFailureHandler(function(err) {
+            btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i> Confirm Removals';
+            btn.disabled = false;
+            handleServerError(err);
+          })
+          .confirmMyMorriRemovals(selectedIds);
+      }
+
+      function exportMyMorriRemovalsCSV() {
+        if (myMorriRemovals.length === 0) {
+          alert('No removals to export');
+          return;
+        }
+        
+        var csv = 'Name,Email,Start Date,End Date,Hours\n';
+        myMorriRemovals.forEach(function(r) {
+          csv += '"' + r.name + '","' + r.email + '","' + formatDate(r.startDate) + '","' + formatDate(r.endDate) + '",' + r.hours.toFixed(1) + '\n';
+        });
+        
+        var blob = new Blob([csv], { type: 'text/csv' });
+        var url = window.URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'my-morri-removals-' + new Date().toISOString().split('T')[0] + '.csv';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
