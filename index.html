@@ -138,7 +138,16 @@
             <!-- Weekly Office Capacity View -->
             <div class="bg-white rounded-xl shadow overflow-hidden border-t-4 border-indigo-500">
               <div class="px-6 py-4 border-b border-gray-100 bg-indigo-50 flex justify-between items-center">
-                <h3 class="font-bold text-indigo-900"><i class="fa-solid fa-building mr-2"></i>Weekly Office Capacity</h3>
+                <div class="flex items-center space-x-3">
+                  <h3 class="font-bold text-indigo-900"><i class="fa-solid fa-building mr-2"></i>Weekly Office Capacity</h3>
+                  <button onclick="toggleCapacityWidget()" class="text-indigo-600 hover:text-indigo-800">
+                    <i id="capacity-collapse-icon" class="fa-solid fa-chevron-up"></i>
+                  </button>
+                  <button id="capacity-alert-badge" onclick="showCapacityAlertModal()" class="hidden bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg animate-pulse">
+                    <i class="fa-solid fa-exclamation-triangle mr-1"></i>
+                    <span id="capacity-alert-count">0</span>
+                  </button>
+                </div>
                 <div class="flex items-center space-x-2">
                   <button onclick="changeCapacityWeek(-1)" class="p-1 px-2 bg-white text-indigo-700 hover:bg-indigo-100 rounded shadow text-sm"><i class="fa-solid fa-chevron-left"></i></button>
                   <span id="capacity-week-label" class="text-xs font-bold text-indigo-900 w-32 text-center">...</span>
@@ -146,7 +155,7 @@
                   <button onclick="loadView('capacity-settings')" class="ml-2 text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded shadow"><i class="fa-solid fa-cog mr-1"></i> Settings</button>
                 </div>
               </div>
-              <div class="overflow-x-auto">
+              <div id="capacity-widget-body" class="overflow-x-auto">
                 <table class="w-full text-sm">
                   <thead class="bg-indigo-100 text-indigo-900">
                     <tr>
@@ -631,6 +640,21 @@
             <button type="submit" id="btn-submit-carryover" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded font-bold">Submit Request</button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- Capacity Alert Modal -->
+    <div id="capacity-alert-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="closeCapacityAlertModal(event)">
+      <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden" onclick="event.stopPropagation()">
+        <div class="px-6 py-4 bg-red-500 text-white flex justify-between items-center">
+          <h3 class="text-xl font-bold"><i class="fa-solid fa-exclamation-triangle mr-2"></i>Understaffed Days (Next 8 Weeks)</h3>
+          <button onclick="closeCapacityAlertModal()" class="text-white hover:text-gray-200">
+            <i class="fa-solid fa-times text-2xl"></i>
+          </button>
+        </div>
+        <div class="p-6 overflow-y-auto max-h-[60vh]" id="capacity-alert-list">
+          <!-- Alert list rendered here -->
+        </div>
       </div>
     </div>
 
@@ -2010,6 +2034,214 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
 
       // --- WEEKLY CAPACITY FUNCTIONS ---
       var capacityWeekDate = new Date();
+      var currentExpandedCapacityDay = null;
+      var capacityWidgetCollapsed = false;
+      
+      function toggleCapacityWidget() {
+        var body = document.getElementById('capacity-widget-body');
+        var icon = document.getElementById('capacity-collapse-icon');
+        
+        if (!body || !icon) return;
+        
+        capacityWidgetCollapsed = !capacityWidgetCollapsed;
+        
+        if (capacityWidgetCollapsed) {
+          body.classList.add('hidden');
+          icon.classList.remove('fa-chevron-up');
+          icon.classList.add('fa-chevron-down');
+        } else {
+          body.classList.remove('hidden');
+          icon.classList.remove('fa-chevron-down');
+          icon.classList.add('fa-chevron-up');
+        }
+      }
+      
+      function toggleCapacityDayExpand(dayId) {
+        var row = document.getElementById(dayId);
+        if (!row) return;
+        
+        // Close previously expanded row
+        if (currentExpandedCapacityDay && currentExpandedCapacityDay !== dayId) {
+          var prevRow = document.getElementById(currentExpandedCapacityDay);
+          if (prevRow) {
+            prevRow.classList.add('hidden');
+          }
+        }
+        
+        // Toggle current row
+        if (row.classList.contains('hidden')) {
+          row.classList.remove('hidden');
+          currentExpandedCapacityDay = dayId;
+        } else {
+          row.classList.add('hidden');
+          currentExpandedCapacityDay = null;
+        }
+      }
+      
+      var capacityAlerts = [];
+      
+      function checkCapacityAlerts() {
+        capacityAlerts = [];
+        
+        if (!appData.capacitySettings) return;
+        
+        var today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        var endDate = new Date(today);
+        endDate.setDate(endDate.getDate() + (8 * 7)); // 8 weeks ahead
+        
+        var dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        
+        // Check each day in next 8 weeks
+        var currentDate = new Date(today);
+        while (currentDate <= endDate) {
+          var dayOfWeek = currentDate.getDay();
+          var dayName = dayNames[dayOfWeek];
+          var target = appData.capacitySettings[dayName] || 0;
+          
+          if (target > 0) {
+            // Count people in office for this day
+            var inOfficeCount = 0;
+            
+            appData.employees.forEach(function(emp) {
+              var isInOffice = false;
+              
+              // Check for exclusionary bookings
+              var hasExclusionaryBooking = appData.bookings.some(function(b) {
+                if (b.email !== emp.email || b.status !== 'Approved') return false;
+                var start = new Date(b.startDate);
+                var end = new Date(b.endDate);
+                start.setHours(0, 0, 0, 0);
+                end.setHours(0, 0, 0, 0);
+                return currentDate >= start && currentDate <= end && 
+                       ['Holiday', 'Sickness', 'WFH', 'Travel', 'Maternity'].indexOf(b.type) !== -1;
+              });
+              
+              // Check for Office booking
+              var hasOfficeBooking = appData.bookings.some(function(b) {
+                if (b.email !== emp.email || b.status !== 'Approved') return false;
+                var start = new Date(b.startDate);
+                var end = new Date(b.endDate);
+                start.setHours(0, 0, 0, 0);
+                end.setHours(0, 0, 0, 0);
+                return currentDate >= start && currentDate <= end && b.type === 'Office';
+              });
+              
+              // Check schedule
+              var schedule = appData.schedules[emp.email] || {};
+              var daySchedule = schedule[dayName];
+              var isInOfficeBySchedule = false;
+              
+              if (daySchedule) {
+                isInOfficeBySchedule = (daySchedule.type === 'Office');
+              } else if (Object.keys(schedule).length === 0) {
+                isInOfficeBySchedule = (dayOfWeek >= 1 && dayOfWeek <= 5); // Mon-Fri
+              }
+              
+              // Determine if in office
+              if (hasOfficeBooking) {
+                isInOffice = true;
+              } else if (hasExclusionaryBooking) {
+                isInOffice = false;
+              } else {
+                isInOffice = isInOfficeBySchedule;
+              }
+              
+              if (isInOffice) inOfficeCount++;
+            });
+            
+            // Check if understaffed
+            if (inOfficeCount < target) {
+              capacityAlerts.push({
+                date: new Date(currentDate),
+                dayName: dayName,
+                current: inOfficeCount,
+                target: target,
+                shortage: target - inOfficeCount
+              });
+            }
+          }
+          
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+        
+        // Update badge
+        var badge = document.getElementById('capacity-alert-badge');
+        var countEl = document.getElementById('capacity-alert-count');
+        
+        if (badge && countEl) {
+          if (capacityAlerts.length > 0) {
+            badge.classList.remove('hidden');
+            countEl.textContent = capacityAlerts.length;
+          } else {
+            badge.classList.add('hidden');
+          }
+        }
+      }
+      
+      function showCapacityAlertModal() {
+        var modal = document.getElementById('capacity-alert-modal');
+        var list = document.getElementById('capacity-alert-list');
+        
+        if (!modal || !list) return;
+        
+        // Render alert list
+        var html = '';
+        
+        if (capacityAlerts.length === 0) {
+          html = '<p class="text-center text-gray-500 italic">No understaffed days found in the next 8 weeks.</p>';
+        } else {
+          capacityAlerts.forEach(function(alert) {
+            var dateStr = formatDate(alert.date);
+            var dayStr = alert.dayName.substring(0, 3) + ', ' + dateStr;
+            
+            html += '<div class="border-b border-gray-200 py-4 last:border-b-0">' +
+              '<div class="flex justify-between items-start">' +
+              '<div>' +
+              '<div class="font-bold text-gray-800">' + dayStr + '</div>' +
+              '<div class="text-sm text-red-600 mt-1">' + alert.current + '/' + alert.target + ' people (short ' + alert.shortage + ')</div>' +
+              '</div>' +
+              '<div class="flex space-x-2">' +
+              '<button onclick="jumpToCapacityWeek(\'' + alert.date.toISOString() + '\')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-2 rounded font-bold">' +
+              '<i class="fa-solid fa-building mr-1"></i> View in Capacity' +
+              '</button>' +
+              '<button onclick="jumpToCalendar(\'' + alert.date.toISOString() + '\')" class="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-2 rounded font-bold">' +
+              '<i class="fa-solid fa-calendar mr-1"></i> View in Calendar' +
+              '</button>' +
+              '</div>' +
+              '</div>' +
+              '</div>';
+          });
+        }
+        
+        list.innerHTML = html;
+        modal.classList.remove('hidden');
+      }
+      
+      function closeCapacityAlertModal(event) {
+        var modal = document.getElementById('capacity-alert-modal');
+        if (!modal) return;
+        
+        // Close if clicking backdrop or close button
+        if (!event || event.target === modal || event.type === 'click') {
+          modal.classList.add('hidden');
+        }
+      }
+      
+      function jumpToCapacityWeek(dateStr) {
+        capacityWeekDate = new Date(dateStr);
+        renderWeeklyCapacity();
+        closeCapacityAlertModal();
+        loadView('dashboard'); // Ensure dashboard is visible
+      }
+      
+      function jumpToCalendar(dateStr) {
+        calendarDate = new Date(dateStr);
+        renderTeamCalendar();
+        closeCapacityAlertModal();
+        loadView('team'); // Switch to team calendar view
+      }
       
       function changeCapacityWeek(offset) {
         capacityWeekDate.setDate(capacityWeekDate.getDate() + (offset * 7));
@@ -2123,22 +2355,42 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           var isToday = currentDay.getTime() === today.getTime();
           var rowClass = isToday ? 'bg-indigo-50 font-bold' : '';
           
-          var namesHtml = inOfficeNames.slice(0, 5).join(', ');
-          if (inOfficeNames.length > 5) {
-            namesHtml += ' and ' + (inOfficeNames.length - 5) + ' more';
-          }
+          // New expandable name list logic
+          var dayId = 'capacity-day-' + i;
+          var shortNames = inOfficeNames.slice(0, 3).join(', ');
+          var hasMore = inOfficeNames.length > 3;
+          
           if (inOfficeNames.length === 0) {
-            namesHtml = '<span class="text-gray-400 italic">None</span>';
+            shortNames = '<span class="text-gray-400 italic">None</span>';
           }
           
-          tbody.innerHTML += '<tr class="border-b border-gray-100 hover:bg-gray-50 ' + rowClass + '">' +
+          var expandIcon = hasMore ? '<i class="fa-solid fa-chevron-down ml-2 text-gray-400"></i>' : '';
+          
+          tbody.innerHTML += '<tr class="border-b border-gray-100 hover:bg-gray-50 ' + rowClass + ' ' + (hasMore ? 'cursor-pointer' : '') + '" ' + (hasMore ? 'onclick="toggleCapacityDayExpand(\'' + dayId + '\')"' : '') + '>' +
             '<td class="p-3">' + dayName + (isToday ? ' <span class="text-xs bg-indigo-600 text-white px-2 py-1 rounded">TODAY</span>' : '') + '</td>' +
             '<td class="p-3 text-center font-bold text-indigo-700">' + inOfficeCount + '</td>' +
             '<td class="p-3 text-center text-gray-600">' + (target > 0 ? target : '--') + '</td>' +
             '<td class="p-3 text-center"><span class="px-2 py-1 rounded text-xs font-bold ' + statusClass + '">' + statusIcon + ' ' + statusText + '</span></td>' +
-            '<td class="p-3 text-xs">' + namesHtml + '</td>' +
+            '<td class="p-3 text-xs">' + shortNames + (hasMore ? ' <span class="text-indigo-600 font-bold">+' + (inOfficeNames.length - 3) + ' more</span>' + expandIcon : '') + '</td>' +
             '</tr>';
+          
+          // Add expandable details row
+          if (hasMore) {
+            tbody.innerHTML += '<tr id="' + dayId + '" class="hidden bg-indigo-50 border-b border-indigo-200">' +
+              '<td colspan="5" class="p-4">' +
+              '<div class="text-sm"><strong class="text-indigo-900">All people in office (' + inOfficeNames.length + '):</strong></div>' +
+              '<div class="mt-2 flex flex-wrap gap-2">' +
+              inOfficeNames.map(function(name) {
+                return '<span class="bg-white px-3 py-1 rounded border border-indigo-200 text-sm">' + name + '</span>';
+              }).join('') +
+              '</div>' +
+              '</td>' +
+              '</tr>';
+          }
         }
+        
+        // Check for future alerts
+        checkCapacityAlerts();
       }
       
       // --- CAPACITY SETTINGS FUNCTIONS ---
