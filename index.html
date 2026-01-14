@@ -1289,7 +1289,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
                    } else {
                      // Fallback for unknown booking types
                      div.classList.add('bg-gray-600');
-                     label = (b.type || 'UNK').substring(0, 3).toUpperCase();
+                     label = (b.type && b.type.trim()) ? b.type.substring(0, 3).toUpperCase() : 'UNK';
                    }
                    
                    div.textContent = label;
