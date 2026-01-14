@@ -1286,6 +1286,10 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
                    } else if (b.type === 'Maternity') {
                      div.classList.add('bg-pink-400');
                      label = 'MAT';
+                   } else {
+                     // Fallback for unknown booking types
+                     div.classList.add('bg-gray-600');
+                     label = b.type.substring(0, 3).toUpperCase();
                    }
                    
                    div.textContent = label;
