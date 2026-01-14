@@ -1291,7 +1291,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
                    div.textContent = label;
                }
                cell.appendChild(div);
-            } else if(def && isWorkingDay && def.type !== 'None') {
+            } else if(def && isWorkingDay && (def.type === 'Office' || def.type === 'WFH')) {
                var schedDiv = document.createElement('div');
                schedDiv.className = "absolute inset-1 rounded-sm opacity-30 flex items-center justify-center text-xs font-bold text-white";
                
