@@ -1023,12 +1023,6 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         renderMyTeamCalendar();
       }
 
-      function jumpToCalendar(dateStr) {
-        calendarDate = new Date(dateStr);
-        loadView('team');
-        renderTeamCalendar();
-      }
-
       function resetCalendarToToday() {
         calendarDate = new Date();
         renderTeamCalendar();
