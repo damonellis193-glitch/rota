@@ -12,7 +12,8 @@ function isPermissionError(errorMsg) {
   var lowerMsg = errorMsg.toLowerCase();
   return lowerMsg.includes('authorization') || 
          lowerMsg.includes('permission') || 
-         lowerMsg.includes('access') ||
+         lowerMsg.includes('access denied') ||
+         lowerMsg.includes('no access') ||
          lowerMsg.includes('scripterror: authorization required');
 }
 
