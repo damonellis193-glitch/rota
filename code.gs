@@ -7,6 +7,14 @@
 // If you're forking this for your own use, replace the SPREADSHEET_ID below with your own.
 const SPREADSHEET_ID = '1vEDieQC-FJFybCVXuynVrus04U1ZA72XMkvfrtDK5MM';
 
+// Helper function to detect permission/authorization errors
+function isPermissionError(errorMsg) {
+  return errorMsg.includes('Authorization') || 
+         errorMsg.includes('permission') || 
+         errorMsg.includes('access') ||
+         errorMsg.includes('ScriptError: Authorization required');
+}
+
 // Quick Setup Check
 function checkSetup() {
   try {
@@ -14,14 +22,10 @@ function checkSetup() {
     return { configured: true, message: 'Configuration looks good!' };
   } catch (e) {
     var errorMsg = e.toString();
-    var isPermissionError = errorMsg.includes('Authorization') || 
-                           errorMsg.includes('permission') || 
-                           errorMsg.includes('access') ||
-                           errorMsg.includes('ScriptError: Authorization required');
     
     return {
       configured: false,
-      permissionDenied: isPermissionError,
+      permissionDenied: isPermissionError(errorMsg),
       message: 'Cannot access spreadsheet. Error: ' + errorMsg + '. Check: 1) SPREADSHEET_ID is correct, 2) You have edit access to the spreadsheet, 3) You created a NEW deployment after updating the code'
     };
   }
@@ -306,14 +310,10 @@ function getInitialData() {
     console.error("[Backend] Stack trace: " + e.stack);
     
     var errorMsg = e.toString();
-    var isPermissionError = errorMsg.includes('Authorization') || 
-                           errorMsg.includes('permission') || 
-                           errorMsg.includes('access') ||
-                           errorMsg.includes('ScriptError: Authorization required');
     
     return { 
       error: 'Backend error: ' + errorMsg + ' - Please check that SPREADSHEET_ID in code.gs is correct and you have access to it.',
-      permissionDenied: isPermissionError
+      permissionDenied: isPermissionError(errorMsg)
     };
   }
 }

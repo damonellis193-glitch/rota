@@ -1337,7 +1337,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
                      // Calculate per-day hours from user's schedule for this specific day
                      var dayHours = 7.5; // Default hours
                      if (def && def.hours) {
-                       dayHours = Number(def.hours);
+                       dayHours = Number(def.hours) || 7.5;
                      }
                      label = dayHours.toFixed(1) + 'h';
                    } else if (b.type === 'WFH') {
