@@ -17,6 +17,61 @@ function isPermissionError(errorMsg) {
          lowerMsg.includes('scripterror: authorization required');
 }
 
+// Authorization trigger function - designed to request OAuth scopes
+// This function is intentionally simple and requires the necessary scopes
+// Call this from the frontend to trigger the OAuth consent flow
+function triggerAuthorization() {
+  try {
+    // Access spreadsheet to trigger OAuth consent for spreadsheets scope
+    var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    
+    // Get user email to trigger userinfo.email scope
+    var userEmail = Session.getActiveUser().getEmail();
+    
+    // Return success with user info
+    return {
+      authorized: true,
+      user: userEmail,
+      spreadsheetAccess: true,
+      message: 'Authorization successful! You now have access to the app.'
+    };
+  } catch (e) {
+    var errorMsg = e.toString();
+    console.error('[Authorization] Error:', errorMsg);
+    
+    return {
+      authorized: false,
+      error: errorMsg,
+      permissionDenied: isPermissionError(errorMsg),
+      message: 'Authorization failed. Please try again or contact your administrator.'
+    };
+  }
+}
+
+// Check if user has already authorized the app
+function checkAuthorization() {
+  try {
+    // Try to access resources to verify authorization
+    var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    var userEmail = Session.getActiveUser().getEmail();
+    
+    return {
+      authorized: true,
+      user: userEmail,
+      message: 'Already authorized'
+    };
+  } catch (e) {
+    var errorMsg = e.toString();
+    
+    return {
+      authorized: false,
+      error: errorMsg,
+      permissionDenied: isPermissionError(errorMsg),
+      message: 'Not authorized yet'
+    };
+  }
+}
+
 // Quick Setup Check
 function checkSetup() {
   try {
