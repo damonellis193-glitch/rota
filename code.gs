@@ -13,12 +13,19 @@ function checkSetup() {
     SpreadsheetApp.openById(SPREADSHEET_ID);
     return { configured: true, message: 'Configuration looks good!' };
   } catch (e) {
+    var errorMsg = e.toString();
+    var isPermissionError = errorMsg.includes('Authorization') || 
+                           errorMsg.includes('permission') || 
+                           errorMsg.includes('access') ||
+                           errorMsg.includes('ScriptError: Authorization required');
+    
     return {
       configured: false,
-      message: 'Cannot access spreadsheet. Error: ' + e.toString() + '. Check: 1) SPREADSHEET_ID is correct, 2) You have edit access to the spreadsheet, 3) You created a NEW deployment after updating the code'
+      permissionDenied: isPermissionError,
+      message: 'Cannot access spreadsheet. Error: ' + errorMsg + '. Check: 1) SPREADSHEET_ID is correct, 2) You have edit access to the spreadsheet, 3) You created a NEW deployment after updating the code'
     };
   }
-} 
+}
 
 // Diagnostic helper function to check configuration
 function getConfigurationStatus() {
@@ -76,7 +83,8 @@ function getInitialData() {
     if (!setupCheck.configured) {
       console.error('[Backend] Setup incomplete: ' + setupCheck.message);
       return { 
-        error: 'Setup Required: ' + setupCheck.message + ' - See README.md for setup instructions.'
+        error: 'Setup Required: ' + setupCheck.message + ' - See README.md for setup instructions.',
+        permissionDenied: setupCheck.permissionDenied || false
       };
     }
     
@@ -296,7 +304,17 @@ function getInitialData() {
   } catch (e) {
     console.error("[Backend] Error in getInitialData: " + e.toString());
     console.error("[Backend] Stack trace: " + e.stack);
-    return { error: 'Backend error: ' + e.toString() + ' - Please check that SPREADSHEET_ID in code.gs is correct and you have access to it.' };
+    
+    var errorMsg = e.toString();
+    var isPermissionError = errorMsg.includes('Authorization') || 
+                           errorMsg.includes('permission') || 
+                           errorMsg.includes('access') ||
+                           errorMsg.includes('ScriptError: Authorization required');
+    
+    return { 
+      error: 'Backend error: ' + errorMsg + ' - Please check that SPREADSHEET_ID in code.gs is correct and you have access to it.',
+      permissionDenied: isPermissionError
+    };
   }
 }
 
