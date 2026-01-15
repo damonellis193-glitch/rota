@@ -9,10 +9,11 @@ const SPREADSHEET_ID = '1vEDieQC-FJFybCVXuynVrus04U1ZA72XMkvfrtDK5MM';
 
 // Helper function to detect permission/authorization errors
 function isPermissionError(errorMsg) {
-  return errorMsg.includes('Authorization') || 
-         errorMsg.includes('permission') || 
-         errorMsg.includes('access') ||
-         errorMsg.includes('ScriptError: Authorization required');
+  var lowerMsg = errorMsg.toLowerCase();
+  return lowerMsg.includes('authorization') || 
+         lowerMsg.includes('permission') || 
+         lowerMsg.includes('access') ||
+         lowerMsg.includes('scripterror: authorization required');
 }
 
 // Quick Setup Check
