@@ -24,6 +24,7 @@ function triggerAuthorization() {
   try {
     // Access spreadsheet to trigger OAuth consent for spreadsheets scope
     var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    var spreadsheetId = ss.getId(); // Verify we can access the spreadsheet
     
     // Get user email to trigger userinfo.email scope
     var userEmail = Session.getActiveUser().getEmail();
@@ -33,6 +34,7 @@ function triggerAuthorization() {
       authorized: true,
       user: userEmail,
       spreadsheetAccess: true,
+      spreadsheetId: spreadsheetId,
       message: 'Authorization successful! You now have access to the app.'
     };
   } catch (e) {
