@@ -666,6 +666,18 @@
       <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
         <h3 class="text-xl font-bold mb-4 text-green-900">Send Email Chaser</h3>
         <p class="text-sm text-gray-500 mb-4">Select colleagues to remind them to book their holidays.</p>
+        
+        <div class="mb-4">
+          <label class="block text-xs font-bold uppercase text-gray-500 mb-2">Recipients</label>
+          <div class="flex gap-2 mb-2">
+            <button type="button" onclick="selectAllChaserRecipients()" class="text-xs px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded">Select All</button>
+            <button type="button" onclick="deselectAllChaserRecipients()" class="text-xs px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded">Deselect All</button>
+          </div>
+          <div id="chaser-recipients-list" class="border rounded p-3 max-h-48 overflow-y-auto bg-gray-50">
+            <p class="text-sm text-gray-400 italic">Loading employees...</p>
+          </div>
+        </div>
+        
         <div class="mb-4"><label class="block text-xs font-bold uppercase text-gray-500 mb-1">Custom Message</label><textarea id="chaser-message" class="w-full border rounded p-2 text-sm h-24" placeholder="e.g. Please ensure all Christmas holidays are booked..."></textarea></div>
         <div class="flex justify-end space-x-2"><button onclick="closeModals()" class="px-4 py-2 text-gray-500">Cancel</button><button onclick="sendChaser()" id="btn-send-chaser" class="btn-primary px-4 py-2 rounded font-bold">Send Reminder</button></div>
       </div>
@@ -711,6 +723,22 @@
         </div>
         <div class="p-6 overflow-y-auto max-h-[60vh]" id="capacity-alert-list">
           <!-- Alert list rendered here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Inactivity Warning Modal -->
+    <div id="modal-inactivity-warning" class="hidden fixed inset-0 bg-gray-900 bg-opacity-80 flex items-center justify-center z-[60] backdrop-blur-sm">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 border-4 border-yellow-500">
+        <div class="text-center">
+          <div class="mb-4">
+            <i class="fa-solid fa-triangle-exclamation text-yellow-500 text-6xl"></i>
+          </div>
+          <h3 class="text-2xl font-bold mb-3 text-gray-900">Inactivity Warning</h3>
+          <p class="text-gray-700 mb-4">You will be logged out in <span id="inactivity-countdown" class="font-bold text-red-600">60</span> seconds due to inactivity.</p>
+          <button onclick="stayLoggedIn()" class="btn-primary px-6 py-3 rounded-lg font-bold text-lg w-full">
+            <i class="fa-solid fa-hand mr-2"></i> Stay Logged In
+          </button>
         </div>
       </div>
     </div>
@@ -2173,13 +2201,102 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
 
       function sendChaser() {
         var msg = document.getElementById('chaser-message').value;
-        var list = []; 
-        alert('Chaser sent!');
-        closeModals();
+        
+        // Collect selected recipients
+        var checkboxes = document.querySelectorAll('.chaser-recipient-checkbox:checked');
+        var recipientEmails = [];
+        checkboxes.forEach(function(cb) {
+          recipientEmails.push(cb.value);
+        });
+        
+        // Validate at least one recipient is selected
+        if (recipientEmails.length === 0) {
+          alert('Please select at least one recipient.');
+          return;
+        }
+        
+        // Disable button and show loading state
+        var btn = document.getElementById('btn-send-chaser');
+        var originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Sending...';
+        
+        // Call backend function
+        google.script.run
+          .withSuccessHandler(function(result) {
+            btn.disabled = false;
+            btn.textContent = originalText;
+            
+            // Clear form
+            document.getElementById('chaser-message').value = '';
+            deselectAllChaserRecipients();
+            
+            // Show success message
+            alert('Chaser emails sent successfully to ' + result.count + ' recipient' + (result.count !== 1 ? 's' : '') + '!');
+            closeModals();
+          })
+          .withFailureHandler(function(error) {
+            btn.disabled = false;
+            btn.textContent = originalText;
+            alert('Error sending chaser emails: ' + error.message);
+          })
+          .sendChaserEmails(recipientEmails, msg);
       }
 
       function openChaserModal() {
         document.getElementById('modal-chaser').classList.remove('hidden');
+        
+        // Populate recipient list
+        var recipientsList = document.getElementById('chaser-recipients-list');
+        recipientsList.innerHTML = '';
+        
+        // Get all employees except current user
+        var currentUserEmail = appData.currentUser.email;
+        var employees = appData.employees.filter(function(emp) {
+          return emp.email !== currentUserEmail;
+        });
+        
+        if (employees.length === 0) {
+          recipientsList.innerHTML = '<p class="text-sm text-gray-400 italic">No other employees found.</p>';
+          return;
+        }
+        
+        // Create checkboxes for each employee
+        employees.forEach(function(emp) {
+          var div = document.createElement('div');
+          div.className = 'mb-2';
+          
+          var label = document.createElement('label');
+          label.className = 'flex items-center cursor-pointer hover:bg-gray-100 p-1 rounded';
+          
+          var checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.className = 'chaser-recipient-checkbox mr-2';
+          checkbox.value = emp.email;
+          
+          var text = document.createElement('span');
+          text.className = 'text-sm';
+          text.textContent = emp.name + ' (' + emp.email + ')';
+          
+          label.appendChild(checkbox);
+          label.appendChild(text);
+          div.appendChild(label);
+          recipientsList.appendChild(div);
+        });
+      }
+
+      function selectAllChaserRecipients() {
+        var checkboxes = document.querySelectorAll('.chaser-recipient-checkbox');
+        checkboxes.forEach(function(cb) {
+          cb.checked = true;
+        });
+      }
+
+      function deselectAllChaserRecipients() {
+        var checkboxes = document.querySelectorAll('.chaser-recipient-checkbox');
+        checkboxes.forEach(function(cb) {
+          cb.checked = false;
+        });
       }
 
       function openCarryoverModal() {
@@ -2886,6 +3003,103 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
+      }
+
+      // ========================================
+      // Inactivity Timeout (10 minutes)
+      // ========================================
+      var inactivityTimer;
+      var warningTimer;
+      var countdownTimer;
+      var TIMEOUT_DURATION = 600000; // 10 minutes in milliseconds
+      var WARNING_DURATION = 540000; // 9 minutes in milliseconds
+      var countdownSeconds = 60;
+      var lastActivityTime = Date.now();
+      var activityCheckInterval = 1000; // Only reset timer once per second
+
+      function resetInactivityTimer() {
+        // Debounce: Only reset if enough time has passed since last reset
+        var now = Date.now();
+        if (now - lastActivityTime < activityCheckInterval) {
+          return;
+        }
+        lastActivityTime = now;
+        
+        // Clear existing timers
+        clearTimeout(inactivityTimer);
+        clearTimeout(warningTimer);
+        clearTimeout(countdownTimer);
+        
+        // Hide warning modal if it's showing
+        var warningModal = document.getElementById('modal-inactivity-warning');
+        if (warningModal && !warningModal.classList.contains('hidden')) {
+          warningModal.classList.add('hidden');
+        }
+        
+        // Reset countdown
+        countdownSeconds = 60;
+        
+        // Set new timers
+        warningTimer = setTimeout(showInactivityWarning, WARNING_DURATION);
+        inactivityTimer = setTimeout(logoutUser, TIMEOUT_DURATION);
+      }
+
+      function showInactivityWarning() {
+        var warningModal = document.getElementById('modal-inactivity-warning');
+        warningModal.classList.remove('hidden');
+        
+        // Start countdown
+        countdownSeconds = 60;
+        updateCountdown();
+        countdownTimer = setInterval(updateCountdown, 1000);
+      }
+
+      function updateCountdown() {
+        var countdownElement = document.getElementById('inactivity-countdown');
+        if (countdownElement) {
+          countdownElement.textContent = countdownSeconds;
+        }
+        
+        countdownSeconds--;
+        
+        if (countdownSeconds < 0) {
+          clearInterval(countdownTimer);
+        }
+      }
+
+      function stayLoggedIn() {
+        // User clicked to stay logged in, reset the timer
+        resetInactivityTimer();
+      }
+
+      function logoutUser() {
+        // Clear all timers
+        clearTimeout(inactivityTimer);
+        clearTimeout(warningTimer);
+        clearTimeout(countdownTimer);
+        
+        // Reload the page which will require re-authentication
+        alert('You have been logged out due to inactivity.');
+        window.location.reload();
+      }
+
+      // Add event listeners for user activity
+      ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(function(event) {
+        document.addEventListener(event, function() {
+          // Only reset if warning is not showing (to avoid preventing logout during warning)
+          var warningModal = document.getElementById('modal-inactivity-warning');
+          if (warningModal && warningModal.classList.contains('hidden')) {
+            resetInactivityTimer();
+          }
+        }, true);
+      });
+
+      // Initialize inactivity timer when page loads
+      // Wait for page to be fully loaded before starting
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', resetInactivityTimer);
+      } else {
+        resetInactivityTimer();
       }
 
     </script>
