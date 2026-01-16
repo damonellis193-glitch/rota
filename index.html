@@ -3014,8 +3014,17 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       var TIMEOUT_DURATION = 600000; // 10 minutes in milliseconds
       var WARNING_DURATION = 540000; // 9 minutes in milliseconds
       var countdownSeconds = 60;
+      var lastActivityTime = Date.now();
+      var activityCheckInterval = 1000; // Only reset timer once per second
 
       function resetInactivityTimer() {
+        // Debounce: Only reset if enough time has passed since last reset
+        var now = Date.now();
+        if (now - lastActivityTime < activityCheckInterval) {
+          return;
+        }
+        lastActivityTime = now;
+        
         // Clear existing timers
         clearTimeout(inactivityTimer);
         clearTimeout(warningTimer);
