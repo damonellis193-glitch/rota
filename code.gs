@@ -519,19 +519,21 @@ function submitBooking(formObj) {
     // Check if the booking user has a manager assigned
     const empData = empSheet.getDataRange().getValues();
     let hasManager = false;
+    let employeeFound = false;
     
     // Find the employee record (skip header row at index 0)
     for (let i = 1; i < empData.length; i++) {
       const rowEmail = String(empData[i][1] || '').trim();
       if (rowEmail === bookingEmail) {
+        employeeFound = true;
         const managerField = String(empData[i][4] || '').trim();
         hasManager = managerField !== '';
         break;
       }
     }
     
-    // Auto-approve if no manager is assigned
-    if (!hasManager) {
+    // Auto-approve only if employee is found AND has no manager assigned
+    if (employeeFound && !hasManager) {
       status = 'Approved';
     }
   }
