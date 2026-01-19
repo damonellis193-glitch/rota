@@ -431,6 +431,7 @@ function submitBooking(formObj) {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   const sheet = ss.getSheetByName('Bookings');
   const schedSheet = ss.getSheetByName('Schedules');
+  const empSheet = ss.getSheetByName('Employees');
   
   const currentUserEmail = Session.getActiveUser().getEmail();
   const bookingEmail = formObj.targetEmail || currentUserEmail;
@@ -508,9 +509,31 @@ function submitBooking(formObj) {
     hoursUsed = daysUsed * 7.5;
   }
 
+  // Determine booking status
   let status = 'Pending';
+  
+  // Check if admin is booking for someone else (existing behavior)
   if (formObj.targetEmail && formObj.targetEmail !== currentUserEmail) {
     status = 'Approved';
+  } else {
+    // Check if the booking user has a manager assigned
+    const empData = empSheet.getDataRange().getValues();
+    let hasManager = false;
+    
+    // Find the employee record (skip header row at index 0)
+    for (let i = 1; i < empData.length; i++) {
+      const rowEmail = String(empData[i][1] || '').trim();
+      if (rowEmail === bookingEmail) {
+        const managerField = String(empData[i][4] || '').trim();
+        hasManager = managerField !== '';
+        break;
+      }
+    }
+    
+    // Auto-approve if no manager is assigned
+    if (!hasManager) {
+      status = 'Approved';
+    }
   }
 
   sheet.appendRow([
