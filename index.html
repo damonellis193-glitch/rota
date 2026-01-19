@@ -1219,7 +1219,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       }
 
       function formatDate(d) {
-        return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
       }
 
       function handleServerError(error) {
