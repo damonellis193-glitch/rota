@@ -523,8 +523,8 @@ function submitBooking(formObj) {
     
     // Find the employee record (skip header row at index 0)
     for (let i = 1; i < empData.length; i++) {
-      const rowEmail = String(empData[i][1] || '').trim();
-      if (rowEmail === bookingEmail) {
+      const rowEmail = String(empData[i][1] || '').trim().toLowerCase();
+      if (rowEmail === bookingEmail.toLowerCase()) {
         employeeFound = true;
         const managerField = String(empData[i][4] || '').trim();
         hasManager = managerField !== '';
