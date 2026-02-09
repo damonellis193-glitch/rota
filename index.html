@@ -1342,6 +1342,17 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           }
           
           var breakdown = calculateMultiDayHours(email, start, end);
+          
+          // Validate that there are working days in the selected range
+          if (breakdown.length === 0) {
+            hoursField.value = 0;
+            hoursField.readOnly = true;
+            hoursField.classList.add('bg-gray-100', 'cursor-not-allowed');
+            breakdownContainer.innerHTML = '<div class="mt-3 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-600">⚠️ No working days in selected date range</div>';
+            breakdownContainer.classList.remove('hidden');
+            return;
+          }
+          
           var totalHours = breakdown.reduce(function(sum, day) { return sum + day.hours; }, 0);
           
           hoursField.value = totalHours.toFixed(1);
