@@ -2273,8 +2273,15 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         var s=document.getElementById('booking-target-user');
         var d=document.getElementById('admin-booking-controls');
         document.getElementById('booking-start-date').value='';
-        document.querySelector('input[name="endDate"]').value='';
+        document.getElementById('booking-end-date').value='';
         document.getElementById('booking-hours').value=7.5;
+        
+        // Reset breakdown display
+        var hoursField = document.getElementById('booking-hours');
+        hoursField.readOnly = false;
+        hoursField.classList.remove('bg-gray-100', 'cursor-not-allowed');
+        document.getElementById('hours-breakdown').classList.add('hidden');
+        
         if(appData.currentUser.role==='Admin'){
             d.classList.remove('hidden');
             s.innerHTML='<option value="">-- Myself --</option>'+appData.employees.filter(function(e) { return e.email!==appData.currentUser.email; }).map(function(e) { return '<option value="' + e.email + '">' + e.name + '</option>'; }).join('');
