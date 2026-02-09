@@ -488,8 +488,17 @@ function submitBooking(formObj) {
 
     if (isWorkingDay) {
       daysUsed++;
-      // Use the hours provided in the form (for granular bookings) or default day hours
-      const bookingHours = Number(formObj.hours) || dayHours;
+      
+      // For single-day bookings, use form hours; for multi-day, use schedule
+      let bookingHours;
+      if (start.getTime() === end.getTime()) {
+        // Single day - use custom hours from form
+        bookingHours = Number(formObj.hours) || dayHours;
+      } else {
+        // Multi-day - MUST use schedule hours for this specific day
+        bookingHours = dayHours;
+      }
+      
       hoursUsed += bookingHours;
     }
     cur.setDate(cur.getDate() + 1);
