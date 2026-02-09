@@ -1535,12 +1535,9 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
                    // Set color and label based on booking type
                    if (b.type === 'Holiday') {
                      div.classList.add('bg-green-600');
-                     // Calculate per-day hours from user's schedule for this specific day
-                     var dayHours = 7.5; // Default hours
-                     if (def && def.hours) {
-                       dayHours = Number(def.hours) || 7.5;
-                     }
-                     label = dayHours.toFixed(1) + 'h';
+                     // Use the actual hours from the booking, not the schedule
+                     var bookingHours = Number(b.hours) || 7.5;
+                     label = bookingHours.toFixed(1) + 'h';
                    } else if (b.type === 'WFH') {
                      div.classList.add('bg-blue-600');
                      label = 'WFH';
@@ -2610,6 +2607,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         for (var i = 0; i < 7; i++) {
           var currentDay = new Date(monday);
           currentDay.setDate(monday.getDate() + i);
+          currentDay.setHours(0, 0, 0, 0);
           var dayName = dayNames[i];
           
           // Count people in office
