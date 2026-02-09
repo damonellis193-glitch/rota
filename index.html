@@ -617,7 +617,7 @@
         <form onsubmit="handleBooking(event)" class="p-6">
           <div id="admin-booking-controls" class="mb-4 hidden p-3 bg-yellow-50 rounded border border-yellow-200">
              <label class="block text-green-900 text-xs font-bold uppercase mb-1">Book for Colleague:</label>
-             <select id="booking-target-user" name="targetEmail" onchange="autoFillHours()" class="w-full border-yellow-300 rounded p-1 text-sm bg-white"></select>
+             <select id="booking-target-user" name="targetEmail" onchange="updateBookingHoursDisplay()" class="w-full border-yellow-300 rounded p-1 text-sm bg-white"></select>
           </div>
           <div class="mb-5 grid grid-cols-2 gap-2">
               <label class="cursor-pointer"><input type="radio" name="type" value="Holiday" class="peer sr-only" checked><div class="text-center py-2 border rounded hover:bg-gray-50 peer-checked:bg-green-100 peer-checked:text-green-700 transition">Holiday</div></label>
@@ -628,10 +628,19 @@
               <label class="cursor-pointer col-span-2"><input type="radio" name="type" value="Sickness" class="peer sr-only"><div class="text-center py-2 border rounded hover:bg-gray-50 peer-checked:bg-red-100 peer-checked:text-red-700 transition border-red-100 text-red-600"><i class="fa-solid fa-notes-medical mr-2"></i>Sickness (Private)</div></label>
           </div>
           <div class="grid grid-cols-2 gap-4 mb-4">
-            <div><label class="text-xs font-bold uppercase mb-1">From</label><input type="date" id="booking-start-date" name="startDate" onchange="autoFillHours()" required class="w-full border rounded p-2"></div>
-            <div><label class="text-xs font-bold uppercase mb-1">To</label><input type="date" name="endDate" required class="w-full border rounded p-2"></div>
+            <div><label class="text-xs font-bold uppercase mb-1">From</label><input type="date" id="booking-start-date" name="startDate" onchange="updateBookingHoursDisplay()" required class="w-full border rounded p-2"></div>
+            <div><label class="text-xs font-bold uppercase mb-1">To</label><input type="date" id="booking-end-date" name="endDate" onchange="updateBookingHoursDisplay()" required class="w-full border rounded p-2"></div>
           </div>
-          <div class="mb-6"><label class="text-xs font-bold uppercase mb-1">Hours (0.5 increments)</label><input type="number" id="booking-hours" name="hours" value="7.5" step="0.5" min="0.5" max="24" class="w-24 border rounded p-2"></div>
+          <div class="mb-6">
+            <label class="text-xs font-bold uppercase mb-1">Hours (0.5 increments)</label>
+            <input type="number" id="booking-hours" name="hours" value="7.5" step="0.5" min="0.5" max="24" class="w-24 border rounded p-2">
+            
+            <!-- Breakdown container (hidden by default) -->
+            <div id="hours-breakdown" class="hidden mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
+              <div class="text-xs font-bold text-blue-800 mb-2">📋 Breakdown (working days only):</div>
+              <div id="hours-breakdown-list"></div>
+            </div>
+          </div>
           <div class="flex justify-end space-x-2"><button type="button" onclick="closeModals()" class="px-4 py-2 text-gray-500">Cancel</button><button type="submit" id="btn-submit-booking" class="btn-primary px-6 py-2 rounded font-bold">Submit</button></div>
         </form>
       </div>
@@ -1239,20 +1248,121 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         return count;
       }
 
-      function autoFillHours() {
-        var dateVal = document.getElementById('booking-start-date').value;
-        var endDateInput = document.querySelector('input[name="endDate"]');
-        if (!dateVal) return;
-        endDateInput.min = dateVal;
-        if (!endDateInput.value || endDateInput.value < dateVal) { endDateInput.value = dateVal; }
-        var email = appData.currentUser.email;
-        var targetSelect = document.getElementById('booking-target-user');
-        if (appData.currentUser.role === 'Admin' && targetSelect.value) { email = targetSelect.value; }
-        var dateObj = new Date(dateVal);
-        var dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
-        var userSched = appData.schedules[email] || {};
-        var daySched = userSched[dayName];
-        document.getElementById('booking-hours').value = (daySched && daySched.hours) ? daySched.hours : 7.5;
+      function calculateMultiDayHours(email, startDate, endDate) {
+        var breakdown = [];
+        var schedule = appData.schedules[email] || {};
+        var cur = new Date(startDate);
+        
+        while (cur <= endDate) {
+          var dayOfWeek = cur.getDay();
+          var dayName = cur.toLocaleDateString('en-US', { weekday: 'long' });
+          
+          // Skip weekends (unless custom schedule says otherwise)
+          var isWorkingDay = (dayOfWeek !== 0 && dayOfWeek !== 6);
+          var dayHours = 7.5;
+          
+          // Override with schedule if exists
+          if (Object.keys(schedule).length > 0) {
+            if (schedule[dayName]) {
+              isWorkingDay = (schedule[dayName].type !== 'None');
+              dayHours = Number(schedule[dayName].hours) || 7.5;
+            } else {
+              isWorkingDay = false;
+            }
+          }
+          
+          if (isWorkingDay) {
+            breakdown.push({
+              date: new Date(cur),
+              dayName: dayName,
+              hours: dayHours
+            });
+          }
+          
+          cur.setDate(cur.getDate() + 1);
+        }
+        
+        return breakdown;
+      }
+
+      function renderHoursBreakdown(breakdown) {
+        var container = document.getElementById('hours-breakdown-list');
+        var html = '';
+        
+        breakdown.forEach(function(day) {
+          var dateStr = day.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+          var dayStr = day.dayName.substring(0, 3);
+          html += '<div class="text-sm text-gray-600">' + dayStr + ' ' + dateStr + ': ' + day.hours.toFixed(1) + 'h</div>';
+        });
+        
+        container.innerHTML = html;
+      }
+
+      function updateBookingHoursDisplay() {
+        var startDate = document.getElementById('booking-start-date').value;
+        var endDate = document.getElementById('booking-end-date').value;
+        var hoursField = document.getElementById('booking-hours');
+        var breakdownContainer = document.getElementById('hours-breakdown');
+        
+        if (!startDate || !endDate) return;
+        
+        // Also ensure end date is not before start date
+        if (endDate < startDate) {
+          document.getElementById('booking-end-date').value = startDate;
+          endDate = startDate;
+        }
+        
+        var start = new Date(startDate);
+        var end = new Date(endDate);
+        start.setHours(0, 0, 0, 0);
+        end.setHours(0, 0, 0, 0);
+        
+        if (start.getTime() === end.getTime()) {
+          // Single day - editable hours
+          hoursField.readOnly = false;
+          hoursField.classList.remove('bg-gray-100', 'cursor-not-allowed');
+          breakdownContainer.classList.add('hidden');
+          
+          // Auto-fill with schedule hours for single day
+          var email = appData.currentUser.email;
+          var targetSelect = document.getElementById('booking-target-user');
+          if (appData.currentUser.role === 'Admin' && targetSelect.value) { 
+            email = targetSelect.value; 
+          }
+          var userSched = appData.schedules[email] || {};
+          var dayName = start.toLocaleDateString('en-US', { weekday: 'long' });
+          var daySched = userSched[dayName];
+          hoursField.value = (daySched && daySched.hours) ? daySched.hours : 7.5;
+        } else {
+          // Multi-day - calculate and lock
+          var email = appData.currentUser.email;
+          var targetSelect = document.getElementById('booking-target-user');
+          if (appData.currentUser.role === 'Admin' && targetSelect.value) {
+            email = targetSelect.value;
+          }
+          
+          var breakdown = calculateMultiDayHours(email, start, end);
+          
+          // Validate that there are working days in the selected range
+          if (breakdown.length === 0) {
+            hoursField.value = 0;
+            hoursField.readOnly = true;
+            hoursField.classList.add('bg-gray-100', 'cursor-not-allowed');
+            breakdownContainer.innerHTML = '<div class="mt-3 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-600">⚠️ No working days in selected date range</div>';
+            breakdownContainer.classList.remove('hidden');
+            return;
+          }
+          
+          var totalHours = breakdown.reduce(function(sum, day) { return sum + day.hours; }, 0);
+          
+          hoursField.value = totalHours.toFixed(1);
+          hoursField.readOnly = true;
+          hoursField.classList.add('bg-gray-100', 'cursor-not-allowed');
+          
+          // Render breakdown
+          renderHoursBreakdown(breakdown);
+          breakdownContainer.classList.remove('hidden');
+        }
       }
 
       function toggleSubTeam(managerEmail) {
@@ -1535,8 +1645,26 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
                    // Set color and label based on booking type
                    if (b.type === 'Holiday') {
                      div.classList.add('bg-green-600');
-                     // Use the actual hours from the booking, not the schedule
-                     var bookingHours = Number(b.hours) || 7.5;
+                     
+                     var bookingHours;
+                     // Check if single-day or multi-day booking
+                     var bookingStart = new Date(b.startDate);
+                     var bookingEnd = new Date(b.endDate);
+                     bookingStart.setHours(0, 0, 0, 0);
+                     bookingEnd.setHours(0, 0, 0, 0);
+                     
+                     if (bookingStart.getTime() === bookingEnd.getTime()) {
+                       // Single-day booking - use the total hours from booking
+                       bookingHours = Number(b.hours) || 7.5;
+                     } else {
+                       // Multi-day booking - use schedule hours for THIS specific day
+                       var dayHours = 7.5; // Default
+                       if (def && def.hours) {
+                         dayHours = Number(def.hours) || 7.5;
+                       }
+                       bookingHours = dayHours;
+                     }
+                     
                      label = bookingHours.toFixed(1) + 'h';
                    } else if (b.type === 'WFH') {
                      div.classList.add('bg-blue-600');
@@ -2156,8 +2284,15 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         var s=document.getElementById('booking-target-user');
         var d=document.getElementById('admin-booking-controls');
         document.getElementById('booking-start-date').value='';
-        document.querySelector('input[name="endDate"]').value='';
+        document.getElementById('booking-end-date').value='';
         document.getElementById('booking-hours').value=7.5;
+        
+        // Reset breakdown display
+        var hoursField = document.getElementById('booking-hours');
+        hoursField.readOnly = false;
+        hoursField.classList.remove('bg-gray-100', 'cursor-not-allowed');
+        document.getElementById('hours-breakdown').classList.add('hidden');
+        
         if(appData.currentUser.role==='Admin'){
             d.classList.remove('hidden');
             s.innerHTML='<option value="">-- Myself --</option>'+appData.employees.filter(function(e) { return e.email!==appData.currentUser.email; }).map(function(e) { return '<option value="' + e.email + '">' + e.name + '</option>'; }).join('');
