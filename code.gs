@@ -186,11 +186,10 @@ function getInitialData() {
 
     console.log('[Backend] Found ' + employees.length + ' employees');
 
-    // Check current user - admin status is determined by the Employees sheet
+    // Check current user - must be in the Employees sheet
     let currentUser = employees.find(e => e.email === userEmail);
     if (!currentUser) {
-      // User not in the Employees sheet, assign Guest role
-      currentUser = { name: 'Guest', email: userEmail, allowance: 0, role: 'Guest' };
+      return { accessDenied: true };
     }
 
     console.log('[Backend] Current user role: ' + currentUser.role);
@@ -276,7 +275,7 @@ function getInitialData() {
 
     // 5. Get Carryover Requests
     let carryoverRequests = [];
-    if (currentUser.role === 'Admin') {
+    if (currentUser.role === 'Admin' || currentUser.role === 'Manager') {
       const carryoverSheet = ss.getSheetByName('CarryoverRequests');
       if (carryoverSheet) {
         try {
@@ -284,10 +283,10 @@ function getInitialData() {
           if (carryoverData.length > 1) {
             carryoverData.shift();
             carryoverRequests = carryoverData
-              .filter(r => r[0] && r[1] && r[3]) // Email, Days, Status
+              .filter(r => r[0] && r[1] && r[3]) // Email, Hours, Status
               .map(r => ({
                 email: String(r[0]).trim(),
-                days: Number(r[1]) || 0,
+                hours: Number(r[1]) || 0,
                 reason: String(r[2] || '').trim(),
                 status: String(r[3]).trim(),
                 timestamp: r[4] ? (r[4] instanceof Date ? r[4].toISOString() : String(r[4])) : null,
@@ -322,6 +321,59 @@ function getInitialData() {
       capacitySettings = {};
     }
 
+    // 7. Apply pending allowance changes (checked on every load)
+    try {
+      applyPendingAllowanceChanges(ss);
+    } catch (applyError) {
+      console.error('[Backend] Error applying allowance changes: ' + applyError.toString());
+    }
+
+    // 8. Get AllowanceChanges (pending only, for Admin)
+    let allowanceChanges = [];
+    if (currentUser.role === 'Admin') {
+      try {
+        const acSheet = ss.getSheetByName('AllowanceChanges');
+        if (acSheet) {
+          const acData = acSheet.getDataRange().getValues();
+          if (acData.length > 1) {
+            acData.shift();
+            allowanceChanges = acData
+              .filter(r => r[0] && r[4] === 'Pending')
+              .map(r => ({
+                email: String(r[0]).trim(),
+                adjustmentHours: Number(r[1]) || 0,
+                effectiveDate: r[2] ? (r[2] instanceof Date ? r[2].toISOString() : String(r[2])) : null,
+                reason: String(r[3] || '').trim(),
+                status: String(r[4]).trim(),
+                createdBy: String(r[5] || '').trim(),
+                createdAt: r[6] ? (r[6] instanceof Date ? r[6].toISOString() : String(r[6])) : null
+              }));
+          }
+        }
+      } catch (acError) {
+        console.error('[Backend] Error loading allowance changes: ' + acError.toString());
+        allowanceChanges = [];
+      }
+    }
+
+    // 9. Get AppSettings
+    let appSettings = {};
+    try {
+      const settingsSheet = ss.getSheetByName('AppSettings');
+      if (settingsSheet) {
+        const settingsData = settingsSheet.getDataRange().getValues();
+        if (settingsData.length > 1) {
+          settingsData.shift();
+          settingsData.forEach(row => {
+            if (row[0]) appSettings[String(row[0]).trim()] = String(row[1] || '').trim();
+          });
+        }
+      }
+    } catch (settingsError) {
+      console.error('[Backend] Error loading app settings: ' + settingsError.toString());
+      appSettings = {};
+    }
+
     console.log('[Backend] Returning data successfully');
     console.log('[Backend] Employees count: ' + employees.length);
     console.log('[Backend] Bookings count: ' + bookings.length);
@@ -334,7 +386,9 @@ function getInitialData() {
       schedules: schedulesArray,
       auditLogs: auditLogs,
       carryoverRequests: carryoverRequests,
-      capacitySettings: capacitySettings
+      capacitySettings: capacitySettings,
+      allowanceChanges: allowanceChanges,
+      appSettings: appSettings
     };
     
     // Verify the result is valid before returning
@@ -413,6 +467,16 @@ function setupDatabase(ss) {
   if (!ss.getSheetByName('MyMorriRemovals')) {
     const s = ss.insertSheet('MyMorriRemovals');
     s.appendRow(['BookingID', 'RemovedBy', 'RemovedAt', 'RemovalDate']);
+  }
+  if (!ss.getSheetByName('AllowanceChanges')) {
+    const s = ss.insertSheet('AllowanceChanges');
+    s.appendRow(['Email', 'AdjustmentHours', 'EffectiveDate', 'Reason', 'Status', 'CreatedBy', 'CreatedAt', 'AppliedAt']);
+  }
+  if (!ss.getSheetByName('AppSettings')) {
+    const s = ss.insertSheet('AppSettings');
+    s.appendRow(['SettingKey', 'SettingValue']);
+    s.appendRow(['emailNotificationsEnabled', 'false']);
+    s.appendRow(['appUrl', '']);
   }
 }
 
@@ -518,33 +582,61 @@ function submitBooking(formObj) {
     hoursUsed = daysUsed * 7.5;
   }
 
-  // Determine booking status
+  // Determine booking status based on role-based permissions
   let status = 'Pending';
   
-  // Check if admin is booking for someone else (existing behavior)
-  if (formObj.targetEmail && formObj.targetEmail !== currentUserEmail) {
-    status = 'Approved';
-  } else {
-    // Check if the booking user has a manager assigned
-    const empData = empSheet.getDataRange().getValues();
-    let hasManager = false;
-    let employeeFound = false;
-    
-    // Find the employee record (skip header row at index 0)
-    for (let i = 1; i < empData.length; i++) {
-      const rowEmail = String(empData[i][1] || '').trim().toLowerCase();
-      if (rowEmail === bookingEmail.toLowerCase()) {
-        employeeFound = true;
-        const managerField = String(empData[i][4] || '').trim();
-        hasManager = managerField !== '';
-        break;
-      }
+  const empData = empSheet.getDataRange().getValues();
+  const allEmps = empData.slice(1).map(row => ({
+    email: String(row[1] || '').trim(),
+    name: String(row[0] || '').trim(),
+    role: String(row[3] || '').trim(),
+    manager: String(row[4] || '').trim()
+  }));
+  
+  function isInChain(managerEmail, targetEmail) {
+    if (managerEmail === targetEmail) return false;
+    let current = allEmps.find(e => e.email === targetEmail);
+    const visited = new Set();
+    while (current && current.manager && !visited.has(current.email)) {
+      visited.add(current.email);
+      if (current.manager === managerEmail) return true;
+      current = allEmps.find(e => e.email === current.manager);
     }
-    
-    // Auto-approve only if employee is found AND has no manager assigned
-    if (employeeFound && !hasManager) {
+    return false;
+  }
+  
+  const currentUserEmp = allEmps.find(e => e.email === currentUserEmail);
+  const isBookingForOther = formObj.targetEmail && formObj.targetEmail !== currentUserEmail;
+
+  if (!currentUserEmp) {
+    return { success: false, message: 'User not found in system.' };
+  }
+
+  if (currentUserEmp.role === 'Admin') {
+    // Admin can book for anyone; booking for someone else is auto-approved
+    if (isBookingForOther) {
       status = 'Approved';
+    } else {
+      // Admin booking for themselves: check if they have a manager
+      status = currentUserEmp.manager ? 'Pending' : 'Approved';
     }
+  } else if (currentUserEmp.role === 'Manager') {
+    if (isBookingForOther) {
+      // Manager can only book for people in their chain
+      if (!isInChain(currentUserEmail, formObj.targetEmail)) {
+        return { success: false, message: 'You can only book for employees in your management chain.' };
+      }
+      status = 'Approved';
+    } else {
+      // Manager booking for themselves: pending (goes to their manager)
+      status = 'Pending';
+    }
+  } else {
+    // Employee: can only book for themselves
+    if (isBookingForOther) {
+      return { success: false, message: 'Employees can only book for themselves.' };
+    }
+    status = 'Pending';
   }
 
   sheet.appendRow([
@@ -559,6 +651,28 @@ function submitBooking(formObj) {
   ]);
   
   logAction(currentUserEmail, 'Booking Submitted', `Type: ${formObj.type}, For: ${bookingEmail}, Status: ${status}, Days: ${daysUsed}, Hours: ${hoursUsed}`);
+
+  // Send email notification to direct manager if status is Pending and notifications are enabled
+  if (status === 'Pending') {
+    try {
+      const appConfig = getAppSettings(SpreadsheetApp.openById(SPREADSHEET_ID));
+      if (appConfig.emailNotificationsEnabled) {
+        const bookingEmp = allEmps.find(e => e.email === bookingEmail);
+        const managerEmail = bookingEmp ? bookingEmp.manager : null;
+        if (managerEmail) {
+          const empName = bookingEmp ? bookingEmp.name : bookingEmail;
+          const appLink = appConfig.appUrl ? '\n\nView in app: ' + appConfig.appUrl : '';
+          MailApp.sendEmail({
+            to: managerEmail,
+            subject: empName + ' has submitted a ' + formObj.type + ' request',
+            body: `Hello,\n\n${empName} has submitted a ${formObj.type} request for ${formObj.startDate} to ${formObj.endDate} (${hoursUsed} hours).\n\nPlease review and approve or reject this request in the admin panel.${appLink}\n\nThank you,\nRota System`
+          });
+        }
+      }
+    } catch (emailErr) {
+      console.error('Failed to send booking notification email: ' + emailErr.toString());
+    }
+  }
 
   return { success: true, id: id, status: status, daysCount: daysUsed, hours: hoursUsed };
 }
@@ -710,14 +824,14 @@ function submitCarryoverRequest(data) {
     }
   }
   
-  // Validate days (max 5)
-  if (data.days > 5 || data.days < 1) {
-    return { success: false, message: 'Carryover must be between 1 and 5 days.' };
+  // Validate hours
+  if (!data.hours || data.hours <= 0) {
+    return { success: false, message: 'Carryover must be greater than 0 hours.' };
   }
   
   sheet.appendRow([
     userEmail,
-    data.days,
+    data.hours,
     data.reason || '',
     'Pending',
     new Date(),
@@ -725,23 +839,27 @@ function submitCarryoverRequest(data) {
     ''
   ]);
   
-  logAction(actor, 'Carryover Requested', `Requested ${data.days} days carryover`);
+  logAction(actor, 'Carryover Requested', `Requested ${data.hours} hours carryover`);
   
-  // Send email notification to manager
+  // Send email notification to direct manager if notifications enabled
   try {
     const empSheet = ss.getSheetByName('Employees');
     const empData = empSheet.getDataRange().getValues();
     const employee = empData.find(r => String(r[1]).trim() === userEmail);
     
     if (employee && employee[4]) { // Has manager
-      const managerEmail = String(employee[4]).trim();
-      const employeeName = String(employee[0]).trim();
-      
-      MailApp.sendEmail({
-        to: managerEmail,
-        subject: 'Holiday Carryover Request from ' + employeeName,
-        body: `Hello,\n\n${employeeName} has submitted a request to carry over ${data.days} days of holiday allowance to the next fiscal year.\n\nReason: ${data.reason || 'No reason provided'}\n\nPlease review this request in the admin panel.\n\nThank you,\nRota System`
-      });
+      const appConfig = getAppSettings(ss);
+      if (appConfig.emailNotificationsEnabled) {
+        const managerEmail = String(employee[4]).trim();
+        const employeeName = String(employee[0]).trim();
+        const appLink = appConfig.appUrl ? '\n\nView in app: ' + appConfig.appUrl : '';
+        
+        MailApp.sendEmail({
+          to: managerEmail,
+          subject: 'Holiday Carryover Request from ' + employeeName,
+          body: `Hello,\n\n${employeeName} has submitted a request to carry over ${data.hours} hours of holiday allowance to the next fiscal year.\n\nReason: ${data.reason || 'No reason provided'}\n\nPlease review this request in the admin panel.${appLink}\n\nThank you,\nRota System`
+        });
+      }
     }
   } catch (e) {
     console.error('Failed to send email notification: ' + e.toString());
@@ -750,7 +868,7 @@ function submitCarryoverRequest(data) {
   return { success: true };
 }
 
-function approveCarryoverRequest(email, days) {
+function approveCarryoverRequest(email, requestedHours) {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   const carryoverSheet = ss.getSheetByName('CarryoverRequests');
   const empSheet = ss.getSheetByName('Employees');
@@ -775,28 +893,28 @@ function approveCarryoverRequest(email, days) {
   carryoverSheet.getRange(requestRow, 6).setValue(actor);
   carryoverSheet.getRange(requestRow, 7).setValue(new Date());
   
-  // Update employee's CarryOver field
+  // Update employee's CarryOver field by ADDING the requested hours
   const empData = empSheet.getDataRange().getValues();
   for (let i = 1; i < empData.length; i++) {
     if (String(empData[i][1]).trim() === email) {
       const currentCarryover = Number(empData[i][6]) || 0;
-      empSheet.getRange(i + 1, 7).setValue(days);
+      empSheet.getRange(i + 1, 7).setValue(currentCarryover + requestedHours);
       break;
     }
   }
   
-  logAction(actor, 'Carryover Approved', `Approved ${days} days carryover for ${email}`);
+  logAction(actor, 'Carryover Approved', `Approved ${requestedHours} hours carryover for ${email}`);
   
   // Send email notification
   try {
-    const empData = empSheet.getDataRange().getValues();
-    const employee = empData.find(r => String(r[1]).trim() === email);
+    const empDataLatest = empSheet.getDataRange().getValues();
+    const employee = empDataLatest.find(r => String(r[1]).trim() === email);
     const employeeName = employee ? String(employee[0]).trim() : email;
     
     MailApp.sendEmail({
       to: email,
       subject: 'Holiday Carryover Request Approved',
-      body: `Hello ${employeeName},\n\nYour request to carry over ${days} days of holiday allowance has been approved!\n\nThis will be added to your allowance for the next fiscal year.\n\nThank you,\nRota System`
+      body: `Hello ${employeeName},\n\nYour request to carry over ${requestedHours} hours of holiday allowance has been approved!\n\nThis will be added to your allowance for the next fiscal year.\n\nThank you,\nRota System`
     });
   } catch (e) {
     console.error('Failed to send email notification: ' + e.toString());
@@ -837,18 +955,185 @@ function rejectCarryoverRequest(email, days) {
     const empData = empSheet.getDataRange().getValues();
     const employee = empData.find(r => String(r[1]).trim() === email);
     const employeeName = employee ? String(employee[0]).trim() : email;
-    const requestDays = carryoverData[requestRow - 1][1];
+    const requestHours = carryoverData[requestRow - 1][1];
     
     MailApp.sendEmail({
       to: email,
       subject: 'Holiday Carryover Request Update',
-      body: `Hello ${employeeName},\n\nYour request to carry over ${requestDays} days of holiday allowance has been reviewed.\n\nUnfortunately, this request could not be approved at this time. Please contact your manager for more information.\n\nThank you,\nRota System`
+      body: `Hello ${employeeName},\n\nYour request to carry over ${requestHours} hours of holiday allowance has been reviewed.\n\nUnfortunately, this request could not be approved at this time. Please contact your manager for more information.\n\nThank you,\nRota System`
     });
   } catch (e) {
     console.error('Failed to send email notification: ' + e.toString());
   }
   
   return { success: true };
+}
+
+// --- APP SETTINGS FUNCTIONS ---
+
+function getAppSettings(ss) {
+  if (!ss) ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('AppSettings');
+  if (!sheet) return { emailNotificationsEnabled: false, appUrl: '' };
+  const data = sheet.getDataRange().getValues();
+  const settings = { emailNotificationsEnabled: false, appUrl: '' };
+  if (data.length > 1) {
+    data.slice(1).forEach(row => {
+      if (row[0] === 'emailNotificationsEnabled') settings.emailNotificationsEnabled = String(row[1]).trim() === 'true';
+      if (row[0] === 'appUrl') settings.appUrl = String(row[1] || '').trim();
+    });
+  }
+  return settings;
+}
+
+function saveAppSettings(settingsObj) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sheet = ss.getSheetByName('AppSettings');
+  if (!sheet) {
+    setupDatabase(ss);
+    sheet = ss.getSheetByName('AppSettings');
+  }
+  const actor = Session.getActiveUser().getEmail();
+  const data = sheet.getDataRange().getValues();
+  const keys = Object.keys(settingsObj);
+  keys.forEach(key => {
+    let found = false;
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === key) {
+        sheet.getRange(i + 1, 2).setValue(settingsObj[key]);
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      sheet.appendRow([key, settingsObj[key]]);
+    }
+  });
+  logAction(actor, 'App Settings Updated', 'Updated application settings');
+  return { success: true };
+}
+
+// --- ALLOWANCE CHANGES FUNCTIONS ---
+
+function saveAllowanceChange(data) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sheet = ss.getSheetByName('AllowanceChanges');
+  if (!sheet) {
+    setupDatabase(ss);
+    sheet = ss.getSheetByName('AllowanceChanges');
+  }
+  const actor = Session.getActiveUser().getEmail();
+  
+  // Check for existing pending change for this employee
+  const existingData = sheet.getDataRange().getValues();
+  for (let i = 1; i < existingData.length; i++) {
+    if (String(existingData[i][0]).trim() === data.email && existingData[i][4] === 'Pending') {
+      return { success: false, message: 'This employee already has a pending scheduled change.' };
+    }
+  }
+  
+  // Validate effective date is strictly in the future (must be tomorrow or later)
+  const effectiveDate = new Date(data.effectiveDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  effectiveDate.setHours(0, 0, 0, 0);
+  if (effectiveDate.getTime() <= today.getTime()) {
+    return { success: false, message: 'Effective date must be in the future.' };
+  }
+  
+  sheet.appendRow([
+    data.email,
+    data.adjustmentHours,
+    data.effectiveDate,
+    data.reason || '',
+    'Pending',
+    actor,
+    new Date(),
+    ''
+  ]);
+  
+  logAction(actor, 'Allowance Change Scheduled', `Scheduled ${data.adjustmentHours} hour adjustment for ${data.email}, effective ${data.effectiveDate}`);
+  return { success: true };
+}
+
+function cancelAllowanceChange(email) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('AllowanceChanges');
+  const actor = Session.getActiveUser().getEmail();
+  
+  if (!sheet) return { success: false, message: 'AllowanceChanges sheet not found.' };
+  
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === email && data[i][4] === 'Pending') {
+      sheet.getRange(i + 1, 5).setValue('Cancelled');
+      logAction(actor, 'Allowance Change Cancelled', `Cancelled pending allowance change for ${email}`);
+      return { success: true };
+    }
+  }
+  return { success: false, message: 'No pending change found for this employee.' };
+}
+
+function applyPendingAllowanceChanges(ss) {
+  if (!ss) ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const acSheet = ss.getSheetByName('AllowanceChanges');
+  const empSheet = ss.getSheetByName('Employees');
+  if (!acSheet || !empSheet) return;
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const acData = acSheet.getDataRange().getValues();
+  const empData = empSheet.getDataRange().getValues();
+  
+  for (let i = 1; i < acData.length; i++) {
+    const email = String(acData[i][0]).trim();
+    const adjustmentHours = Number(acData[i][1]) || 0;
+    const effectiveDateRaw = acData[i][2];
+    const status = String(acData[i][4]).trim();
+    
+    if (status !== 'Pending') continue;
+    
+    const effectiveDate = new Date(effectiveDateRaw);
+    effectiveDate.setHours(0, 0, 0, 0);
+    
+    if (effectiveDate > today) continue;
+    
+    // Apply the change to employee's allowance
+    for (let j = 1; j < empData.length; j++) {
+      if (String(empData[j][1]).trim() === email) {
+        const currentAllowance = Number(empData[j][2]) || 0;
+        empSheet.getRange(j + 1, 3).setValue(currentAllowance + adjustmentHours);
+        break;
+      }
+    }
+    
+    // Mark as Applied
+    acSheet.getRange(i + 1, 5).setValue('Applied');
+    acSheet.getRange(i + 1, 8).setValue(new Date());
+    
+    logAction('system', 'Allowance Change Applied', `Applied ${adjustmentHours} hour adjustment for ${email}`);
+  }
+}
+
+function getAllowanceChanges() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('AllowanceChanges');
+  if (!sheet) return [];
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+  data.shift();
+  return data
+    .filter(r => r[0] && r[4] === 'Pending')
+    .map(r => ({
+      email: String(r[0]).trim(),
+      adjustmentHours: Number(r[1]) || 0,
+      effectiveDate: r[2] ? (r[2] instanceof Date ? r[2].toISOString() : String(r[2])) : null,
+      reason: String(r[3] || '').trim(),
+      status: String(r[4]).trim(),
+      createdBy: String(r[5] || '').trim(),
+      createdAt: r[6] ? (r[6] instanceof Date ? r[6].toISOString() : String(r[6])) : null
+    }));
 }
 
 // --- CAPACITY SETTINGS FUNCTIONS ---

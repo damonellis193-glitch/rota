@@ -141,13 +141,12 @@
                 <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-6">
                     <i class="fa-solid fa-user-lock text-3xl text-red-600"></i>
                 </div>
-                <h2 class="text-2xl font-bold text-gray-800 mb-2">Access Restricted</h2>
-                <p class="text-gray-600 mb-6">You are not currently registered in the Team Rota system.</p>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">Access Denied</h2>
+                <p class="text-gray-600 mb-6">Access Denied. Please speak to your administrator for access.</p>
                 <div class="bg-gray-50 rounded-lg p-4 mb-6 border border-gray-200">
                     <p class="text-xs text-gray-500 uppercase font-bold mb-1">Current User</p>
                     <p id="denied-email" class="text-sm font-mono font-bold text-gray-800 break-all">...</p>
                 </div>
-                <p class="text-sm text-gray-500">Please contact your manager or an administrator to request access.</p>
             </div>
         </div>
 
@@ -430,7 +429,7 @@
           </div>
 
           <!-- SICKNESS INSIGHTS -->
-          <div class="bg-white rounded-xl shadow overflow-hidden border-t-4 border-red-500">
+          <div id="admin-only-sickness" class="bg-white rounded-xl shadow overflow-hidden border-t-4 border-red-500">
             <div onclick="toggleElement('sickness-insights-container', 'sickness-icon')" class="px-6 py-4 border-b border-gray-100 bg-red-50 flex justify-between items-center cursor-pointer select-none">
                 <div class="flex items-center">
                    <h3 class="font-bold text-red-900 mr-2"><i class="fa-solid fa-heart-pulse mr-2"></i>Sickness & Absence Insights</h3>
@@ -447,17 +446,40 @@
 
           <!-- ACTIVE BOOKINGS -->
           <div class="bg-white rounded-xl shadow overflow-hidden border-t-4 border-blue-400">
-            <div onclick="toggleElement('active-bookings-container', 'active-bookings-icon')" class="px-6 py-4 border-b border-gray-100 bg-blue-50 flex justify-between items-center cursor-pointer select-none">
+            <div onclick="toggleActiveBookingsSection()" class="px-6 py-4 border-b border-gray-100 bg-blue-50 flex justify-between items-center cursor-pointer select-none">
                 <div class="flex items-center">
                    <h3 class="font-bold text-blue-900 mr-2">All Active Bookings</h3>
                    <i id="active-bookings-icon" class="fa-solid fa-chevron-down text-blue-900 transition-transform"></i>
                 </div>
-                <select id="admin-active-filter" onchange="renderAdminView()" onclick="event.stopPropagation()" class="border border-blue-300 rounded px-2 py-1 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white">
-                  <option value="all">Filter by Colleague...</option>
-                </select>
+            </div>
+            <div id="active-bookings-filters" class="hidden px-4 py-3 bg-blue-50 border-b border-blue-100 flex flex-wrap gap-2 items-center" onclick="event.stopPropagation()">
+              <select id="ab-filter-employee" onchange="renderActiveBookings()" class="border border-blue-300 rounded px-2 py-1 text-xs text-gray-700 bg-white">
+                <option value="all">All Colleagues</option>
+              </select>
+              <select id="ab-filter-manager" onchange="renderActiveBookings()" class="border border-blue-300 rounded px-2 py-1 text-xs text-gray-700 bg-white">
+                <option value="all">All Line Managers</option>
+              </select>
+              <select id="ab-filter-type" onchange="renderActiveBookings()" class="border border-blue-300 rounded px-2 py-1 text-xs text-gray-700 bg-white">
+                <option value="all">All Types</option>
+                <option value="Holiday">Holiday</option>
+                <option value="Sickness">Sickness</option>
+                <option value="WFH">WFH</option>
+                <option value="Office">Office</option>
+                <option value="Travel">Travel</option>
+                <option value="Maternity">Maternity</option>
+              </select>
+              <select id="ab-filter-status" onchange="renderActiveBookings()" class="border border-blue-300 rounded px-2 py-1 text-xs text-gray-700 bg-white">
+                <option value="all">All Statuses</option>
+                <option value="Approved">Approved</option>
+                <option value="Pending">Pending</option>
+                <option value="Cancellation Requested">Cancellation Requested</option>
+              </select>
+              <input type="date" id="ab-filter-from" onchange="renderActiveBookings()" class="border border-blue-300 rounded px-2 py-1 text-xs text-gray-700 bg-white" placeholder="From date">
+              <input type="date" id="ab-filter-to" onchange="renderActiveBookings()" class="border border-blue-300 rounded px-2 py-1 text-xs text-gray-700 bg-white" placeholder="To date">
+              <button onclick="resetActiveBookingsFilters()" class="text-xs text-gray-500 hover:text-gray-700 underline">Clear</button>
             </div>
             <div id="active-bookings-container" class="hidden max-h-96 overflow-y-auto border-t border-blue-100">
-               <table class="w-full text-left text-sm"><thead class="bg-blue-100 text-blue-900"><tr><th class="p-3">Colleague</th><th class="p-3">Type</th><th class="p-3">Dates</th><th class="p-3">Status</th><th class="p-3 text-right">Actions</th></tr></thead><tbody id="admin-all-bookings-body"></tbody></table>
+               <table class="w-full text-left text-sm"><thead class="bg-blue-100 text-blue-900"><tr><th class="p-3">Colleague</th><th class="p-3">Line Manager</th><th class="p-3">Type</th><th class="p-3">Dates</th><th class="p-3">Hours</th><th class="p-3">Status</th><th class="p-3 text-right">Actions</th></tr></thead><tbody id="admin-all-bookings-body"></tbody></table>
             </div>
           </div>
 
@@ -517,8 +539,53 @@
             </div>
           </div>
 
-          <!-- COLLEAGUE MANAGEMENT -->
-          <div class="bg-white rounded-xl shadow overflow-hidden">
+          <!-- SCHEDULED ALLOWANCE CHANGES (Admin Only) -->
+          <div id="admin-only-allowance-changes" class="bg-white rounded-xl shadow overflow-hidden border-t-4 border-orange-400">
+            <div onclick="toggleElement('allowance-changes-container', 'allowance-changes-icon'); toggleElement('allowance-changes-filters', 'allowance-changes-icon2')" class="px-6 py-4 border-b border-gray-100 bg-orange-50 flex justify-between items-center cursor-pointer select-none">
+              <div class="flex items-center">
+                <h3 class="font-bold text-orange-900 mr-2"><i class="fa-solid fa-sliders mr-2"></i>Scheduled Allowance Changes</h3>
+                <i id="allowance-changes-icon" class="fa-solid fa-chevron-down text-orange-900 transition-transform"></i>
+              </div>
+              <button onclick="event.stopPropagation(); openAllowanceChangeModal()" class="bg-orange-600 hover:bg-orange-700 text-white text-sm px-3 py-2 rounded font-bold shadow"><i class="fa-solid fa-plus mr-2"></i> Schedule New Change</button>
+            </div>
+            <div id="allowance-changes-container" class="hidden overflow-x-auto">
+              <div id="allowance-changes-body"></div>
+            </div>
+          </div>
+
+          <!-- EMAIL NOTIFICATION SETTINGS (Admin Only) -->
+          <div id="admin-only-email-settings" class="bg-white rounded-xl shadow overflow-hidden border-t-4 border-indigo-400">
+            <div onclick="toggleElement('email-settings-container', 'email-settings-icon')" class="px-6 py-4 border-b border-gray-100 bg-indigo-50 flex justify-between items-center cursor-pointer select-none">
+              <div class="flex items-center">
+                <h3 class="font-bold text-indigo-900 mr-2"><i class="fa-solid fa-envelope mr-2"></i>Email Notification Settings</h3>
+                <i id="email-settings-icon" class="fa-solid fa-chevron-down text-indigo-900 transition-transform"></i>
+              </div>
+            </div>
+            <div id="email-settings-container" class="hidden p-6">
+              <div class="space-y-4 max-w-lg">
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border">
+                  <div>
+                    <p class="text-sm font-bold text-gray-700">Email Notifications</p>
+                    <p class="text-xs text-gray-500 mt-1">When enabled, managers receive emails when their team submits requests</p>
+                  </div>
+                  <button id="email-toggle-btn" onclick="toggleEmailNotifications()" class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-gray-200 transition-colors duration-200 ease-in-out">
+                    <span id="email-toggle-indicator" class="inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-0"></span>
+                  </button>
+                </div>
+                <div>
+                  <label class="text-xs font-bold uppercase text-gray-500 block mb-1">App URL (included in notification emails)</label>
+                  <input type="text" id="app-url-input" class="w-full border rounded p-2 text-sm" placeholder="https://script.google.com/macros/s/...">
+                  <p class="text-xs text-gray-400 mt-1">This link will be included in email notifications so recipients can quickly access the app.</p>
+                </div>
+                <div class="flex justify-end">
+                  <button onclick="saveEmailSettings()" class="btn-primary text-sm px-6 py-2 rounded font-bold">Save Settings</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- COLLEAGUE MANAGEMENT (Admin Only) -->
+          <div id="admin-only-colleague-mgmt" class="bg-white rounded-xl shadow overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
                <h3 class="font-bold text-gray-700"><i class="fa-solid fa-users mr-2"></i>Colleague Management & Insights</h3>
                <div class="space-x-2">
@@ -598,7 +665,7 @@
           </div>
 
           <!-- SYSTEM AUDIT LOGS -->
-          <div class="bg-white rounded-xl shadow overflow-hidden border-t-4 border-gray-500">
+          <div id="admin-only-audit-logs" class="bg-white rounded-xl shadow overflow-hidden border-t-4 border-gray-500">
              <div onclick="toggleElement('audit-logs-container', 'audit-icon')" class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center cursor-pointer select-none">
                  <div class="flex items-center"><h3 class="font-bold text-gray-700 mr-2">System Audit Logs</h3><i id="audit-icon" class="fa-solid fa-chevron-down text-gray-500 transition-transform"></i></div>
              </div>
@@ -656,7 +723,7 @@
             <div><label class="text-xs font-bold uppercase text-gray-500 block">Allowance (Hours)</label><input type="number" name="allowance" value="187.5" step="0.5" required class="w-full border rounded p-2"></div>
             <div><label class="text-xs font-bold uppercase text-gray-500 block">Carry Over (Hours)</label><input type="number" name="carryOver" value="0" step="0.5" class="w-full border rounded p-2"></div>
           </div>
-          <div class="mb-3"><label class="text-xs font-bold uppercase text-gray-500 block">Role</label><select name="role" class="w-full border rounded p-2"><option value="User">User</option><option value="Admin">Admin</option></select></div>
+          <div class="mb-3"><label class="text-xs font-bold uppercase text-gray-500 block">Role <span class="text-red-500">*</span></label><select name="role" class="w-full border rounded p-2"><option value="">-- Select Role --</option><option value="Admin">Admin</option><option value="Manager">Manager</option><option value="Employee">Employee</option></select></div>
           <div class="mb-3"><label class="text-xs font-bold uppercase text-gray-500 block">Department</label><input type="text" name="department" placeholder="e.g. Bakery" class="w-full border rounded p-2"></div>
           <div class="mb-6"><label class="text-xs font-bold uppercase text-gray-500 block">Reports To</label><select name="manager" id="emp-manager-select" class="w-full border rounded p-2"><option value="">-- None --</option></select></div>
           <div class="flex justify-end space-x-2"><button type="button" onclick="closeModals()" class="px-4 py-2 text-gray-500">Cancel</button><button type="submit" class="btn-primary px-4 py-2 rounded font-bold">Save</button></div>
@@ -705,17 +772,47 @@
             </div>
           </div>
           <div class="mb-4">
-            <label class="text-xs font-bold uppercase text-gray-500 block mb-1">Days to Carry Over</label>
-            <input type="number" id="carryover-days" name="days" min="1" max="5" required class="w-full border rounded p-2">
-            <p class="text-xs text-gray-400 mt-1">Maximum: 5 days</p>
+            <label class="text-xs font-bold uppercase text-gray-500 block mb-1">Hours to Carry Over</label>
+            <input type="number" id="carryover-hours" name="hours" min="0.5" step="0.5" required class="w-full border rounded p-2">
+            <p class="text-xs text-gray-400 mt-1" id="carryover-max-hint">Maximum: your remaining hours</p>
           </div>
           <div class="mb-6">
             <label class="text-xs font-bold uppercase text-gray-500 block mb-1">Reason (Optional)</label>
-            <textarea name="reason" rows="3" class="w-full border rounded p-2 text-sm" placeholder="e.g., Did not have opportunity to use all days..."></textarea>
+            <textarea name="reason" rows="3" class="w-full border rounded p-2 text-sm" placeholder="e.g., Did not have opportunity to use all hours..."></textarea>
           </div>
           <div class="flex justify-end space-x-2">
             <button type="button" onclick="closeModals()" class="px-4 py-2 text-gray-500">Cancel</button>
             <button type="submit" id="btn-submit-carryover" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded font-bold">Submit Request</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Allowance Change Modal -->
+    <div id="modal-allowance-change" class="hidden fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div class="bg-orange-600 p-4 text-white flex justify-between items-center border-b-4 border-orange-700"><h3 class="font-bold"><i class="fa-solid fa-sliders mr-2"></i>Schedule Allowance Change</h3><button onclick="closeAllowanceChangeModal()" class="text-white"><i class="fa-solid fa-times"></i></button></div>
+        <form onsubmit="handleAllowanceChangeSubmit(event)" class="p-6">
+          <div class="mb-4">
+            <label class="text-xs font-bold uppercase text-gray-500 block mb-1">Employee</label>
+            <select id="allowance-employee-select" name="email" required class="w-full border rounded p-2 text-sm"></select>
+          </div>
+          <div class="mb-4">
+            <label class="text-xs font-bold uppercase text-gray-500 block mb-1">Adjustment Hours (positive or negative)</label>
+            <input type="number" name="adjustmentHours" step="0.5" required class="w-full border rounded p-2 text-sm" placeholder="e.g. 7.5 or -15">
+            <p class="text-xs text-gray-400 mt-1">Use negative values to reduce the allowance (e.g. -15 = reduce by 15 hours)</p>
+          </div>
+          <div class="mb-4">
+            <label class="text-xs font-bold uppercase text-gray-500 block mb-1">Effective Date (must be future)</label>
+            <input type="date" name="effectiveDate" required class="w-full border rounded p-2 text-sm">
+          </div>
+          <div class="mb-6">
+            <label class="text-xs font-bold uppercase text-gray-500 block mb-1">Reason</label>
+            <textarea name="reason" rows="3" required class="w-full border rounded p-2 text-sm" placeholder="e.g. Pro-rated adjustment for part-year employment..."></textarea>
+          </div>
+          <div class="flex justify-end space-x-2">
+            <button type="button" onclick="closeAllowanceChangeModal()" class="px-4 py-2 text-gray-500">Cancel</button>
+            <button type="submit" id="btn-submit-allowance-change" class="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded font-bold">Schedule Change</button>
           </div>
         </form>
       </div>
@@ -1135,22 +1232,26 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         
         // Ensure carryoverRequests exists
         if (!data.carryoverRequests) data.carryoverRequests = [];
+        if (!data.allowanceChanges) data.allowanceChanges = [];
+        if (!data.appSettings) data.appSettings = {};
+        
+        // Handle access denied (user not in Employees sheet)
+        if (data.accessDenied) {
+          console.log('[Rota App] Access denied - user not in Employees sheet');
+          document.getElementById('loading-screen').classList.add('hidden');
+          document.getElementById('main-nav').classList.add('hidden');
+          document.getElementById('view-access-denied').classList.remove('hidden');
+          return;
+        }
         
         appData = data;
         console.log('[Rota App] Hiding loading screen');
         document.getElementById('loading-screen').classList.add('hidden');
-        if (appData.currentUser.role === 'Guest') {
-          console.log('[Rota App] Guest user detected, showing access denied');
-          document.getElementById('main-nav').classList.add('hidden');
-          document.getElementById('view-access-denied').classList.remove('hidden');
-          document.getElementById('denied-email').textContent = appData.currentUser.email;
-          return;
-        }
         console.log('[Rota App] Showing dashboard for user:', appData.currentUser.name);
         document.getElementById('view-dashboard').classList.remove('hidden');
         document.getElementById('user-display').textContent = appData.currentUser.name;
         document.getElementById('user-role-display').textContent = appData.currentUser.role;
-        if(appData.currentUser.role === 'Admin') document.getElementById('admin-btn').classList.remove('hidden');
+        if(appData.currentUser.role === 'Admin' || appData.currentUser.role === 'Manager') document.getElementById('admin-btn').classList.remove('hidden');
         refreshAllViews();
         startPolling(); 
         console.log('[Rota App] Initialization complete');
@@ -1175,13 +1276,17 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       }
 
       function onBackgroundDataLoaded(data) {
-        if (!data || data.error) return;
+        if (!data || data.error || data.accessDenied) return;
         
         // Convert schedules array back to object
         convertSchedulesToObject(data);
         
+        if (!data.allowanceChanges) data.allowanceChanges = [];
+        if (!data.appSettings) data.appSettings = {};
+        
         appData = data;
         if(!appData.auditLogs) appData.auditLogs=[];
+        if(!appData.carryoverRequests) appData.carryoverRequests=[];
         if (document.getElementById('modal-booking').classList.contains('hidden') && document.getElementById('modal-employee').classList.contains('hidden')) {
           refreshAllViews();
         }
@@ -1199,6 +1304,8 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           renderWeeklyCapacity();
           loadMyMorriBookings();
           loadMyMorriRemovals();
+          renderAllowanceChanges();
+          loadEmailSettings();
         }
       }
 
@@ -1397,10 +1504,30 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         }
       }
 
+      function toggleActiveBookingsSection() {
+        var container = document.getElementById('active-bookings-container');
+        var filters = document.getElementById('active-bookings-filters');
+        var icon = document.getElementById('active-bookings-icon');
+        var isHidden = container.classList.contains('hidden');
+        if (isHidden) {
+          container.classList.remove('hidden');
+          filters.classList.remove('hidden');
+          if (icon) icon.classList.add('rotate-180');
+          renderActiveBookings();
+        } else {
+          container.classList.add('hidden');
+          filters.classList.add('hidden');
+          if (icon) icon.classList.remove('rotate-180');
+        }
+      }
+
       function isManagerOf(managerEmail, employeeEmail) {
         if (managerEmail === employeeEmail) return false;
         var current = appData.employees.find(function(e) { return e.email === employeeEmail; });
+        var visited = {};
         while (current && current.manager) {
+            if (visited[current.email]) break; // Prevent infinite loop on circular chains
+            visited[current.email] = true;
             if (current.manager === managerEmail) return true;
             current = appData.employees.find(function(e) { return e.email === current.manager; });
         }
@@ -1441,8 +1568,8 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         var myProfile = appData.employees.find(function(e) { return e.email === appData.currentUser.email; }) || appData.currentUser;
         var totalAllowance = (Number(myProfile.allowance) || 0) + (Number(myProfile.carryOver) || 0);
         
-        // Calculate used hours (only Holiday bookings deduct from allowance)
-        var usedHours = myBookings.filter(function(b) { return b.type === 'Holiday' && b.status === 'Approved' && isDateInCurrentFY(b.startDate); }).reduce(function(acc, c) { return acc + (Number(c.hours) || (c.daysCount * 7.5)); }, 0);
+        // Calculate used hours (Approved + Pending + Cancellation Requested = "active" bookings)
+        var usedHours = myBookings.filter(function(b) { return b.type === 'Holiday' && (b.status === 'Approved' || b.status === 'Pending' || b.status === 'Cancellation Requested') && isDateInCurrentFY(b.startDate); }).reduce(function(acc, c) { return acc + (Number(c.hours) || (c.daysCount * 7.5)); }, 0);
         var remainingHours = totalAllowance - usedHours;
         var remainingDays = Math.floor(remainingHours / 7.5 * 10) / 10; // Round to 1 decimal
         
@@ -1471,7 +1598,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         var adminAlertContainer = document.getElementById('admin-dashboard-alert');
         if (adminAlertContainer) adminAlertContainer.remove(); 
 
-        if (appData.currentUser.role === 'Admin') {
+        if (appData.currentUser.role === 'Admin' || appData.currentUser.role === 'Manager') {
           var myPending = appData.bookings.filter(function(b) {
              if (b.status !== 'Pending' && b.status !== 'Cancellation Requested') return false;
              return isManagerOf(appData.currentUser.email, b.email);
@@ -1782,10 +1909,14 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       }
 
       function renderAdminView() {
-        if(appData.currentUser.role!=='Admin') return;
+        if(appData.currentUser.role!=='Admin' && appData.currentUser.role!=='Manager') return;
+        var isAdmin = appData.currentUser.role === 'Admin';
         
+        // Pending & Cancellation Requests — filtered to manager's chain
         var filterVal = document.getElementById('admin-pending-filter').value;
-        var pending = appData.bookings.filter(function(b) { return b.status==='Pending' || b.status==='Cancellation Requested'; }); 
+        var pending = appData.bookings.filter(function(b) {
+          return (b.status==='Pending' || b.status==='Cancellation Requested') && isManagerOf(appData.currentUser.email, b.email);
+        });
         document.getElementById('pending-count').textContent=pending.length;
         
         var filterSel = document.getElementById('admin-pending-filter');
@@ -1818,9 +1949,9 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
             }
 
             if (b.status === 'Cancellation Requested') {
-                h+='<tr class="border-b bg-red-50"><td class="p-3 font-bold">' + n + '</td><td class="p-3 text-red-600 font-bold">Cancel Request</td><td class="p-3">' + formatDate(b.startDate) + ' - ' + formatDate(b.endDate) + '</td><td class="p-3 text-right">' + actionButtons + '</td></tr>';
+                h+='<tr class="border-b bg-red-50"><td class="p-3 font-bold">' + n + '</td><td class="p-3 text-red-600 font-bold">Cancel Request <span class="text-xs font-normal text-gray-500">(' + (Number(b.hours)||0).toFixed(1) + ' hrs)</span></td><td class="p-3">' + formatDate(b.startDate) + ' - ' + formatDate(b.endDate) + '</td><td class="p-3 text-right">' + actionButtons + '</td></tr>';
             } else {
-                h+='<tr class="border-b"><td class="p-3 font-bold">' + n + '</td><td class="p-3">' + b.type + '</td><td class="p-3"><button onclick="jumpToCalendar(\'' + b.startDate + '\')" class="text-blue-600 hover:text-blue-800 hover:underline font-medium flex items-center" title="View in Calendar"><i class="fa-solid fa-calendar-day mr-2"></i> ' + formatDate(b.startDate) + ' - ' + formatDate(b.endDate) + ' </button></td><td class="p-3 text-right">' + actionButtons + '</td></tr>';
+                h+='<tr class="border-b"><td class="p-3 font-bold">' + n + '</td><td class="p-3">' + b.type + ' <span class="text-xs text-gray-500">(' + (Number(b.hours)||0).toFixed(1) + ' hrs)</span></td><td class="p-3"><button onclick="jumpToCalendar(\'' + b.startDate + '\')" class="text-blue-600 hover:text-blue-800 hover:underline font-medium flex items-center" title="View in Calendar"><i class="fa-solid fa-calendar-day mr-2"></i> ' + formatDate(b.startDate) + ' - ' + formatDate(b.endDate) + ' </button></td><td class="p-3 text-right">' + actionButtons + '</td></tr>';
             }
           });
           inbox.innerHTML=h+'</tbody></table>';
@@ -1838,7 +1969,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           carryoverSection.classList.add('hidden');
         } else {
           carryoverSection.classList.remove('hidden');
-          var carryoverHtml = '<table class="w-full text-left text-sm"><thead class="bg-purple-50 text-purple-900"><tr><th class="p-3">Colleague</th><th class="p-3">Days Requested</th><th class="p-3">Reason</th><th class="p-3">Requested On</th><th class="p-3 text-right">Action</th></tr></thead><tbody>';
+          var carryoverHtml = '<table class="w-full text-left text-sm"><thead class="bg-purple-50 text-purple-900"><tr><th class="p-3">Colleague</th><th class="p-3">Hours Requested</th><th class="p-3">Reason</th><th class="p-3">Requested On</th><th class="p-3 text-right">Action</th></tr></thead><tbody>';
           
           pendingCarryover.forEach(function(req) {
             var empFound = appData.employees.find(function(e) { return e.email === req.email; });
@@ -1849,12 +1980,12 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
             var canApprove = isManagerOf(appData.currentUser.email, req.email);
             var actionButtons = '';
             if (canApprove) {
-              actionButtons = '<button onclick="handleCarryoverStatus(\'' + req.email + '\', \'approve\', ' + req.days + ')" class="text-green-600 font-bold mr-2">Approve</button><button onclick="handleCarryoverStatus(\'' + req.email + '\', \'reject\', 0)" class="text-red-500">Reject</button>';
+              actionButtons = '<button onclick="handleCarryoverStatus(\'' + req.email + '\', \'approve\', ' + req.hours + ')" class="text-green-600 font-bold mr-2">Approve</button><button onclick="handleCarryoverStatus(\'' + req.email + '\', \'reject\', 0)" class="text-red-500">Reject</button>';
             } else {
               actionButtons = '<span class="text-xs text-gray-400 italic">Awaiting Manager</span>';
             }
             
-            carryoverHtml += '<tr class="border-b border-gray-100 hover:bg-purple-50"><td class="p-3 font-bold text-gray-700">' + empName + '</td><td class="p-3 font-bold text-purple-600">' + req.days + ' days</td><td class="p-3 text-sm text-gray-600">' + reason + '</td><td class="p-3 text-xs text-gray-500">' + requestDate + '</td><td class="p-3 text-right">' + actionButtons + '</td></tr>';
+            carryoverHtml += '<tr class="border-b border-gray-100 hover:bg-purple-50"><td class="p-3 font-bold text-gray-700">' + empName + '</td><td class="p-3 font-bold text-purple-600">' + (req.hours || 0).toFixed(1) + ' hrs</td><td class="p-3 text-sm text-gray-600">' + reason + '</td><td class="p-3 text-xs text-gray-500">' + requestDate + '</td><td class="p-3 text-right">' + actionButtons + '</td></tr>';
           });
           
           carryoverContainer.innerHTML = carryoverHtml + '</tbody></table>';
@@ -1905,30 +2036,266 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
             auditBody.innerHTML = '<tr><td colspan="4" class="p-4 text-gray-400 italic">No logs available.</td></tr>';
         }
 
-        // Active Bookings Render
-        var activeFilterVal = document.getElementById('admin-active-filter').value;
-        var allBookingsBody = document.getElementById('admin-all-bookings-body');
-        var allApproved = appData.bookings.filter(function(b) { return b.status === 'Approved' || b.status === 'Pending'; }).sort(function(a, b) { return new Date(b.startDate) - new Date(a.startDate); });
-        var activeFilterSel = document.getElementById('admin-active-filter');
-        if (activeFilterSel.options.length <= 1) {
-           var uniqueEmails = getUniqueValues(allApproved.map(function(b) { return b.email; }));
-           uniqueEmails.forEach(function(email) { var emp = appData.employees.find(function(e) { return e.email === email; }); var name = (emp || {}).name || email; var opt = document.createElement('option'); opt.value = email; opt.textContent = name; activeFilterSel.appendChild(opt); });
-        }
-        if (activeFilterVal !== 'all') { allApproved = allApproved.filter(function(b) { return b.email === activeFilterVal; }); }
-        if (allApproved.length === 0) {
-          allBookingsBody.innerHTML = '<tr class="text-gray-400 italic"><td class="p-4">No active bookings found.</td></tr>';
-        } else {
-            var abHtml = '';
-            allApproved.forEach(function(b) {
-                var empFound = appData.employees.find(function(e) { return e.email === b.email; });
-                var name = (empFound || {}).name || b.email;
-                abHtml += '<tr class="border-b border-gray-100 hover:bg-gray-50"><td class="p-3 font-bold text-gray-700">' + name + '</td><td class="p-3">' + b.type + '</td><td class="p-3">' + formatDate(b.startDate) + ' - ' + formatDate(b.endDate) + '</td><td class="p-3"><span class="px-2 py-1 rounded text-xs font-bold ' + (b.status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700') + '">' + b.status + '</span></td><td class="p-3 text-right"><a href="mailto:' + b.email + '?subject=Regarding Holiday ' + formatDate(b.startDate) + '" class="text-blue-500 hover:text-blue-700 mr-3" title="Email"><i class="fa-solid fa-envelope"></i></a><button onclick="handleAdminCancellation(\'' + b.id + '\', \'approve\')" class="text-red-400 hover:text-red-600" title="Cancel Booking"><i class="fa-solid fa-ban"></i></button></td></tr>';
-            });
-            allBookingsBody.innerHTML = abHtml;
-        }
+        // Active Bookings Render - delegated to renderActiveBookings()
+        renderActiveBookings();
 
-        // Enhanced Colleague Management Table
-        renderEnhancedColleagueTable();
+        // Show/hide admin-only sections
+        var adminOnlySections = ['admin-only-allowance-changes', 'admin-only-email-settings', 'admin-only-colleague-mgmt', 'my-morri-section', 'my-morri-removals-section', 'admin-only-sickness', 'admin-only-audit-logs'];
+        adminOnlySections.forEach(function(id) {
+          var el = document.getElementById(id);
+          if (el) el.classList.toggle('hidden', !isAdmin);
+        });
+
+        // Enhanced Colleague Management Table (Admin only)
+        if (isAdmin) {
+          renderEnhancedColleagueTable();
+        }
+      }
+
+      function renderActiveBookings() {
+        var allBookingsBody = document.getElementById('admin-all-bookings-body');
+        if (!allBookingsBody) return;
+        
+        // Show filter bar when container is expanded
+        var filterBar = document.getElementById('active-bookings-filters');
+        var container = document.getElementById('active-bookings-container');
+        if (filterBar && container && !container.classList.contains('hidden')) {
+          filterBar.classList.remove('hidden');
+        }
+        
+        var allBookings = appData.bookings.filter(function(b) {
+          return b.status === 'Approved' || b.status === 'Pending' || b.status === 'Cancellation Requested';
+        }).sort(function(a, b) { return new Date(a.startDate) - new Date(b.startDate); }); // ascending
+        
+        // Populate employee dropdown
+        var empSel = document.getElementById('ab-filter-employee');
+        if (empSel && empSel.options.length <= 1) {
+          var uniqueEmails = getUniqueValues(allBookings.map(function(b) { return b.email; }));
+          uniqueEmails.forEach(function(email) {
+            var emp = appData.employees.find(function(e) { return e.email === email; });
+            var name = (emp || {}).name || email;
+            var opt = document.createElement('option');
+            opt.value = email; opt.textContent = name;
+            empSel.appendChild(opt);
+          });
+        }
+        
+        // Populate manager dropdown
+        var mgrSel = document.getElementById('ab-filter-manager');
+        if (mgrSel && mgrSel.options.length <= 1) {
+          var uniqueManagers = getUniqueValues(appData.employees.map(function(e) { return e.manager; }).filter(Boolean));
+          uniqueManagers.forEach(function(mgrEmail) {
+            var mgr = appData.employees.find(function(e) { return e.email === mgrEmail; });
+            var name = mgr ? mgr.name : mgrEmail;
+            var opt = document.createElement('option');
+            opt.value = mgrEmail; opt.textContent = name;
+            mgrSel.appendChild(opt);
+          });
+        }
+        
+        // Apply filters
+        var filterEmp = empSel ? empSel.value : 'all';
+        var filterMgr = mgrSel ? mgrSel.value : 'all';
+        var filterType = document.getElementById('ab-filter-type') ? document.getElementById('ab-filter-type').value : 'all';
+        var filterStatus = document.getElementById('ab-filter-status') ? document.getElementById('ab-filter-status').value : 'all';
+        var filterFrom = document.getElementById('ab-filter-from') ? document.getElementById('ab-filter-from').value : '';
+        var filterTo = document.getElementById('ab-filter-to') ? document.getElementById('ab-filter-to').value : '';
+        
+        var filtered = allBookings.filter(function(b) {
+          if (filterEmp !== 'all' && b.email !== filterEmp) return false;
+          if (filterType !== 'all' && b.type !== filterType) return false;
+          if (filterStatus !== 'all' && b.status !== filterStatus) return false;
+          if (filterFrom && new Date(b.startDate) < new Date(filterFrom)) return false;
+          if (filterTo) { var toDate = new Date(filterTo); toDate.setHours(23, 59, 59, 999); if (new Date(b.endDate) > toDate) return false; }
+          if (filterMgr !== 'all') {
+            var emp = appData.employees.find(function(e) { return e.email === b.email; });
+            if (!emp || emp.manager !== filterMgr) return false;
+          }
+          return true;
+        });
+        
+        if (filtered.length === 0) {
+          allBookingsBody.innerHTML = '<tr class="text-gray-400 italic"><td colspan="7" class="p-4">No active bookings found.</td></tr>';
+        } else {
+          var abHtml = '';
+          filtered.forEach(function(b) {
+            var empFound = appData.employees.find(function(e) { return e.email === b.email; });
+            var name = (empFound || {}).name || b.email;
+            var mgrEmail = (empFound || {}).manager || '';
+            var mgrEmp = mgrEmail ? appData.employees.find(function(e) { return e.email === mgrEmail; }) : null;
+            var mgrName = mgrEmp ? mgrEmp.name : (mgrEmail || '--');
+            var statusClass = b.status === 'Approved' ? 'bg-green-100 text-green-700' : b.status === 'Cancellation Requested' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700';
+            abHtml += '<tr class="border-b border-gray-100 hover:bg-blue-50"><td class="p-3 font-bold text-gray-700">' + name + '</td><td class="p-3 text-xs text-gray-500">' + mgrName + '</td><td class="p-3">' + b.type + '</td><td class="p-3 text-sm">' + formatDate(b.startDate) + ' - ' + formatDate(b.endDate) + '</td><td class="p-3 text-sm font-medium">' + (Number(b.hours)||0).toFixed(1) + ' hrs</td><td class="p-3"><span class="px-2 py-1 rounded text-xs font-bold ' + statusClass + '">' + b.status + '</span></td><td class="p-3 text-right"><a href="mailto:' + b.email + '?subject=Regarding Holiday ' + formatDate(b.startDate) + '" class="text-blue-500 hover:text-blue-700 mr-2" title="Email"><i class="fa-solid fa-envelope"></i></a><button onclick="handleAdminCancellation(\'' + b.id + '\', \'approve\')" class="text-red-400 hover:text-red-600" title="Cancel Booking"><i class="fa-solid fa-ban"></i></button></td></tr>';
+          });
+          allBookingsBody.innerHTML = abHtml;
+        }
+      }
+
+      function resetActiveBookingsFilters() {
+        ['ab-filter-employee','ab-filter-manager','ab-filter-type','ab-filter-status'].forEach(function(id) {
+          var el = document.getElementById(id);
+          if (el) el.value = 'all';
+        });
+        ['ab-filter-from','ab-filter-to'].forEach(function(id) {
+          var el = document.getElementById(id);
+          if (el) el.value = '';
+        });
+        renderActiveBookings();
+      }
+
+      // --- EMAIL SETTINGS FUNCTIONS ---
+      function loadEmailSettings() {
+        var settings = appData.appSettings || {};
+        var enabled = settings.emailNotificationsEnabled === 'true';
+        updateEmailToggleUI(enabled);
+        var urlInput = document.getElementById('app-url-input');
+        if (urlInput) urlInput.value = settings.appUrl || '';
+      }
+
+      function updateEmailToggleUI(enabled) {
+        var btn = document.getElementById('email-toggle-btn');
+        var indicator = document.getElementById('email-toggle-indicator');
+        if (!btn || !indicator) return;
+        if (enabled) {
+          btn.classList.remove('bg-gray-200');
+          btn.classList.add('bg-indigo-600');
+          indicator.style.transform = 'translateX(20px)';
+        } else {
+          btn.classList.remove('bg-indigo-600');
+          btn.classList.add('bg-gray-200');
+          indicator.style.transform = 'translateX(0)';
+        }
+      }
+
+      function toggleEmailNotifications() {
+        var settings = appData.appSettings || {};
+        var enabled = settings.emailNotificationsEnabled === 'true';
+        settings.emailNotificationsEnabled = (!enabled).toString();
+        appData.appSettings = settings;
+        updateEmailToggleUI(!enabled);
+      }
+
+      function saveEmailSettings() {
+        var settings = {
+          emailNotificationsEnabled: (appData.appSettings || {}).emailNotificationsEnabled || 'false',
+          appUrl: (document.getElementById('app-url-input') || {}).value || ''
+        };
+        appData.appSettings = settings;
+        google.script.run
+          .withSuccessHandler(function() { alert('Settings saved!'); })
+          .withFailureHandler(handleServerError)
+          .saveAppSettings(settings);
+      }
+
+      // --- ALLOWANCE CHANGES FUNCTIONS ---
+      function renderAllowanceChanges() {
+        var container = document.getElementById('allowance-changes-body');
+        if (!container) return;
+        var changes = appData.allowanceChanges || [];
+        var pending = changes.filter(function(c) { return c.status === 'Pending'; });
+        if (pending.length === 0) {
+          container.innerHTML = '<div class="p-6 text-center text-gray-400 italic">No pending scheduled changes.</div>';
+          return;
+        }
+        var html = '<table class="w-full text-left text-sm"><thead class="bg-orange-50 text-orange-900"><tr><th class="p-3">Employee</th><th class="p-3">Adjustment</th><th class="p-3">Effective Date</th><th class="p-3">Reason</th><th class="p-3 text-right">Action</th></tr></thead><tbody>';
+        pending.forEach(function(c) {
+          var emp = appData.employees.find(function(e) { return e.email === c.email; });
+          var empName = (emp || {}).name || c.email;
+          var adjClass = c.adjustmentHours >= 0 ? 'text-green-600 font-bold' : 'text-red-600 font-bold';
+          var adjText = (c.adjustmentHours >= 0 ? '+' : '') + Number(c.adjustmentHours).toFixed(1) + ' hrs';
+          html += '<tr class="border-b hover:bg-orange-50"><td class="p-3 font-bold text-gray-700">' + empName + '</td><td class="p-3 ' + adjClass + '">' + adjText + '</td><td class="p-3">' + formatDate(c.effectiveDate) + '</td><td class="p-3 text-gray-600 text-sm">' + (c.reason || '--') + '</td><td class="p-3 text-right"><button onclick="cancelAllowanceChange(\'' + c.email + '\')" class="text-red-500 hover:text-red-700 font-bold text-sm"><i class="fa-solid fa-times mr-1"></i>Cancel</button></td></tr>';
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+      }
+
+      function openAllowanceChangeModal() {
+        document.getElementById('modal-allowance-change').classList.remove('hidden');
+        var sel = document.getElementById('allowance-employee-select');
+        sel.innerHTML = '<option value="">-- Select Employee --</option>' + appData.employees.map(function(e) { return '<option value="' + e.email + '">' + e.name + '</option>'; }).join('');
+        var tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        var effectiveDateInput = document.querySelector('#modal-allowance-change input[name="effectiveDate"]');
+        if (effectiveDateInput) effectiveDateInput.min = tomorrow.toISOString().split('T')[0];
+        // Reset form
+        var form = document.querySelector('#modal-allowance-change form');
+        if (form) { form.reset(); sel.value = ''; }
+      }
+
+      function closeAllowanceChangeModal() {
+        document.getElementById('modal-allowance-change').classList.add('hidden');
+      }
+
+      function handleAllowanceChangeSubmit(e) {
+        e.preventDefault();
+        var btn = document.getElementById('btn-submit-allowance-change');
+        btn.disabled = true;
+        btn.textContent = 'Scheduling...';
+        
+        var fd = {
+          email: e.target.email.value,
+          adjustmentHours: Number(e.target.adjustmentHours.value),
+          effectiveDate: e.target.effectiveDate.value,
+          reason: e.target.reason.value
+        };
+        
+        // Check if employee already has a pending change
+        var existing = (appData.allowanceChanges || []).find(function(c) { return c.email === fd.email && c.status === 'Pending'; });
+        if (existing) {
+          alert('This employee already has a pending scheduled change.');
+          btn.disabled = false;
+          btn.textContent = 'Schedule Change';
+          return;
+        }
+        
+        // Warn if adjustment would take allowance below zero
+        if (fd.adjustmentHours < 0) {
+          var emp = appData.employees.find(function(e) { return e.email === fd.email; });
+          if (emp) {
+            var currentAllowance = (Number(emp.allowance) || 0) + (Number(emp.carryOver) || 0);
+            if (currentAllowance + fd.adjustmentHours < 0) {
+              if (!confirm('Warning: This adjustment would take ' + emp.name + '\'s allowance below zero (' + (currentAllowance + fd.adjustmentHours).toFixed(1) + ' hrs). Do you want to proceed?')) {
+                btn.disabled = false;
+                btn.textContent = 'Schedule Change';
+                return;
+              }
+            }
+          }
+        }
+        
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res.success) {
+              alert('Allowance change scheduled successfully!');
+              closeAllowanceChangeModal();
+              loadDataBackground();
+            } else {
+              alert(res.message || 'Failed to schedule change.');
+            }
+            btn.disabled = false;
+            btn.textContent = 'Schedule Change';
+          })
+          .withFailureHandler(function(err) {
+            btn.disabled = false;
+            btn.textContent = 'Schedule Change';
+            handleServerError(err);
+          })
+          .saveAllowanceChange(fd);
+      }
+
+      function cancelAllowanceChange(email) {
+        if (!confirm('Are you sure you want to cancel this scheduled allowance change?')) return;
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res.success) {
+              alert('Allowance change cancelled.');
+              loadDataBackground();
+            } else {
+              alert(res.message || 'Failed to cancel change.');
+            }
+          })
+          .withFailureHandler(handleServerError)
+          .cancelAllowanceChange(email);
       }
 
       // Global variables for sorting and filtering
@@ -2236,6 +2603,19 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         e.preventDefault();
         var fd = { name:e.target.name.value, email:e.target.email.value, allowance:e.target.allowance.value, carryOver:e.target.carryOver.value, role:e.target.role.value, manager:e.target.manager.value, department:e.target.department.value };
         var isNew = !appData.employees.some(function(emp) { return emp.email === fd.email; });
+        
+        // Validate on new employee creation only
+        if (isNew) {
+          if (!fd.role) {
+            alert('A role must be assigned before creating this employee.');
+            return;
+          }
+          if (fd.role !== 'Admin' && !fd.manager) {
+            alert('A manager must be assigned for non-Admin employees.');
+            return;
+          }
+        }
+        
         google.script.run.withSuccessHandler(function() {
             var idx = appData.employees.findIndex(function(emp) { return emp.email === fd.email; });
             if (idx >= 0) appData.employees[idx] = fd; else appData.employees.push(fd);
@@ -2293,10 +2673,22 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         hoursField.classList.remove('bg-gray-100', 'cursor-not-allowed');
         document.getElementById('hours-breakdown').classList.add('hidden');
         
-        if(appData.currentUser.role==='Admin'){
+        var role = appData.currentUser.role;
+        if(role==='Admin'){
             d.classList.remove('hidden');
             s.innerHTML='<option value="">-- Myself --</option>'+appData.employees.filter(function(e) { return e.email!==appData.currentUser.email; }).map(function(e) { return '<option value="' + e.email + '">' + e.name + '</option>'; }).join('');
             if(pre) s.value=pre; else s.value="";
+        } else if(role==='Manager'){
+            // Show chain members that the manager can book for
+            var chainMembers = appData.employees.filter(function(emp) { return isManagerOf(appData.currentUser.email, emp.email); });
+            if(chainMembers.length > 0){
+                d.classList.remove('hidden');
+                s.innerHTML='<option value="">-- Myself --</option>'+chainMembers.map(function(e) { return '<option value="' + e.email + '">' + e.name + '</option>'; }).join('');
+                if(pre) s.value=pre; else s.value="";
+            } else {
+                d.classList.add('hidden');
+                s.value='';
+            }
         } else {
             d.classList.add('hidden');
             s.value='';
@@ -2308,8 +2700,8 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         var form = document.querySelector('#modal-employee form');
         var managerSel = document.getElementById('emp-manager-select');
         managerSel.innerHTML = '<option value="">-- None --</option>';
-        appData.employees.filter(function(e) { return e.role === 'Admin'; }).forEach(function(m) {
-            managerSel.innerHTML += '<option value="' + m.email + '">' + m.name + '</option>';
+        appData.employees.filter(function(e) { return e.role === 'Admin' || e.role === 'Manager'; }).forEach(function(m) {
+            managerSel.innerHTML += '<option value="' + m.email + '">' + m.name + ' (' + m.role + ')</option>';
         });
         if (editEmail) {
             var emp = appData.employees.find(function(e) { return e.email === editEmail; });
@@ -2328,7 +2720,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       }
 
       function closeModals() {
-        ['modal-booking','modal-employee','modal-schedule','modal-chaser','modal-carryover'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
+        ['modal-booking','modal-employee','modal-schedule','modal-chaser','modal-carryover','modal-allowance-change'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
       }
 
       function sendChaser() {
@@ -2434,17 +2826,24 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       function openCarryoverModal() {
         document.getElementById('modal-carryover').classList.remove('hidden');
         
-        // Calculate current year stats
+        // Calculate current year stats using hours (Approved + Pending + Cancellation Requested = "active")
         var myBookings = appData.bookings.filter(function(b) { return b.email === appData.currentUser.email && b.status !== 'Cancelled'; });
         var myProfile = appData.employees.find(function(e) { return e.email === appData.currentUser.email; }) || appData.currentUser;
         var totalAllowance = (Number(myProfile.allowance) || 0) + (Number(myProfile.carryOver) || 0);
-        var used = myBookings.filter(function(b) { return b.type === 'Holiday' && b.status === 'Approved' && isDateInCurrentFY(b.startDate); }).reduce(function(acc, c) { return acc + c.daysCount; }, 0);
-        var remaining = totalAllowance - used;
+        var usedHours = myBookings.filter(function(b) { return b.type === 'Holiday' && (b.status === 'Approved' || b.status === 'Pending' || b.status === 'Cancellation Requested') && isDateInCurrentFY(b.startDate); }).reduce(function(acc, c) { return acc + (Number(c.hours) || (c.daysCount * 7.5)); }, 0);
+        var usedDays = Math.floor(usedHours / 7.5 * 10) / 10;
+        var remainingHours = Math.max(0, totalAllowance - usedHours);
+        var remainingDays = Math.floor(remainingHours / 7.5 * 10) / 10;
+        var totalDays = Math.floor(totalAllowance / 7.5 * 10) / 10;
         
-        document.getElementById('carryover-total').textContent = totalAllowance + ' days';
-        document.getElementById('carryover-used').textContent = used + ' days';
-        document.getElementById('carryover-available').textContent = remaining + ' days';
-        document.getElementById('carryover-days').max = Math.min(5, remaining);
+        document.getElementById('carryover-total').textContent = totalDays.toFixed(1) + ' days / ' + totalAllowance.toFixed(1) + ' hrs';
+        document.getElementById('carryover-used').textContent = usedDays.toFixed(1) + ' days / ' + usedHours.toFixed(1) + ' hrs';
+        document.getElementById('carryover-available').textContent = remainingDays.toFixed(1) + ' days / ' + remainingHours.toFixed(1) + ' hrs';
+        var maxHint = document.getElementById('carryover-max-hint');
+        if (maxHint) maxHint.textContent = 'Maximum: ' + remainingHours.toFixed(1) + ' hrs (your remaining allowance)';
+        var inputField = document.getElementById('carryover-hours');
+        inputField.max = remainingHours > 0 ? remainingHours : 0;
+        inputField.value = '';
       }
 
       function handleCarryoverRequest(e) {
@@ -2454,7 +2853,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         btn.disabled = true;
         
         var fd = {
-          days: Number(e.target.days.value),
+          hours: Number(e.target.hours.value),
           reason: e.target.reason.value || ''
         };
         
@@ -2483,7 +2882,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           .submitCarryoverRequest(fd);
       }
 
-      function handleCarryoverStatus(requestEmail, action, days) {
+      function handleCarryoverStatus(requestEmail, action, hours) {
         if (!confirm('Are you sure you want to ' + action + ' this carryover request?')) return;
         
         google.script.run
@@ -2496,7 +2895,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
             }
           })
           .withFailureHandler(handleServerError)
-          [action === 'approve' ? 'approveCarryoverRequest' : 'rejectCarryoverRequest'](requestEmail, days);
+          [action === 'approve' ? 'approveCarryoverRequest' : 'rejectCarryoverRequest'](requestEmail, hours);
       }
 
       // --- WEEKLY CAPACITY FUNCTIONS ---
