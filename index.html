@@ -773,7 +773,7 @@
           </div>
           <div class="mb-4">
             <label class="text-xs font-bold uppercase text-gray-500 block mb-1">Hours to Carry Over</label>
-            <input type="number" id="carryover-days" name="hours" min="0.5" step="0.5" required class="w-full border rounded p-2">
+            <input type="number" id="carryover-hours" name="hours" min="0.5" step="0.5" required class="w-full border rounded p-2">
             <p class="text-xs text-gray-400 mt-1" id="carryover-max-hint">Maximum: your remaining hours</p>
           </div>
           <div class="mb-6">
@@ -1526,7 +1526,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         var current = appData.employees.find(function(e) { return e.email === employeeEmail; });
         var visited = {};
         while (current && current.manager) {
-            if (visited[current.email]) break; // Prevent infinite loop
+            if (visited[current.email]) break; // Prevent infinite loop on circular chains
             visited[current.email] = true;
             if (current.manager === managerEmail) return true;
             current = appData.employees.find(function(e) { return e.email === current.manager; });
@@ -2106,7 +2106,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           if (filterType !== 'all' && b.type !== filterType) return false;
           if (filterStatus !== 'all' && b.status !== filterStatus) return false;
           if (filterFrom && new Date(b.startDate) < new Date(filterFrom)) return false;
-          if (filterTo && new Date(b.endDate) > new Date(filterTo + 'T23:59:59')) return false;
+          if (filterTo) { var toDate = new Date(filterTo); toDate.setHours(23, 59, 59, 999); if (new Date(b.endDate) > toDate) return false; }
           if (filterMgr !== 'all') {
             var emp = appData.employees.find(function(e) { return e.email === b.email; });
             if (!emp || emp.manager !== filterMgr) return false;
@@ -2841,7 +2841,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         document.getElementById('carryover-available').textContent = remainingDays.toFixed(1) + ' days / ' + remainingHours.toFixed(1) + ' hrs';
         var maxHint = document.getElementById('carryover-max-hint');
         if (maxHint) maxHint.textContent = 'Maximum: ' + remainingHours.toFixed(1) + ' hrs (your remaining allowance)';
-        var inputField = document.getElementById('carryover-days');
+        var inputField = document.getElementById('carryover-hours');
         inputField.max = remainingHours > 0 ? remainingHours : 0;
         inputField.value = '';
       }

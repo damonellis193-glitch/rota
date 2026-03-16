@@ -907,8 +907,8 @@ function approveCarryoverRequest(email, requestedHours) {
   
   // Send email notification
   try {
-    const empData2 = empSheet.getDataRange().getValues();
-    const employee = empData2.find(r => String(r[1]).trim() === email);
+    const empDataLatest = empSheet.getDataRange().getValues();
+    const employee = empDataLatest.find(r => String(r[1]).trim() === email);
     const employeeName = employee ? String(employee[0]).trim() : email;
     
     MailApp.sendEmail({
@@ -1032,12 +1032,12 @@ function saveAllowanceChange(data) {
     }
   }
   
-  // Validate effective date is in the future
+  // Validate effective date is strictly in the future (must be tomorrow or later)
   const effectiveDate = new Date(data.effectiveDate);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   effectiveDate.setHours(0, 0, 0, 0);
-  if (effectiveDate <= today) {
+  if (effectiveDate.getTime() <= today.getTime()) {
     return { success: false, message: 'Effective date must be in the future.' };
   }
   
