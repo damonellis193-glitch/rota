@@ -158,23 +158,30 @@
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <!-- Allowance -->
             <div class="bg-white rounded-xl shadow-md p-6 border-t-4 border-green-600 relative overflow-hidden">
-              <div class="flex justify-between items-start relative z-10">
-                <div>
-                  <p class="text-xs font-bold text-gray-400 uppercase tracking-wide">Allowance Remaining</p>
+              <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Allowance Remaining</p>
+              <div class="flex items-start justify-between relative z-10">
+                <!-- LEFT: carry-over + normal -->
+                <div class="flex-1 pr-4">
                   <!-- Carry Over row -->
-                  <div class="mt-2">
+                  <div class="mb-2">
                     <p class="text-xs text-purple-500 font-bold uppercase tracking-wide">Carry Over</p>
                     <h3 class="text-2xl font-extrabold text-purple-700"><span id="dash-carryover-remaining-days">--</span> <span class="text-base text-gray-500">days</span></h3>
                     <p class="text-sm text-purple-500 font-bold"><span id="dash-carryover-remaining-hours">--</span> hrs</p>
                   </div>
                   <!-- Normal Allowance row -->
-                  <div class="mt-3">
+                  <div>
                     <p class="text-xs text-green-500 font-bold uppercase tracking-wide">Normal</p>
                     <h3 class="text-2xl font-extrabold text-green-800"><span id="dash-normal-remaining-days">--</span> <span class="text-base text-gray-500">days</span></h3>
                     <p class="text-sm text-green-600 font-bold"><span id="dash-normal-remaining-hours">--</span> hrs</p>
                   </div>
                 </div>
-                <div class="p-3 bg-green-50 rounded-full text-green-600"><i class="fa-solid fa-umbrella-beach text-2xl"></i></div>
+                <!-- RIGHT: icon + total allowance -->
+                <div class="text-right flex flex-col items-end shrink-0">
+                  <div class="p-2 bg-green-50 rounded-full text-green-600 mb-2"><i class="fa-solid fa-umbrella-beach text-xl"></i></div>
+                  <p class="text-xs text-gray-400 font-bold uppercase tracking-wide">Total</p>
+                  <h3 class="text-2xl font-extrabold text-gray-700"><span id="dash-total-allowance-days">--</span> <span class="text-base text-gray-500">days</span></h3>
+                  <p class="text-sm text-gray-500 font-bold"><span id="dash-total-allowance-hours">--</span> hrs</p>
+                </div>
               </div>
             </div>
             <!-- Upcoming -->
@@ -751,8 +758,8 @@
             <div><label class="text-xs font-bold uppercase mb-1">To</label><input type="date" id="booking-end-date" name="endDate" onchange="updateBookingHoursDisplay()" required class="w-full border rounded p-2"></div>
           </div>
           <div class="mb-6">
-            <label class="text-xs font-bold uppercase mb-1">Hours (0.5 increments)</label>
-            <input type="number" id="booking-hours" name="hours" value="7.5" step="0.5" min="0.5" max="24" class="w-24 border rounded p-2">
+            <label class="text-xs font-bold uppercase mb-1">Hours (0.05 increments)</label>
+            <input type="number" id="booking-hours" name="hours" value="7.5" step="0.05" min="0.05" max="24" class="w-24 border rounded p-2">
             
             <!-- Breakdown container (hidden by default) -->
             <div id="hours-breakdown" class="hidden mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
@@ -826,7 +833,7 @@
           </div>
           <div class="mb-4">
             <label class="text-xs font-bold uppercase text-gray-500 block mb-1">Hours to Carry Over</label>
-            <input type="number" id="carryover-hours" name="hours" min="0.5" step="0.5" required class="w-full border rounded p-2">
+            <input type="number" id="carryover-hours" name="hours" min="0.05" step="0.05" required class="w-full border rounded p-2">
             <p class="text-xs text-gray-400 mt-1" id="carryover-max-hint">Maximum: your remaining hours</p>
           </div>
           <div class="mb-6">
@@ -1844,9 +1851,16 @@
       // --- RENDERERS ---
       function renderDashboard() {
         var myBookings = appData.bookings.filter(function(b) { return b.email === appData.currentUser.email && b.status !== 'Cancelled'; });
-        var myProfile = appData.employees.find(function(e) { return e.email === appData.currentUser.email; }) || appData.currentUser;
-        var normalAllowance = Number(myProfile.allowance) || 0;
-        var carryOverAllowance = Number(myProfile.carryOver) || 0;
+        var myProfile = null;
+        for (var i = 0; i < appData.employees.length; i++) {
+          if (appData.employees[i].email === appData.currentUser.email) {
+            myProfile = appData.employees[i];
+            break;
+          }
+        }
+        if (!myProfile) myProfile = appData.currentUser;
+        var normalAllowance    = parseFloat(String(myProfile.allowance  || 0)) || 0;
+        var carryOverAllowance = parseFloat(String(myProfile.carryOver  || 0)) || 0;
         
         // Calculate used hours (Approved + Pending + Cancellation Requested = "active" bookings)
         var usedHours = myBookings.filter(function(b) { return b.type === 'Holiday' && (b.status === 'Approved' || b.status === 'Pending' || b.status === 'Cancellation Requested') && isDateInCurrentFY(b.startDate); }).reduce(function(acc, c) { return acc + (Number(c.hours) || (c.daysCount * 7.5)); }, 0);
@@ -1866,6 +1880,11 @@
         document.getElementById('dash-carryover-remaining-hours').textContent = carryOverRemaining.toFixed(1);
         document.getElementById('dash-normal-remaining-days').textContent = normalRemainingDays.toFixed(1);
         document.getElementById('dash-normal-remaining-hours').textContent = normalRemaining.toFixed(1);
+
+        var totalAllowance = normalAllowance + carryOverAllowance;
+        var totalAllowanceDays = Math.floor(totalAllowance / 7.5 * 10) / 10;
+        document.getElementById('dash-total-allowance-days').textContent = totalAllowanceDays.toFixed(1);
+        document.getElementById('dash-total-allowance-hours').textContent = totalAllowance.toFixed(1);
         
         var future = myBookings.filter(function(b) { return new Date(b.startDate) >= new Date() && b.status === 'Approved'; }).sort(function(a, b) { return new Date(a.startDate)-new Date(b.startDate); });
         if (future.length > 0) {
