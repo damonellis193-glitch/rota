@@ -178,7 +178,7 @@
                 <!-- RIGHT: icon + total allowance -->
                 <div class="text-right flex flex-col items-end shrink-0">
                   <div class="p-2 bg-green-50 rounded-full text-green-600 mb-2"><i class="fa-solid fa-umbrella-beach text-xl"></i></div>
-                  <p class="text-xs text-gray-400 font-bold uppercase tracking-wide">Total</p>
+                  <p class="text-xs text-gray-400 font-bold uppercase tracking-wide">Total Remaining</p>
                   <h3 class="text-2xl font-extrabold text-gray-700"><span id="dash-total-allowance-days">--</span> <span class="text-base text-gray-500">days</span></h3>
                   <p class="text-sm text-gray-500 font-bold"><span id="dash-total-allowance-hours">--</span> hrs</p>
                 </div>
@@ -1872,8 +1872,8 @@
         var carryOverRemaining = Math.max(0, carryOverAllowance - carryOverUsed);
         var normalRemaining = Math.max(0, normalAllowance - normalUsed);
 
-        var carryOverRemainingDays = Math.floor(carryOverRemaining / 7.5 * 10) / 10;
-        var normalRemainingDays = Math.floor(normalRemaining / 7.5 * 10) / 10;
+        var carryOverRemainingDays = Math.round(carryOverRemaining / 7.5 * 10) / 10;
+        var normalRemainingDays = Math.round(normalRemaining / 7.5 * 10) / 10;
 
         // Update dashboard display with split carry-over and normal allowance
         document.getElementById('dash-carryover-remaining-days').textContent = carryOverRemainingDays.toFixed(1);
@@ -1881,10 +1881,10 @@
         document.getElementById('dash-normal-remaining-days').textContent = normalRemainingDays.toFixed(1);
         document.getElementById('dash-normal-remaining-hours').textContent = normalRemaining.toFixed(1);
 
-        var totalAllowance = normalAllowance + carryOverAllowance;
-        var totalAllowanceDays = Math.floor(totalAllowance / 7.5 * 10) / 10;
-        document.getElementById('dash-total-allowance-days').textContent = totalAllowanceDays.toFixed(1);
-        document.getElementById('dash-total-allowance-hours').textContent = totalAllowance.toFixed(1);
+        var totalRemaining = carryOverRemaining + normalRemaining;
+        var totalRemainingDays = Math.round(totalRemaining / 7.5 * 10) / 10;
+        document.getElementById('dash-total-allowance-days').textContent = totalRemainingDays.toFixed(1);
+        document.getElementById('dash-total-allowance-hours').textContent = totalRemaining.toFixed(1);
         
         var future = myBookings.filter(function(b) { return new Date(b.startDate) >= new Date() && b.status === 'Approved'; }).sort(function(a, b) { return new Date(a.startDate)-new Date(b.startDate); });
         if (future.length > 0) {
@@ -3862,10 +3862,10 @@
         var myProfile = appData.employees.find(function(e) { return e.email === appData.currentUser.email; }) || appData.currentUser;
         var totalAllowance = (Number(myProfile.allowance) || 0) + (Number(myProfile.carryOver) || 0);
         var usedHours = myBookings.filter(function(b) { return b.type === 'Holiday' && (b.status === 'Approved' || b.status === 'Pending' || b.status === 'Cancellation Requested') && isDateInCurrentFY(b.startDate); }).reduce(function(acc, c) { return acc + (Number(c.hours) || (c.daysCount * 7.5)); }, 0);
-        var usedDays = Math.floor(usedHours / 7.5 * 10) / 10;
+        var usedDays = Math.round(usedHours / 7.5 * 10) / 10;
         var remainingHours = Math.max(0, totalAllowance - usedHours);
-        var remainingDays = Math.floor(remainingHours / 7.5 * 10) / 10;
-        var totalDays = Math.floor(totalAllowance / 7.5 * 10) / 10;
+        var remainingDays = Math.round(remainingHours / 7.5 * 10) / 10;
+        var totalDays = Math.round(totalAllowance / 7.5 * 10) / 10;
         
         document.getElementById('carryover-total').textContent = totalDays.toFixed(1) + ' days / ' + totalAllowance.toFixed(1) + ' hrs';
         document.getElementById('carryover-used').textContent = usedDays.toFixed(1) + ' days / ' + usedHours.toFixed(1) + ' hrs';
