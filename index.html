@@ -917,6 +917,33 @@
        <button class="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700" onclick="updateDeskCell('team')"><i class="fa-solid fa-users mr-2 text-purple-500"></i> Set Team Label</button>
     </div>
 
+    <!-- NEW: Assign Colleague Modal -->
+    <div id="desk-assign-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center z-[110] backdrop-blur-sm">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-bold text-green-900"><i class="fa-solid fa-user-plus mr-2 text-blue-500"></i>Assign Colleague</h3>
+          <button id="desk-assign-cancel-x" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-times text-xl"></i></button>
+        </div>
+        <div class="mb-3">
+          <label class="text-xs font-bold uppercase text-gray-500 block mb-2">Select a colleague not yet in the office:</label>
+          <select id="desk-assign-select" class="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500">
+            <option value="">-- Select a colleague --</option>
+          </select>
+        </div>
+        <div class="border-t border-gray-200 pt-3">
+          <button id="desk-assign-freetext-toggle" type="button" class="text-sm text-blue-600 hover:text-blue-800 underline">Someone else / free text</button>
+          <div id="desk-assign-freetext-area" class="hidden mt-2">
+            <label class="text-xs font-bold uppercase text-gray-500 block mb-1">Enter name (visitor or new starter):</label>
+            <input type="text" id="desk-assign-freetext-input" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="e.g. John Smith" />
+          </div>
+        </div>
+        <div class="flex justify-end space-x-2 mt-5">
+          <button id="desk-assign-cancel-btn" type="button" class="px-4 py-2 text-gray-500 hover:text-gray-700">Cancel</button>
+          <button id="desk-assign-confirm-btn" type="button" class="btn-primary px-6 py-2 rounded font-bold">Confirm</button>
+        </div>
+      </div>
+    </div>
+
     <script>
       // Helper function to escape HTML to prevent XSS
       function escapeHtml(text) {
@@ -954,6 +981,19 @@
         if (index > -1) {
           arr.splice(index, 1);
         }
+      }
+
+      // Standalone employee matcher — mirrors the inner function in renderDeskPlan
+      // and is also used by showAssignColleagueModal
+      function findEmployeeByMapName(val) {
+        if (!val) return null;
+        var valLow = String(val).toLowerCase().trim();
+        var fName = getFirstName(val).toLowerCase();
+        var emp = appData.employees.find(function(e) { return e.email.toLowerCase() === valLow; });
+        if (emp) return emp;
+        emp = appData.employees.find(function(e) { return getFirstName(e.name).toLowerCase() === fName; });
+        if (emp) return emp;
+        return appData.employees.find(function(e) { return getFirstName(e.name).toLowerCase().indexOf(fName) === 0; });
       }
 
       // --- CONTEXT MENU LOGIC ---
@@ -1003,14 +1043,38 @@
           var currentVal = window.dailyOverrides[targetDateStr][r + "_" + c] !== undefined 
               ? window.dailyOverrides[targetDateStr][r + "_" + c] 
               : appData.deskPlan[r][c] || '';
+
+          // For 'assign', open the custom modal and return — the callback handles the rest
+          if (action === 'assign') {
+              showAssignColleagueModal(currentVal, function(chosenName) {
+                  window.dailyOverrides[targetDateStr][r + "_" + c] = chosenName;
+                  if (!window.localDeskLogs) window.localDeskLogs = [];
+                  window.localDeskLogs.unshift({
+                      time: new Date().toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }),
+                      actor: appData.currentUser.name,
+                      targetDate: targetDateStr,
+                      details: 'Row ' + r + ', Col ' + c + ': Assigned ' + chosenName
+                  });
+                  renderDeskPlan();
+                  if (google && google.script && google.script.run) {
+                      if (google.script.run.saveDeskOverrides) {
+                          google.script.run.withFailureHandler(function(err){
+                              console.warn("Could not save desk overrides: ", err);
+                          }).saveDeskOverrides(window.dailyOverrides, window.localDeskLogs);
+                      }
+                      if (google.script.run.logDeskOverride) {
+                          google.script.run.withFailureHandler(function(err){
+                              console.warn("Could not log override: ", err);
+                          }).logDeskOverride(targetDateStr, r, c, appData.currentUser.email, chosenName, 'assign');
+                      }
+                  }
+              });
+              return;
+          }
           
           var newVal = '';
           if (action === 'available') newVal = 'Available';
           else if (action === 'unavailable') newVal = 'X';
-          else if (action === 'assign') {
-              newVal = prompt("Enter Colleague Name (updates for selected day only):", currentVal);
-              if (newVal === null || newVal.trim() === '') return; 
-          }
           else if (action === 'team') {
               newVal = prompt("Enter Team Name (e.g. Merch, Trade Planning):", currentVal);
               if (newVal === null || newVal.trim() === '') return;
@@ -1021,7 +1085,7 @@
           
           // SURGICAL PATCH: Add to local audit logs instantly so it appears in the new UI
           if (!window.localDeskLogs) window.localDeskLogs = [];
-          var actionLabel = action === 'assign' ? 'Assigned ' + newVal : (action === 'team' ? 'Set Team ' + newVal : 'Marked ' + action);
+          var actionLabel = action === 'team' ? 'Set Team ' + newVal : 'Marked ' + action;
           window.localDeskLogs.unshift({
               time: new Date().toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }),
               actor: appData.currentUser.name,
@@ -1049,6 +1113,130 @@
           }
       }
       // --- END CONTEXT MENU LOGIC ---
+
+      // --- ASSIGN COLLEAGUE MODAL LOGIC ---
+      var _assignColleagueCallback = null;
+
+      function showAssignColleagueModal(currentVal, callback) {
+          var modal = document.getElementById('desk-assign-modal');
+          var selectEl = document.getElementById('desk-assign-select');
+          var freetextArea = document.getElementById('desk-assign-freetext-area');
+          var freetextInput = document.getElementById('desk-assign-freetext-input');
+          var freetextToggle = document.getElementById('desk-assign-freetext-toggle');
+          var confirmBtn = document.getElementById('desk-assign-confirm-btn');
+          var cancelBtn = document.getElementById('desk-assign-cancel-btn');
+          var cancelXBtn = document.getElementById('desk-assign-cancel-x');
+
+          // Determine the selected date
+          var datePicker = document.getElementById('desk-date-picker');
+          var targetDateStr = datePicker && datePicker.value ? datePicker.value : new Date().toISOString().split('T')[0];
+          var todaysOverrides = window.dailyOverrides[targetDateStr] || {};
+
+          // Work out who is already physically at a desk today
+          var alreadyInOfficeEmails = [];
+          var daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+          var allDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+          // Parse with noon time to avoid timezone-edge-case date shifts
+          var targetDate = new Date(targetDateStr + 'T12:00:00');
+          var selectedDay = allDays[targetDate.getDay()];
+          var startRow = -1;
+
+          if (appData.deskPlan) {
+              for (var i = 0; i < appData.deskPlan.length; i++) {
+                  if (appData.deskPlan[i].some(function(cell) { return String(cell).indexOf(selectedDay) !== -1; })) {
+                      startRow = i;
+                      break;
+                  }
+              }
+              if (startRow !== -1) {
+                  var endRow = appData.deskPlan.length;
+                  for (var j = startRow + 1; j < appData.deskPlan.length; j++) {
+                      if (appData.deskPlan[j].some(function(cell) { return daysOfWeek.indexOf(String(cell).trim()) !== -1; })) {
+                          endRow = j;
+                          break;
+                      }
+                  }
+                  for (var r2 = startRow + 1; r2 < endRow; r2++) {
+                      for (var c2 = 0; c2 < appData.deskPlan[r2].length; c2++) {
+                          var val2 = todaysOverrides[r2 + '_' + c2] !== undefined
+                              ? String(todaysOverrides[r2 + '_' + c2]).trim()
+                              : String(appData.deskPlan[r2][c2]).trim();
+                          if (val2 && val2.toLowerCase() !== 'skip' &&
+                              !val2.match(/^(n\/a|-|_|x|other|unavailable|dark|trade planning|merch|available|free|empty)$/i)) {
+                              var mapEmp = findEmployeeByMapName(val2);
+                              if (mapEmp) alreadyInOfficeEmails.push(mapEmp.email);
+                          }
+                      }
+                  }
+              }
+          }
+
+          // Build available colleagues list (sorted alphabetically)
+          var availableColleagues = (appData.employees || []).filter(function(e) {
+              return alreadyInOfficeEmails.indexOf(e.email) === -1;
+          });
+          availableColleagues.sort(function(a, b) {
+              return (a.name || '').localeCompare(b.name || '');
+          });
+
+          // Populate the <select>
+          selectEl.innerHTML = '<option value="">-- Select a colleague --</option>';
+          availableColleagues.forEach(function(e) {
+              var opt = document.createElement('option');
+              opt.value = e.name;
+              opt.textContent = e.name;
+              if (e.name === currentVal || e.email === currentVal) opt.selected = true;
+              selectEl.appendChild(opt);
+          });
+
+          // Reset free-text area
+          freetextArea.classList.add('hidden');
+          freetextInput.value = '';
+          freetextToggle.textContent = 'Someone else / free text';
+
+          // Show the modal
+          modal.classList.remove('hidden');
+          _assignColleagueCallback = callback;
+
+          // Toggle free-text section
+          freetextToggle.onclick = function() {
+              if (freetextArea.classList.contains('hidden')) {
+                  freetextArea.classList.remove('hidden');
+                  selectEl.value = '';
+                  freetextInput.focus();
+              } else {
+                  freetextArea.classList.add('hidden');
+                  freetextInput.value = '';
+              }
+          };
+
+          function closeModal() {
+              modal.classList.add('hidden');
+              _assignColleagueCallback = null;
+          }
+
+          cancelBtn.onclick = closeModal;
+          cancelXBtn.onclick = closeModal;
+
+          // Close on backdrop click
+          modal.onclick = function(e) {
+              if (e.target === modal) closeModal();
+          };
+
+          confirmBtn.onclick = function() {
+              var chosenName = '';
+              if (!freetextArea.classList.contains('hidden') && freetextInput.value.trim()) {
+                  chosenName = freetextInput.value.trim();
+              } else if (selectEl.value) {
+                  chosenName = selectEl.value;
+              }
+              if (!chosenName) return;
+              var cb = _assignColleagueCallback;
+              closeModal();
+              if (cb) cb(chosenName);
+          };
+      }
+      // --- END ASSIGN COLLEAGUE MODAL LOGIC ---
 
       // --- PENDING DESK SELECTION LOGIC ---
       function completePendingOfficeBooking(r, c) {
