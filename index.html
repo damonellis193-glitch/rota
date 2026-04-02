@@ -901,6 +901,35 @@
        <button class="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700" onclick="updateDeskCell('team')"><i class="fa-solid fa-users mr-2 text-purple-500"></i> Set Team Label</button>
     </div>
 
+    <!-- NEW: Set Team Label Modal -->
+    <div id="desk-team-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center z-[110] backdrop-blur-sm">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-bold text-green-900"><i class="fa-solid fa-users mr-2 text-purple-500"></i>Set Team Label</h3>
+          <button id="desk-team-cancel-x" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-times text-xl"></i></button>
+        </div>
+        <div class="mb-3">
+          <label class="text-xs font-bold uppercase text-gray-500 block mb-2">Select a team:</label>
+          <select id="desk-team-select" class="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500">
+            <option value="">-- Select a team --</option>
+            <option value="Merch">Merch</option>
+            <option value="Trade Planning">Trade Planning</option>
+          </select>
+        </div>
+        <div class="border-t border-gray-200 pt-3">
+          <button id="desk-team-freetext-toggle" type="button" class="text-sm text-blue-600 hover:text-blue-800 underline">Custom label / free text</button>
+          <div id="desk-team-freetext-area" class="hidden mt-2">
+            <label class="text-xs font-bold uppercase text-gray-500 block mb-1">Enter team name:</label>
+            <input type="text" id="desk-team-freetext-input" class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="e.g. Merch, Trade Planning" />
+          </div>
+        </div>
+        <div class="flex justify-end space-x-2 mt-5">
+          <button id="desk-team-cancel-btn" type="button" class="px-4 py-2 text-gray-500 hover:text-gray-700">Cancel</button>
+          <button id="desk-team-confirm-btn" type="button" class="btn-primary px-6 py-2 rounded font-bold">Confirm</button>
+        </div>
+      </div>
+    </div>
+
     <!-- NEW: Assign Colleague Modal -->
     <div id="desk-assign-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center z-[110] backdrop-blur-sm">
       <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
@@ -1056,13 +1085,37 @@
               return;
           }
           
+          // For 'team', open the custom modal and return — the callback handles the rest
+          if (action === 'team') {
+              showTeamLabelModal(currentVal, function(chosenTeam) {
+                  window.dailyOverrides[targetDateStr][r + "_" + c] = chosenTeam;
+                  if (!window.localDeskLogs) window.localDeskLogs = [];
+                  window.localDeskLogs.unshift({
+                      time: new Date().toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }),
+                      actor: appData.currentUser.name,
+                      targetDate: targetDateStr,
+                      details: 'Row ' + r + ', Col ' + c + ': Set Team ' + chosenTeam
+                  });
+                  renderDeskPlan();
+                  if (google && google.script && google.script.run) {
+                      if (google.script.run.saveDeskOverrides) {
+                          google.script.run.withFailureHandler(function(err){
+                              console.warn("Could not save desk overrides: ", err);
+                          }).saveDeskOverrides(window.dailyOverrides, window.localDeskLogs);
+                      }
+                      if (google.script.run.logDeskOverride) {
+                          google.script.run.withFailureHandler(function(err){
+                              console.warn("Could not log override: ", err);
+                          }).logDeskOverride(targetDateStr, r, c, appData.currentUser.email, chosenTeam, 'team');
+                      }
+                  }
+              });
+              return;
+          }
+
           var newVal = '';
           if (action === 'available') newVal = 'Available';
           else if (action === 'unavailable') newVal = 'X';
-          else if (action === 'team') {
-              newVal = prompt("Enter Team Name (e.g. Merch, Trade Planning):", currentVal);
-              if (newVal === null || newVal.trim() === '') return;
-          }
 
           // Update local state so it renders instantly and ONLY applies to this day
           window.dailyOverrides[targetDateStr][r + "_" + c] = newVal;
@@ -1221,6 +1274,91 @@
           };
       }
       // --- END ASSIGN COLLEAGUE MODAL LOGIC ---
+
+      // --- SET TEAM LABEL MODAL LOGIC ---
+      var _teamLabelCallback = null;
+
+      function showTeamLabelModal(currentVal, callback) {
+          var modal = document.getElementById('desk-team-modal');
+          var selectEl = document.getElementById('desk-team-select');
+          var freetextArea = document.getElementById('desk-team-freetext-area');
+          var freetextInput = document.getElementById('desk-team-freetext-input');
+          var freetextToggle = document.getElementById('desk-team-freetext-toggle');
+          var confirmBtn = document.getElementById('desk-team-confirm-btn');
+          var cancelBtn = document.getElementById('desk-team-cancel-btn');
+          var cancelXBtn = document.getElementById('desk-team-cancel-x');
+
+          var presetTeams = ['Merch', 'Trade Planning'];
+          var isPreset = currentVal && presetTeams.indexOf(currentVal) !== -1;
+
+          // Reset the select to preset options
+          selectEl.innerHTML = '<option value="">-- Select a team --</option>';
+          presetTeams.forEach(function(team) {
+              var opt = document.createElement('option');
+              opt.value = team;
+              opt.textContent = team;
+              if (team === currentVal) opt.selected = true;
+              selectEl.appendChild(opt);
+          });
+
+          // Reset free-text area
+          freetextArea.classList.add('hidden');
+          freetextInput.value = '';
+          freetextToggle.textContent = 'Custom label / free text';
+
+          // If current value is not a preset, pre-fill free-text and show it
+          if (currentVal && !isPreset) {
+              selectEl.value = '';
+              freetextInput.value = currentVal;
+              freetextArea.classList.remove('hidden');
+              freetextToggle.textContent = 'Use preset team';
+          }
+
+          // Show the modal
+          modal.classList.remove('hidden');
+          _teamLabelCallback = callback;
+
+          // Toggle free-text section
+          freetextToggle.onclick = function() {
+              if (freetextArea.classList.contains('hidden')) {
+                  freetextArea.classList.remove('hidden');
+                  selectEl.value = '';
+                  freetextInput.focus();
+                  freetextToggle.textContent = 'Use preset team';
+              } else {
+                  freetextArea.classList.add('hidden');
+                  freetextInput.value = '';
+                  freetextToggle.textContent = 'Custom label / free text';
+              }
+          };
+
+          function closeModal() {
+              modal.classList.add('hidden');
+              _teamLabelCallback = null;
+          }
+
+          cancelBtn.onclick = closeModal;
+          cancelXBtn.onclick = closeModal;
+
+          // Close on backdrop click
+          modal.onclick = function(e) {
+              if (e.target === modal) closeModal();
+          };
+
+          confirmBtn.onclick = function() {
+              var chosenTeam = '';
+              if (!freetextArea.classList.contains('hidden') && freetextInput.value.trim()) {
+                  chosenTeam = freetextInput.value.trim();
+              } else if (selectEl.value) {
+                  chosenTeam = selectEl.value;
+              }
+              if (!chosenTeam) return;
+              var cb = _teamLabelCallback;
+              closeModal();
+              if (cb) cb(chosenTeam);
+          };
+      }
+      // --- END SET TEAM LABEL MODAL LOGIC ---
 
       // --- PENDING DESK SELECTION LOGIC ---
       function completePendingOfficeBooking(r, c) {
