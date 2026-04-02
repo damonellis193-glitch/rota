@@ -161,9 +161,18 @@
               <div class="flex justify-between items-start relative z-10">
                 <div>
                   <p class="text-xs font-bold text-gray-400 uppercase tracking-wide">Allowance Remaining</p>
-                  <h3 class="text-3xl font-extrabold text-green-800 mt-2"><span id="dash-remaining-days">--</span> <span class="text-lg text-gray-500">days</span></h3>
-                  <p class="text-sm text-green-600 font-bold mt-1"><span id="dash-remaining-hours">--</span> hrs</p>
-                  <p class="text-xs text-gray-400 mt-1">Includes Carry Over</p>
+                  <!-- Carry Over row -->
+                  <div class="mt-2">
+                    <p class="text-xs text-purple-500 font-bold uppercase tracking-wide">Carry Over</p>
+                    <h3 class="text-2xl font-extrabold text-purple-700"><span id="dash-carryover-remaining-days">--</span> <span class="text-base text-gray-500">days</span></h3>
+                    <p class="text-sm text-purple-500 font-bold"><span id="dash-carryover-remaining-hours">--</span> hrs</p>
+                  </div>
+                  <!-- Normal Allowance row -->
+                  <div class="mt-3">
+                    <p class="text-xs text-green-500 font-bold uppercase tracking-wide">Normal</p>
+                    <h3 class="text-2xl font-extrabold text-green-800"><span id="dash-normal-remaining-days">--</span> <span class="text-base text-gray-500">days</span></h3>
+                    <p class="text-sm text-green-600 font-bold"><span id="dash-normal-remaining-hours">--</span> hrs</p>
+                  </div>
                 </div>
                 <div class="p-3 bg-green-50 rounded-full text-green-600"><i class="fa-solid fa-umbrella-beach text-2xl"></i></div>
               </div>
@@ -1836,16 +1845,27 @@
       function renderDashboard() {
         var myBookings = appData.bookings.filter(function(b) { return b.email === appData.currentUser.email && b.status !== 'Cancelled'; });
         var myProfile = appData.employees.find(function(e) { return e.email === appData.currentUser.email; }) || appData.currentUser;
-        var totalAllowance = (Number(myProfile.allowance) || 0) + (Number(myProfile.carryOver) || 0);
+        var normalAllowance = Number(myProfile.allowance) || 0;
+        var carryOverAllowance = Number(myProfile.carryOver) || 0;
         
         // Calculate used hours (Approved + Pending + Cancellation Requested = "active" bookings)
         var usedHours = myBookings.filter(function(b) { return b.type === 'Holiday' && (b.status === 'Approved' || b.status === 'Pending' || b.status === 'Cancellation Requested') && isDateInCurrentFY(b.startDate); }).reduce(function(acc, c) { return acc + (Number(c.hours) || (c.daysCount * 7.5)); }, 0);
-        var remainingHours = totalAllowance - usedHours;
-        var remainingDays = Math.floor(remainingHours / 7.5 * 10) / 10; // Round to 1 decimal
-        
-        // Update dashboard display with both days and hours
-        document.getElementById('dash-remaining-days').textContent = remainingDays.toFixed(1);
-        document.getElementById('dash-remaining-hours').textContent = remainingHours.toFixed(1);
+
+        // Deduct from carry-over first, then normal allowance
+        var carryOverUsed = Math.min(usedHours, carryOverAllowance);
+        var normalUsed = Math.max(0, usedHours - carryOverAllowance);
+
+        var carryOverRemaining = Math.max(0, carryOverAllowance - carryOverUsed);
+        var normalRemaining = Math.max(0, normalAllowance - normalUsed);
+
+        var carryOverRemainingDays = Math.floor(carryOverRemaining / 7.5 * 10) / 10;
+        var normalRemainingDays = Math.floor(normalRemaining / 7.5 * 10) / 10;
+
+        // Update dashboard display with split carry-over and normal allowance
+        document.getElementById('dash-carryover-remaining-days').textContent = carryOverRemainingDays.toFixed(1);
+        document.getElementById('dash-carryover-remaining-hours').textContent = carryOverRemaining.toFixed(1);
+        document.getElementById('dash-normal-remaining-days').textContent = normalRemainingDays.toFixed(1);
+        document.getElementById('dash-normal-remaining-hours').textContent = normalRemaining.toFixed(1);
         
         var future = myBookings.filter(function(b) { return new Date(b.startDate) >= new Date() && b.status === 'Approved'; }).sort(function(a, b) { return new Date(a.startDate)-new Date(b.startDate); });
         if (future.length > 0) {
