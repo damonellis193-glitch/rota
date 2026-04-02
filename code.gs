@@ -5,7 +5,7 @@
 // CONFIGURATION
 // This repository is pre-configured for a specific deployment.
 // If you're forking this for your own use, replace the SPREADSHEET_ID below with your own.
-const SPREADSHEET_ID = '1vEDieQC-FJFybCVXuynVrus04U1ZA72XMkvfrtDK5MM';
+const SPREADSHEET_ID = '1byz-uMq8F40xYADYIMER9BCqRwhBI0u9zgjcWZbs90I';
 
 // Helper function to detect permission/authorization errors
 function isPermissionError(errorMsg) {
@@ -374,6 +374,54 @@ function getInitialData() {
       appSettings = {};
     }
 
+    // 10. Get Desk Plan Map
+    let deskPlan = [];
+    try {
+      const deskSheet = ss.getSheetByName('Sheet1');
+      if (deskSheet) {
+        deskPlan = deskSheet.getDataRange().getValues();
+      }
+    } catch (deskError) {
+      console.error('[Backend] Error loading desk plan: ' + deskError.toString());
+      deskPlan = [];
+    }
+
+    // 11. Get Birthdays
+    let birthdays = [];
+    try {
+      const birthdaySheet = ss.getSheetByName('Sheet2');
+      if (birthdaySheet) {
+        const bData = birthdaySheet.getDataRange().getValues();
+        if (bData.length > 1) {
+          bData.shift();
+          birthdays = bData
+            .filter(r => r[0] && r[1]) // Has name and date
+            .map(r => ({
+              name: String(r[0]).trim(),
+              date: r[1] instanceof Date ? r[1].toISOString() : new Date(r[1]).toISOString()
+            }));
+        }
+      }
+    } catch (bError) {
+      console.error('[Backend] Error loading birthdays: ' + bError.toString());
+      birthdays = [];
+    }
+
+    // 12. Get Desk Overrides
+    let dailyOverrides = {};
+    try {
+      const overridesSheet = ss.getSheetByName('DeskOverrides');
+      if (overridesSheet) {
+        const data = overridesSheet.getRange(2, 1).getValue();
+        if (data) {
+          dailyOverrides = JSON.parse(data);
+        }
+      }
+    } catch (overrideError) {
+      console.error('[Backend] Error loading desk overrides: ' + overrideError.toString());
+      dailyOverrides = {};
+    }
+
     console.log('[Backend] Returning data successfully');
     console.log('[Backend] Employees count: ' + employees.length);
     console.log('[Backend] Bookings count: ' + bookings.length);
@@ -388,7 +436,10 @@ function getInitialData() {
       carryoverRequests: carryoverRequests,
       capacitySettings: capacitySettings,
       allowanceChanges: allowanceChanges,
-      appSettings: appSettings
+      appSettings: appSettings,
+      deskPlan: deskPlan,
+      birthdays: birthdays,
+      dailyOverrides: dailyOverrides
     };
     
     // Verify the result is valid before returning
@@ -478,6 +529,11 @@ function setupDatabase(ss) {
     s.appendRow(['emailNotificationsEnabled', 'false']);
     s.appendRow(['appUrl', '']);
   }
+  if (!ss.getSheetByName('DeskOverrides')) {
+    const s = ss.insertSheet('DeskOverrides');
+    s.appendRow(['OverridesJSON']);
+    s.appendRow(['{}']); // Initialize with an empty JSON object
+  }
 }
 
 function logAction(actorEmail, action, details) {
@@ -488,6 +544,34 @@ function logAction(actorEmail, action, details) {
     sheet.appendRow([new Date(), actorEmail, action, details]);
   } catch(e) {
     console.error("Audit Log Failed: " + e.toString());
+  }
+}
+
+function logDeskOverride(dateStr, row, col, email, newVal, action) {
+  try {
+    logAction(email, 'Desk Plan Override', `Date: ${dateStr}, Desk: R${row+1}C${col+1}, Action: ${action}, Value: ${newVal}`);
+    return { success: true };
+  } catch (e) {
+    return { success: false, message: e.toString() };
+  }
+}
+
+function saveDeskOverrides(overridesMap, logs) {
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    let sheet = ss.getSheetByName('DeskOverrides');
+    if (!sheet) { 
+      setupDatabase(ss); 
+      sheet = ss.getSheetByName('DeskOverrides'); 
+    }
+    
+    // Save the entire state map as a JSON string so it can be instantly loaded by other users
+    sheet.getRange(2, 1).setValue(JSON.stringify(overridesMap));
+    
+    return { success: true };
+  } catch (e) {
+    console.error("Save Overrides Failed: " + e.toString());
+    return { success: false, message: e.toString() };
   }
 }
 
@@ -764,6 +848,37 @@ function saveEmployee(data) {
     sheet.appendRow(rowData);
     logAction(actor, 'Employee Created', `Created profile for ${data.email}`);
   }
+
+  // SURGICAL PATCH: Save Birthday to Sheet2 to sync with the dashboard's getInitialData logic
+  try {
+    let bSheet = ss.getSheetByName('Sheet2');
+    if (!bSheet) {
+      bSheet = ss.insertSheet('Sheet2');
+      bSheet.appendRow(['Name', 'Date']);
+    }
+    const bData = bSheet.getDataRange().getValues();
+    let bRowIndex = -1;
+    for (let i = 1; i < bData.length; i++) {
+      if (String(bData[i][0]).trim().toLowerCase() === String(data.name).trim().toLowerCase()) {
+        bRowIndex = i + 1;
+        break;
+      }
+    }
+    
+    if (data.birthday) {
+      if (bRowIndex > 0) {
+        bSheet.getRange(bRowIndex, 2).setValue(data.birthday);
+      } else {
+        bSheet.appendRow([data.name, data.birthday]);
+      }
+    } else if (bRowIndex > 0) {
+      // If birthday was cleared in the UI, clear it from the sheet
+      bSheet.getRange(bRowIndex, 2).clearContent();
+    }
+  } catch(e) {
+    console.error("Failed to save birthday: " + e.toString());
+  }
+
   return { success: true };
 }
 
