@@ -59,6 +59,9 @@
             <button onclick="loadView('team')" class="hover:bg-green-800 px-3 py-2 rounded transition text-sm flex flex-col items-center md:flex-row md:space-x-2">
               <i class="fa-solid fa-calendar-days"></i><span class="hidden md:inline">Calendar</span>
             </button>
+            <button onclick="loadView('desk-plan')" class="hover:bg-green-800 px-3 py-2 rounded transition text-sm flex flex-col items-center md:flex-row md:space-x-2">
+              <i class="fa-solid fa-map-location-dot"></i><span class="hidden md:inline">Desk Plan</span>
+            </button>
             <button id="admin-btn" onclick="loadView('admin')" class="hidden bg-yellow-400 hover:bg-yellow-500 text-green-900 font-bold px-3 py-2 rounded transition border border-yellow-500 text-sm flex flex-col items-center md:flex-row md:space-x-2 relative">
               <i class="fa-solid fa-lock"></i><span class="hidden md:inline">Admin</span>
             </button>
@@ -152,7 +155,7 @@
 
         <!-- DASHBOARD -->
         <div id="view-dashboard" class="hidden w-full space-y-6 p-4 md:p-6">
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <!-- Allowance -->
             <div class="bg-white rounded-xl shadow-md p-6 border-t-4 border-green-600 relative overflow-hidden">
               <div class="flex justify-between items-start relative z-10">
@@ -174,6 +177,18 @@
                   <p class="text-sm text-gray-500 mt-1" id="dash-next-type">--</p>
                 </div>
                 <div class="p-3 bg-yellow-50 rounded-full text-yellow-600"><i class="fa-regular fa-clock text-2xl"></i></div>
+              </div>
+            </div>
+            <!-- Upcoming Birthdays -->
+            <div class="bg-white rounded-xl shadow-md p-6 border-t-4 border-pink-500 relative overflow-hidden">
+              <div class="flex justify-between items-start relative z-10">
+                <div class="w-full pr-2">
+                  <p class="text-xs font-bold text-gray-400 uppercase tracking-wide">Upcoming Birthdays</p>
+                  <div id="dash-birthdays-list" class="mt-3 space-y-2 max-h-20 overflow-y-auto hide-scroll">
+                    <!-- Populated by JS -->
+                  </div>
+                </div>
+                <div class="p-3 bg-pink-50 rounded-full text-pink-500 shrink-0"><i class="fa-solid fa-cake-candles text-2xl"></i></div>
               </div>
             </div>
             <!-- Action -->
@@ -270,6 +285,33 @@
           <div class="bg-white rounded-xl shadow overflow-hidden">
              <div class="px-6 py-4 border-b border-gray-100 bg-gray-50"><h3 class="font-bold text-gray-700">My Requests</h3></div>
              <table class="w-full text-left"><tbody id="my-history-body" class="text-sm divide-y divide-gray-100"></tbody></table>
+          </div>
+        </div>
+
+        <!-- DESK PLAN VIEW -->
+        <div id="view-desk-plan" class="hidden h-full flex flex-col p-2 md:p-4 w-full">
+          <div class="flex justify-between items-center mb-4 shrink-0">
+            <h2 class="text-2xl font-bold text-green-900">Desk Plan Rota</h2>
+            <div class="flex items-center space-x-2">
+              <label for="desk-date-picker" class="text-sm font-bold text-gray-600 mr-2">Select Date:</label>
+              <input type="date" id="desk-date-picker" onchange="renderDeskPlan()" class="border border-green-300 rounded px-3 py-2 text-sm bg-white text-green-900 focus:outline-none focus:ring-2 focus:ring-green-500 font-bold shadow-sm">
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow flex-1 flex flex-col overflow-hidden border border-gray-200 p-4">
+             <div id="desk-map-container" class="flex-1 overflow-auto bg-gray-50 rounded-lg border border-gray-200 p-6 flex flex-col items-center justify-start gap-4">
+                <div class="text-gray-500 italic mt-10">Loading desk plan...</div>
+             </div>
+          </div>
+          
+          <!-- NEW: DESK PLAN LOGS (Admins/Managers only) -->
+          <div id="desk-plan-logs-section" class="hidden shrink-0 mt-4 bg-white rounded-xl shadow overflow-hidden border border-gray-200">
+             <div class="px-4 py-3 border-b border-gray-100 bg-gray-50 flex justify-between items-center cursor-pointer" onclick="toggleElement('desk-plan-logs-container', 'desk-logs-icon')">
+                 <h3 class="font-bold text-gray-700 text-sm"><i class="fa-solid fa-clock-rotate-left mr-2"></i>Right-Click Amendment History</h3>
+                 <i id="desk-logs-icon" class="fa-solid fa-chevron-down text-gray-500 transition-transform"></i>
+             </div>
+             <div id="desk-plan-logs-container" class="hidden max-h-40 overflow-y-auto bg-white p-2">
+                 <table class="w-full text-left text-xs font-mono"><tbody id="desk-plan-logs-body" class="divide-y divide-gray-100"></tbody></table>
+             </div>
           </div>
         </div>
 
@@ -649,6 +691,7 @@
                     <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('status')">Status</th>
                     <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('name')">Name <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
                     <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('department')">Department <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
+                    <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('birthday')">Birthday <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
                     <th class="p-3 text-center cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('remaining')">Hours Left <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
                     <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('utilization')">Utilization <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
                     <th class="p-3 cursor-pointer hover:bg-gray-200" onclick="sortColleagueTable('lastHoliday')">Last Holiday <i class="fa-solid fa-sort ml-1 text-gray-400"></i></th>
@@ -725,6 +768,7 @@
           </div>
           <div class="mb-3"><label class="text-xs font-bold uppercase text-gray-500 block">Role <span class="text-red-500">*</span></label><select name="role" class="w-full border rounded p-2"><option value="">-- Select Role --</option><option value="Admin">Admin</option><option value="Manager">Manager</option><option value="Employee">Employee</option></select></div>
           <div class="mb-3"><label class="text-xs font-bold uppercase text-gray-500 block">Department</label><input type="text" name="department" placeholder="e.g. Bakery" class="w-full border rounded p-2"></div>
+          <div class="mb-3"><label class="text-xs font-bold uppercase text-gray-500 block">Birthday (Optional)</label><input type="date" name="birthday" class="w-full border rounded p-2 text-sm"></div>
           <div class="mb-6"><label class="text-xs font-bold uppercase text-gray-500 block">Reports To</label><select name="manager" id="emp-manager-select" class="w-full border rounded p-2"><option value="">-- None --</option></select></div>
           <div class="flex justify-end space-x-2"><button type="button" onclick="closeModals()" class="px-4 py-2 text-gray-500">Cancel</button><button type="submit" class="btn-primary px-4 py-2 rounded font-bold">Save</button></div>
         </form>
@@ -849,6 +893,14 @@
       </div>
     </div>
 
+    <!-- NEW: Desk Context Menu -->
+    <div id="desk-context-menu" class="hidden fixed bg-white rounded-lg shadow-xl border border-gray-200 z-[100] w-48 py-1 text-sm">
+       <button class="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700" onclick="updateDeskCell('assign')"><i class="fa-solid fa-user mr-2 text-blue-500"></i> Assign Colleague</button>
+       <button class="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700" onclick="updateDeskCell('available')"><i class="fa-solid fa-chair mr-2 text-green-500"></i> Mark Available</button>
+       <button class="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700" onclick="updateDeskCell('unavailable')"><i class="fa-solid fa-times mr-2 text-red-500"></i> Mark Unavailable</button>
+       <button class="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700" onclick="updateDeskCell('team')"><i class="fa-solid fa-users mr-2 text-purple-500"></i> Set Team Label</button>
+    </div>
+
     <script>
       // Helper function to escape HTML to prevent XSS
       function escapeHtml(text) {
@@ -888,6 +940,151 @@
         }
       }
 
+      // --- CONTEXT MENU LOGIC ---
+      var currentDeskContext = { r: null, c: null };
+      if (typeof window.dailyOverrides === 'undefined') window.dailyOverrides = {};
+      window.pendingOfficeBooking = null; // NEW: Track when someone needs to select a seat
+      
+      function showDeskContextMenu(e, r, c) {
+          // Only allow Admins/Managers to edit
+          if (appData.currentUser && appData.currentUser.role !== 'Admin' && appData.currentUser.role !== 'Manager') return;
+          e.preventDefault();
+          currentDeskContext = { r: r, c: c };
+          var menu = document.getElementById('desk-context-menu');
+          
+          var menuWidth = 192; 
+          var menuHeight = 160; 
+          var x = e.pageX;
+          var y = e.pageY;
+          
+          // Keep menu on screen
+          if (x + menuWidth > window.innerWidth) x = window.innerWidth - menuWidth - 10;
+          if (y + menuHeight > window.innerHeight) y = window.innerHeight - menuHeight - 10;
+          
+          menu.style.left = x + 'px';
+          menu.style.top = y + 'px';
+          menu.classList.remove('hidden');
+      }
+
+      // Hide menu when clicking outside
+      document.addEventListener('click', function(e) {
+          var menu = document.getElementById('desk-context-menu');
+          if (menu && !menu.classList.contains('hidden')) {
+              menu.classList.add('hidden');
+          }
+      });
+
+      function updateDeskCell(action) {
+          var r = currentDeskContext.r;
+          var c = currentDeskContext.c;
+          if (r === null || c === null) return;
+          
+          var datePicker = document.getElementById('desk-date-picker');
+          var targetDateStr = datePicker && datePicker.value ? datePicker.value : new Date().toISOString().split('T')[0];
+          
+          if (!window.dailyOverrides[targetDateStr]) window.dailyOverrides[targetDateStr] = {};
+          
+          var currentVal = window.dailyOverrides[targetDateStr][r + "_" + c] !== undefined 
+              ? window.dailyOverrides[targetDateStr][r + "_" + c] 
+              : appData.deskPlan[r][c] || '';
+          
+          var newVal = '';
+          if (action === 'available') newVal = 'Available';
+          else if (action === 'unavailable') newVal = 'X';
+          else if (action === 'assign') {
+              newVal = prompt("Enter Colleague Name (updates for selected day only):", currentVal);
+              if (newVal === null || newVal.trim() === '') return; 
+          }
+          else if (action === 'team') {
+              newVal = prompt("Enter Team Name (e.g. Merch, Trade Planning):", currentVal);
+              if (newVal === null || newVal.trim() === '') return;
+          }
+
+          // Update local state so it renders instantly and ONLY applies to this day
+          window.dailyOverrides[targetDateStr][r + "_" + c] = newVal;
+          
+          // SURGICAL PATCH: Add to local audit logs instantly so it appears in the new UI
+          if (!window.localDeskLogs) window.localDeskLogs = [];
+          var actionLabel = action === 'assign' ? 'Assigned ' + newVal : (action === 'team' ? 'Set Team ' + newVal : 'Marked ' + action);
+          window.localDeskLogs.unshift({
+              time: new Date().toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }),
+              actor: appData.currentUser.name,
+              targetDate: targetDateStr,
+              details: 'Row ' + r + ', Col ' + c + ': ' + actionLabel
+          });
+          
+          renderDeskPlan();
+          
+          // SURGICAL PATCH: Push the full dailyOverrides map to the backend so it persists across page reloads for everyone!
+          if (google && google.script && google.script.run) {
+              // Primary Method: Save the entire state map so other users can load it
+              if (google.script.run.saveDeskOverrides) {
+                  google.script.run.withFailureHandler(function(err){
+                      console.warn("Could not save desk overrides: ", err);
+                  }).saveDeskOverrides(window.dailyOverrides, window.localDeskLogs);
+              } 
+              
+              // Fallback Method: Send the legacy audit log action
+              if (google.script.run.logDeskOverride) {
+                  google.script.run.withFailureHandler(function(err){
+                      console.warn("Could not log override: ", err);
+                  }).logDeskOverride(targetDateStr, r, c, appData.currentUser.email, newVal, action);
+              }
+          }
+      }
+      // --- END CONTEXT MENU LOGIC ---
+
+      // --- PENDING DESK SELECTION LOGIC ---
+      function completePendingOfficeBooking(r, c) {
+          var pb = window.pendingOfficeBooking;
+          if (!pb) return;
+          
+          var targetDateStr = pb.datesToPick[pb.currentIndex];
+          
+          // Save the desk choice locally in the pending array (Do NOT instantly render them as a blue box yet!)
+          pb.pickedSeats.push({ date: targetDateStr, r: r, c: c });
+          
+          // Log their request to the backend audits
+          if (google && google.script && google.script.run && google.script.run.logDeskOverride) {
+              google.script.run.logDeskOverride(targetDateStr, r, c, appData.currentUser.email, pb.name, 'Requested Seat (Pending Approval)');
+          }
+
+          pb.currentIndex++;
+
+          // If there are more days in this multi-day booking, loop to the next day!
+          if (pb.currentIndex < pb.datesToPick.length) {
+              var nextDateStr = pb.datesToPick[pb.currentIndex];
+              var dp = document.getElementById('desk-date-picker');
+              if(dp) dp.value = nextDateStr;
+              renderDeskPlan();
+              return; 
+          }
+
+          // All dates picked! Submit the booking
+          var fd = { type: pb.type, startDate: pb.startDate, endDate: pb.endDate, hours: pb.hours, targetEmail: pb.email };
+          
+          document.getElementById('desk-map-container').innerHTML = '<div class="text-green-600 italic mt-10 text-center text-xl"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Confirming seat(s) and booking...</div>';
+          
+          google.script.run.withSuccessHandler(function(res) {
+              if (res.success === false) { alert(res.message); window.pendingOfficeBooking = null; renderDeskPlan(); return; }
+              var newB = { id: res.id, email: pb.email, type: fd.type, startDate: fd.startDate, endDate: fd.endDate, daysCount: res.daysCount, status: res.status, hours: fd.hours };
+              appData.bookings.push(newB);
+              window.pendingOfficeBooking = null; 
+              refreshAllViews();
+              alert("Seat(s) requested and Office booking submitted successfully! It is now Pending Approval.");
+          }).withFailureHandler(function(err) { 
+              window.pendingOfficeBooking = null; 
+              handleServerError(err); 
+              renderDeskPlan();
+          }).submitBooking(fd);
+      }
+      
+      function cancelPendingOfficeBooking() {
+          window.pendingOfficeBooking = null;
+          renderDeskPlan();
+      }
+      // --- END PENDING DESK SELECTION ---
+
       // --- INITIALIZATION DEBUG ---
       console.log('[Rota App] Script started loading...');
       
@@ -908,7 +1105,29 @@
                     bookings: [], 
                     schedules: [], 
                     auditLogs: [],
-                    capacitySettings: {Monday:5, Tuesday:5, Wednesday:5, Thursday:5, Friday:5, Saturday:0, Sunday:0}
+                    birthdays: [
+                      {name: 'Rebecca Batepola', date: '2026-03-31T00:00:00Z'},
+                      {name: 'Jade Smith', date: '2026-04-15T00:00:00Z'},
+                      {name: 'Phil Jones', date: '2026-04-20T00:00:00Z'}
+                    ],
+                    capacitySettings: {Monday:5, Tuesday:5, Wednesday:5, Thursday:5, Friday:5, Saturday:0, Sunday:0},
+                    deskPlan: [
+                      ['Monday'],
+                      ['', '-', 'Jade', 'Natalie', 'Available', 'Phil'],
+                      ['', 'skip', 'Will', 'Savaira', 'Madi', 'skip'],
+                      ['Tuesday'],
+                      ['', '-', 'Emma', 'Jade', 'Natalie', 'Phil'],
+                      ['', 'skip', 'Damon', 'Alex', 'Madi', 'skip'],
+                      ['Wednesday'],
+                      ['', '-', 'Emma', 'Sami', 'Will', 'Teresa'],
+                      ['', 'skip', 'Rebecca', 'Savaira', 'Available', 'skip'],
+                      ['Thursday'],
+                      ['', '-', 'Emma', 'Jade', 'Natalie', 'Phil'],
+                      ['', 'skip', 'Rebecca', 'Will', 'Damon', 'skip'],
+                      ['Friday'],
+                      ['', '-', 'Damon', 'Alex', 'Natalie', 'Teresa'],
+                      ['', 'skip', 'Rebecca', 'Savaira', 'Madi', 'skip']
+                    ]
                   }); 
                 }, 500); 
               }, 
@@ -977,7 +1196,7 @@
         return result;
       }
 
-var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, auditLogs: [], carryoverRequests: [] };
+      var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, auditLogs: [], carryoverRequests: [], birthdays: [] };
       var calendarDate = new Date();
       var myTeamCalendarDate = new Date();
       var expandedManagers = [];
@@ -1235,6 +1454,24 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         if (!data.allowanceChanges) data.allowanceChanges = [];
         if (!data.appSettings) data.appSettings = {};
         
+        // SURGICAL PATCH: Load persistent daily desk overrides from the backend so they apply for everyone!
+        if (data.dailyOverrides) {
+            window.dailyOverrides = data.dailyOverrides;
+        } else if (data.deskOverrides) {
+            window.dailyOverrides = data.deskOverrides;
+        } else if (typeof window.dailyOverrides === 'undefined') {
+            window.dailyOverrides = {};
+        }
+        
+        // SURGICAL PATCH: Sort bookings by a stable ID so the order never shifts when an approval changes its status in the database
+        if (data.bookings) {
+            data.bookings.sort(function(a, b) {
+                var valA = a.id || '';
+                var valB = b.id || '';
+                return valA > valB ? 1 : (valA < valB ? -1 : 0);
+            });
+        }
+        
         // Handle access denied (user not in Employees sheet)
         if (data.accessDenied) {
           console.log('[Rota App] Access denied - user not in Employees sheet');
@@ -1246,6 +1483,13 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         
         appData = data;
         console.log('[Rota App] Hiding loading screen');
+        
+        // Auto-select today for Desk Plan Date Picker
+        var dayPicker = document.getElementById('desk-date-picker');
+        if (dayPicker) {
+            dayPicker.valueAsDate = new Date();
+        }
+
         document.getElementById('loading-screen').classList.add('hidden');
         console.log('[Rota App] Showing dashboard for user:', appData.currentUser.name);
         document.getElementById('view-dashboard').classList.remove('hidden');
@@ -1284,9 +1528,26 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         if (!data.allowanceChanges) data.allowanceChanges = [];
         if (!data.appSettings) data.appSettings = {};
         
+        // SURGICAL PATCH: Sync daily desk overrides from backend in the background so all users see changes instantly!
+        if (data.dailyOverrides) {
+            window.dailyOverrides = data.dailyOverrides;
+        } else if (data.deskOverrides) {
+            window.dailyOverrides = data.deskOverrides;
+        }
+        
+        // SURGICAL PATCH: Ensure background syncs also sort the bookings stably
+        if (data.bookings) {
+            data.bookings.sort(function(a, b) {
+                var valA = a.id || '';
+                var valB = b.id || '';
+                return valA > valB ? 1 : (valA < valB ? -1 : 0);
+            });
+        }
+        
         appData = data;
         if(!appData.auditLogs) appData.auditLogs=[];
         if(!appData.carryoverRequests) appData.carryoverRequests=[];
+        if(!appData.birthdays) appData.birthdays=[];
         if (document.getElementById('modal-booking').classList.contains('hidden') && document.getElementById('modal-employee').classList.contains('hidden')) {
           refreshAllViews();
         }
@@ -1300,6 +1561,8 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         if (!myTeamView.classList.contains('hidden')) renderMyTeamCalendar();
         var patternsView = document.getElementById('view-patterns');
         if (!patternsView.classList.contains('hidden')) renderPatternsView();
+        var deskPlanView = document.getElementById('view-desk-plan');
+        if (!deskPlanView.classList.contains('hidden')) renderDeskPlan();
         if (appData.currentUser.role === 'Admin') {
           renderWeeklyCapacity();
           loadMyMorriBookings();
@@ -1310,10 +1573,11 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
       }
 
       function loadView(viewName) {
-        ['view-dashboard', 'view-team', 'view-admin', 'view-my-team', 'view-patterns', 'view-capacity-settings'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
+        ['view-dashboard', 'view-team', 'view-admin', 'view-my-team', 'view-patterns', 'view-capacity-settings', 'view-desk-plan'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
         document.getElementById('view-' + viewName).classList.remove('hidden');
         if (viewName === 'my-team') renderMyTeamCalendar();
         if (viewName === 'patterns') renderPatternsView();
+        if (viewName === 'desk-plan') renderDeskPlan();
         if (viewName === 'capacity-settings') loadCapacitySettings();
         if (viewName === 'dashboard' && appData.currentUser.role === 'Admin') {
           renderWeeklyCapacity();
@@ -1410,6 +1674,12 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         var endDate = document.getElementById('booking-end-date').value;
         var hoursField = document.getElementById('booking-hours');
         var breakdownContainer = document.getElementById('hours-breakdown');
+        
+        // SURGICAL PATCH: Auto-populate end date if it is empty and start date is selected
+        if (startDate && !endDate) {
+            document.getElementById('booking-end-date').value = startDate;
+            endDate = startDate;
+        }
         
         if (!startDate || !endDate) return;
         
@@ -1595,6 +1865,62 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           carryoverBtn.classList.add('hidden');
         }
         
+        // --- NEW: Render Upcoming Birthdays ---
+        var birthdayContainer = document.getElementById('dash-birthdays-list');
+        if (birthdayContainer && appData.birthdays) {
+            var todayObj = new Date();
+            todayObj.setHours(0,0,0,0);
+            
+            // Helper function to safely parse dates including UK DD/MM/YYYY text format
+            function parseSafeDate(dStr) {
+                var d = new Date(dStr);
+                if (isNaN(d.getTime()) && typeof dStr === 'string') {
+                    var p = dStr.split('/');
+                    if (p.length === 3) d = new Date(p[2].substring(0,4), parseInt(p[1])-1, parseInt(p[0]));
+                }
+                return d;
+            }
+            
+            var upcomingBirthdays = appData.birthdays.map(function(b) {
+                var bDate = parseSafeDate(b.date);
+                if (isNaN(bDate.getTime())) return null; 
+                
+                var bMonth = bDate.getMonth();
+                var bDay = bDate.getDate();
+                
+                var nextBday = new Date(todayObj.getFullYear(), bMonth, bDay);
+                // If the birthday has already happened this year, check against next year
+                if (nextBday < todayObj) {
+                    nextBday.setFullYear(todayObj.getFullYear() + 1);
+                }
+                
+                var diffTime = nextBday - todayObj;
+                var diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+                return { original: b, nextBday: nextBday, diffDays: diffDays };
+            }).filter(function(item) {
+                return item !== null && item.diffDays <= 31; // Within the next 31 days
+            }).sort(function(a, b) {
+                return a.nextBday - b.nextBday;
+            });
+
+            if (upcomingBirthdays.length === 0) {
+                birthdayContainer.innerHTML = '<p class="text-gray-400 italic text-xs mt-2">No birthdays in the next 30 days.</p>';
+            } else {
+                var bHtml = '';
+                upcomingBirthdays.forEach(function(item) {
+                    var firstName = getFirstName(item.original.name);
+                    var bDateString = item.nextBday.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+                    
+                    var daysText = item.diffDays === 0 ? "Today!" : (item.diffDays === 1 ? "Tomorrow" : "in " + item.diffDays + " days");
+                    var badgeClass = item.diffDays <= 7 ? "bg-pink-500 text-white" : "bg-pink-100 text-pink-700";
+                    
+                    bHtml += '<div class="flex items-center gap-2 border-b border-gray-50 pb-1.5 pt-1 last:border-0"><i class="fa-solid fa-gift text-pink-400 text-xs"></i> <strong class="text-gray-800 text-sm">' + firstName + '</strong> <div class="ml-auto flex flex-col items-end leading-tight"><span class="text-xs text-gray-500 font-medium">' + bDateString + '</span><span class="text-[10px] ' + badgeClass + ' px-1.5 py-0.5 rounded font-bold mt-0.5">' + daysText + '</span></div></div>';
+                });
+                birthdayContainer.innerHTML = bHtml;
+            }
+        }
+        // --- END BIRTHDAYS ---
+
         var adminAlertContainer = document.getElementById('admin-dashboard-alert');
         if (adminAlertContainer) adminAlertContainer.remove(); 
 
@@ -1906,6 +2232,574 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
             });
             tbody.innerHTML += rowHtml + '</tr>';
         });
+      }
+
+      // 1. Tiny function to turn emails into capitalized first names
+      function getFirstName(emailOrName) {
+        if (!emailOrName) return '';
+        var str = String(emailOrName).trim();
+        if (!str.includes('@')) return str; // If it's already a name, leave it alone
+        var prefix = str.split('@')[0];
+        var firstName = prefix.split('.')[0];
+        return firstName.charAt(0).toUpperCase() + firstName.slice(1);
+      }
+
+      // 2. Draw the visual desk map
+      function renderDeskPlan() {
+        var container = document.getElementById('desk-map-container');
+        if (!container) return;
+
+        if (!appData.deskPlan || appData.deskPlan.length === 0) {
+          container.innerHTML = '<div class="text-gray-500 italic mt-10"><i class="fa-solid fa-triangle-exclamation mr-2"></i>No desk plan data found. Make sure you have a tab named "Sheet1" with the map.</div>';
+          return;
+        }
+
+        var datePicker = document.getElementById('desk-date-picker');
+        var targetDate = new Date();
+        var targetDateStr = targetDate.toISOString().split('T')[0];
+        if (datePicker && datePicker.value) {
+            var parts = datePicker.value.split('-');
+            targetDate = new Date(parts[0], parts[1] - 1, parts[2]);
+            targetDateStr = datePicker.value;
+        }
+        targetDate.setHours(0,0,0,0);
+        
+        // Ensure local overrides exists for this specific day
+        if (typeof window.dailyOverrides === 'undefined') window.dailyOverrides = {};
+        var todaysOverrides = window.dailyOverrides[targetDateStr] || {};
+        
+        var allDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        var selectedDay = allDays[targetDate.getDay()];
+
+        if (selectedDay === 'Sunday' || selectedDay === 'Saturday') {
+          container.innerHTML = '<div class="text-xl text-gray-500 italic mt-10 text-center"><i class="fa-solid fa-mug-hot text-4xl mb-4 text-gray-300 block"></i>It is the weekend... sit where you like.</div>';
+          return;
+        }
+
+        var startRow = -1;
+        for (var i = 0; i < appData.deskPlan.length; i++) {
+          if (appData.deskPlan[i].some(function(cell) { return String(cell).includes(selectedDay); })) {
+            startRow = i;
+            break;
+          }
+        }
+
+        if (startRow === -1) {
+          container.innerHTML = '<div class="text-gray-500 italic mt-10">Could not find schedule for ' + selectedDay + ' in Sheet1.</div>';
+          return;
+        }
+
+        // Find where this day's section ends
+        var daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+        var endRow = appData.deskPlan.length;
+        for (var j = startRow + 1; j < appData.deskPlan.length; j++) {
+          if (appData.deskPlan[j].some(function(cell) { return daysOfWeek.indexOf(String(cell).trim()) !== -1; })) {
+            endRow = j;
+            break;
+          }
+        }
+
+        container.innerHTML = ''; // Clear loading text
+        
+        // --- LOGIC: Dynamic Hot-Desk Assignment ---
+        // NEW: Robust Employee Matcher to prevent name collisions (e.g. Alex vs Alexis)
+        function findEmployeeByMapName(val) {
+            if (!val) return null;
+            var valLow = String(val).toLowerCase().trim();
+            var fName = getFirstName(val).toLowerCase();
+            var emp = appData.employees.find(function(e) { return e.email.toLowerCase() === valLow; });
+            if (emp) return emp;
+            emp = appData.employees.find(function(e) { return getFirstName(e.name).toLowerCase() === fName; });
+            if (emp) return emp;
+            return appData.employees.find(function(e) { return getFirstName(e.name).toLowerCase().indexOf(fName) === 0; });
+        }
+
+        var dynamicAssignments = {};
+        var vacatedSeats = {}; // Track seats that have been uprooted
+        
+        // Get list of emails that were manually unassigned today so they don't bounce back in!
+        var manuallyRemovedEmails = [];
+        for (var key in todaysOverrides) {
+            var parts = key.split('_');
+            var origR = parseInt(parts[0]);
+            var origC = parseInt(parts[1]);
+            if (appData.deskPlan[origR] && appData.deskPlan[origR][origC]) {
+                var originalVal = String(appData.deskPlan[origR][origC]).trim();
+                var empOriginal = findEmployeeByMapName(originalVal);
+                if (empOriginal) manuallyRemovedEmails.push(empOriginal.email);
+            }
+        }
+
+        // 1. Find people who explicitly booked 'Office' today
+        var officeBookingsToday = appData.bookings.filter(function(b) {
+            if (b.type !== 'Office' || b.status !== 'Approved') return false;
+            var s = new Date(b.startDate); s.setHours(0,0,0,0);
+            var e = new Date(b.endDate); e.setHours(0,0,0,0);
+            return targetDate >= s && targetDate <= e;
+        });
+
+        // 2. Who is physically mapped today?
+        var todaysMapEmails = [];
+        for (var r2 = startRow + 1; r2 < endRow; r2++) {
+            for (var c2 = 0; c2 < appData.deskPlan[r2].length; c2++) {
+                var val2 = todaysOverrides[r2 + "_" + c2] !== undefined ? String(todaysOverrides[r2 + "_" + c2]).trim() : String(appData.deskPlan[r2][c2]).trim();
+                if (val2 && val2.toLowerCase() !== 'skip' && !val2.match(/^(n\/a|-|_|x|other|unavailable|dark|trade planning|merch|available|free|empty)$/i)) {
+                    var mapEmp = findEmployeeByMapName(val2);
+                    if (mapEmp) todaysMapEmails.push(mapEmp.email);
+                }
+            }
+        }
+
+        // 3. Who needs a seat? (Has office booking but not on today's map)
+        var peopleNeedingSeats = [];
+        officeBookingsToday.forEach(function(b) {
+            var emp = appData.employees.find(function(e) { return e.email === b.email; });
+            if (emp) {
+                var isAlreadyOnMap = todaysMapEmails.indexOf(emp.email) !== -1;
+                // If they have been manually unassigned, leave them off!
+                if (!isAlreadyOnMap && !manuallyRemovedEmails.includes(emp.email)) {
+                    peopleNeedingSeats.push(emp);
+                }
+            }
+        });
+
+        // 4. Find typical seats across the whole sheet for these extra people
+        var typicalSeats = {};
+        var currentDayStart = 0;
+        var dayNamesList = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+        for (var i = 0; i < appData.deskPlan.length; i++) {
+            if (appData.deskPlan[i].some(function(cell) { return dayNamesList.indexOf(String(cell).trim()) !== -1; })) {
+                currentDayStart = i;
+            }
+            if (i > currentDayStart && (i < startRow || i > endRow)) { 
+                for (var j = 0; j < appData.deskPlan[i].length; j++) {
+                    var val = String(appData.deskPlan[i][j]).trim();
+                    if (val && val.toLowerCase() !== 'skip' && !val.match(/^(n\/a|-|_|x|other|unavailable|dark|trade planning|merch|available|free|empty)$/i)) {
+                        var empFound = findEmployeeByMapName(val);
+                        if (empFound && !typicalSeats[empFound.email]) {
+                            typicalSeats[empFound.email] = { rOffset: i - currentDayStart, c: j };
+                        }
+                    }
+                }
+            }
+        }
+
+        // 5. Identify Available Seats Today AND Top-Bank Occupants
+        var availableSeats = [];
+        var topBankOccupants = [];
+        
+        for (var r3 = startRow + 1; r3 < endRow; r3++) {
+            var rOffset = r3 - startRow; // Row 1-2 = Top Bank. Row 3-4 = Bottom Bank.
+            for (var c3 = 0; c3 < appData.deskPlan[r3].length; c3++) {
+                var rawVal = todaysOverrides[r3 + "_" + c3] !== undefined ? String(todaysOverrides[r3 + "_" + c3]).trim() : String(appData.deskPlan[r3][c3]).trim();
+                
+                if (c3 === 0 && !rawVal) continue; // Skip padding
+                if (!rawVal || rawVal.toLowerCase() === 'skip') continue; // Skip merged/invisible
+                if (rawVal.match(/^(n\/a|-|_|x|other|unavailable|dark|trade planning|merch)$/i)) continue; // Skip greyed out
+                
+                var isExplicitlyAvailable = (rawVal.toLowerCase() === 'available' || rawVal.toLowerCase() === 'free' || rawVal.toLowerCase() === 'empty');
+                
+                if (isExplicitlyAvailable) {
+                    availableSeats.push({ r: r3, c: c3, rOffset: rOffset, isExplicitlyEmpty: true });
+                } else {
+                    var isManualOverride = (todaysOverrides[r3 + "_" + c3] !== undefined);
+                    var emp2 = findEmployeeByMapName(rawVal);
+                    
+                    if (emp2) {
+                        var isAway = false;
+                        if (!isManualOverride) { // Ignore away check if they were manually forced into this seat today
+                            var booking2 = appData.bookings.find(function(b) {
+                                if (b.email !== emp2.email || b.status !== 'Approved') return false;
+                                var s = new Date(b.startDate); s.setHours(0,0,0,0);
+                                var e = new Date(b.endDate); e.setHours(0,0,0,0);
+                                return targetDate >= s && targetDate <= e;
+                            });
+                            
+                            if (booking2) {
+                                if (['Holiday', 'Travel', 'Maternity', 'Sickness', 'WFH'].indexOf(booking2.type) !== -1) {
+                                    isAway = true;
+                                }
+                            } else {
+                                var sched2 = appData.schedules[emp2.email] || {};
+                                var daySched2 = sched2[selectedDay];
+                                if (daySched2 && (daySched2.type === 'WFH' || daySched2.type === 'None')) {
+                                    isAway = true;
+                                }
+                            }
+                            
+                            // If they have an 'Office' booking, they are definitely NOT away
+                            if (booking2 && booking2.type === 'Office') {
+                                isAway = false; 
+                            }
+                        }
+
+                        if (isAway) {
+                            availableSeats.push({ r: r3, c: c3, rOffset: rOffset, isExplicitlyEmpty: false });
+                        } else {
+                            // If they are mapped to the top bank but ARE in the office, queue them up!
+                            if (rOffset <= 2 && !isManualOverride) {
+                                topBankOccupants.push({ emp: emp2, r: r3, c: c3, rOffset: rOffset });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 5.5. FORCE DROP-DOWN: Uproot Top Bank occupants if there is space in the Bottom Bank!
+        topBankOccupants.forEach(function(occ) {
+            var bottomSeatIndex = availableSeats.findIndex(function(s) { return s.rOffset >= 3 && !s.claimed; });
+            if (bottomSeatIndex !== -1) {
+                // Claim the bottom seat so no one else takes it during this loop
+                availableSeats[bottomSeatIndex].claimed = true;
+                
+                // Tag them as shifted so they render blue instead of green!
+                occ.emp.isShifted = true;
+                
+                // Add the top-row person to the Needs-Seat queue to be moved down
+                peopleNeedingSeats.push(occ.emp);
+                
+                // Mark their old top-row seat as vacated so it renders empty instead of duplicating them
+                vacatedSeats[occ.r + "_" + occ.c] = true;
+                
+                // Make their old top-row seat available for someone else (like a random visitor)
+                availableSeats.push({ r: occ.r, c: occ.c, rOffset: occ.rOffset, isExplicitlyEmpty: true });
+                
+                // Erase their typical seat mapping so they don't get sucked back into the top row!
+                delete typicalSeats[occ.emp.email];
+                
+                // Remove from todaysMapEmails so the UI knows they moved
+                todaysMapEmails = todaysMapEmails.filter(function(em) { return em !== occ.emp.email; });
+            }
+        });
+        
+        // Cleanup the temporary claim flags
+        availableSeats.forEach(function(s) { delete s.claimed; });
+
+        // SURGICAL PATCH 1: Sort people alphabetically by email so assignment order NEVER shifts based on approval timing
+        peopleNeedingSeats.sort(function(a, b) {
+            return a.email > b.email ? 1 : -1;
+        });
+
+        // 6. Assign extra people to seats (TWO-PASS SYSTEM)
+        var unassignedPeople = [];
+        
+        // PASS 1: Give people their typical seats first if available!
+        peopleNeedingSeats.forEach(function(emp) {
+            var assigned = false;
+            var typical = typicalSeats[emp.email];
+            if (typical) {
+                var targetR = startRow + typical.rOffset;
+                var targetC = typical.c;
+                var seatIndex = availableSeats.findIndex(function(s) { return s.r === targetR && s.c === targetC; });
+                if (seatIndex !== -1) {
+                    dynamicAssignments[targetR + "_" + targetC] = emp;
+                    availableSeats.splice(seatIndex, 1);
+                    assigned = true;
+                }
+            }
+            if (!assigned) {
+                unassignedPeople.push(emp); // Save them for Pass 2
+            }
+        });
+
+        // PASS 2: Assign remaining people to the best available leftover seats
+        var leftoverPeople = [];
+        unassignedPeople.forEach(function(emp) {
+            if (availableSeats.length > 0) {
+                // Sort available seats to prioritize lower rows FIRST
+                availableSeats.sort(function(a,b) { 
+                    // 1. Primary: Prioritize lower group (higher row index comes first)
+                    if (a.r !== b.r) {
+                        return b.r - a.r; 
+                    }
+                    // 2. Secondary: If on the same row, prioritize explicitly empty seats over someone else's desk
+                    if (a.isExplicitlyEmpty !== b.isExplicitlyEmpty) {
+                        return a.isExplicitlyEmpty ? -1 : 1;
+                    }
+                    // SURGICAL PATCH 2: Tie-break by column to ensure the exact same seat is chosen every single time
+                    return a.c - b.c;
+                });
+                var seat = availableSeats.shift();
+                dynamicAssignments[seat.r + "_" + seat.c] = emp;
+            } else {
+                // No seats left! Push them to the overflow list
+                leftoverPeople.push(emp);
+            }
+        });
+        
+        // --- END DYNAMIC LOGIC ---
+        
+        var rowCount = 0; // Tracks which row we are on to add the middle gap
+        var clickableSeatsCount = 0; // SURGICAL PATCH: Track how many desks are actually free to click
+
+        // Render the actual Grid
+        for (var r = startRow + 1; r < endRow; r++) {
+          var rowData = appData.deskPlan[r];
+          if (rowData.join('').trim() === '') continue; // Skip blank rows
+          
+          rowCount++; // Increment row counter
+
+          var rowDiv = document.createElement('div');
+          
+          // Add a large gap after the 2nd row to separate top and bottom blocks
+          var rowGap = (rowCount === 2) ? 'mb-16 ' : 'mb-4 ';
+          rowDiv.className = rowGap + 'flex gap-4 justify-center w-full min-w-max';
+
+          for (var c = 0; c < rowData.length; c++) {
+            
+            var isManualOverride = todaysOverrides[r + "_" + c] !== undefined;
+            var rawVal = isManualOverride ? String(todaysOverrides[r + "_" + c]).trim() : String(rowData[c]).trim();
+            
+            // Skip leading empty columns (padding in sheet)
+            if (c === 0 && !rawVal) {
+              var paddingDiv = document.createElement('div');
+              paddingDiv.className = 'w-6 md:w-10 h-24 border-2 border-dashed border-transparent';
+              rowDiv.appendChild(paddingDiv);
+              continue;
+            }
+
+            // Create the vertical gaps between the blocks using fixed physical columns!
+            // Aisle before Col 2 and Col 5 creates a 1-3-1 layout (Total 8 desks)
+            var marginClasses = (c === 2 || c === 5) ? 'ml-4 md:ml-6 ' : '';
+
+            // HARDCODED TALL DESK LOGIC FOR THE ENDS (Col 1 and Col 5)
+            if ((c === 1 || c === 5) && rowCount % 2 === 0) {
+              var ghostDiv = document.createElement('div');
+              ghostDiv.className = 'w-36 h-24 border-2 border-transparent ' + marginClasses;
+              rowDiv.appendChild(ghostDiv);
+              continue;
+            }
+
+            // FIX FOR MERGED CELLS / EMPTY SPACES: 
+            if (!rawVal || rawVal.toLowerCase() === 'skip') {
+              var ghostDiv2 = document.createElement('div');
+              ghostDiv2.className = 'w-36 h-24 border-2 border-transparent ' + marginClasses;
+              rowDiv.appendChild(ghostDiv2);
+              continue;
+            }
+
+            var cellDiv = document.createElement('div');
+            var baseClasses = 'w-36 h-24 flex flex-col items-center justify-center rounded-lg border-2 text-base font-bold text-center overflow-hidden leading-tight p-2 ';
+            
+            if ((c === 1 || c === 5) && rowCount % 2 !== 0) {
+                baseClasses += 'relative top-[56px] z-10 ';
+            }
+            
+            // --- NEW: Attach Context Menu ---
+            (function(rowIdx, colIdx) {
+                cellDiv.addEventListener('contextmenu', function(e) {
+                    showDeskContextMenu(e, rowIdx, colIdx);
+                });
+            })(r, c);
+            
+            // --- DYNAMIC SEAT ASSIGNMENT RENDER ---
+            var dynamicEmp = dynamicAssignments[r + "_" + c];
+            var isVacated = vacatedSeats[r + "_" + c];
+
+            if (dynamicEmp) {
+                if (dynamicEmp.isShifted) {
+                    // Spoof the rawVal to be this employee's email so the standard rendering draws them in blue!
+                    rawVal = dynamicEmp.email;
+                    isVacated = false; // It's occupied now
+                } else {
+                    // Hot-desk visitors render in Bright Green
+                    cellDiv.className = marginClasses + baseClasses + 'bg-green-50 border-green-400 text-green-900 shadow-md transition transform hover:-translate-y-1 cursor-default';
+                    var sIcon = '<i class="fa-solid fa-street-view text-lg block mb-1 text-green-600 opacity-80"></i>';
+                    var sLabel = '<span class="text-xs block uppercase font-bold text-green-700">IN OFFICE</span>';
+                    cellDiv.innerHTML = sIcon + '<span class="truncate w-full">' + dynamicEmp.name.split(' ')[0] + '</span>' + sLabel;
+                    rowDiv.appendChild(cellDiv);
+                    continue; // Move to next cell, skipping standard owner logic
+                }
+            } else if (isVacated && !isManualOverride) {
+                // Force the cell to be available so the old occupant is not duplicated!
+                rawVal = 'Available';
+            }
+            // --- END NEW ---
+
+            // Check for explicit "Dark Grey" flags
+            var isDarkGrey = rawVal.match(/^(n\/a|-|_|x|other|unavailable|dark|trade planning|merch)$/i);
+            var isAvailable = rawVal.toLowerCase() === 'available' || rawVal.toLowerCase() === 'free' || rawVal.toLowerCase() === 'empty';
+            
+            if (isDarkGrey) {
+              cellDiv.className = marginClasses + baseClasses + 'bg-gray-600 border-gray-700 shadow-inner opacity-90';
+              var lowerVal = rawVal.toLowerCase();
+              if (lowerVal === 'trade planning' || lowerVal === 'merch') {
+                  cellDiv.innerHTML = '<span class="text-red-500 text-sm font-extrabold uppercase text-center leading-tight break-words">' + rawVal + '</span>';
+              } else {
+                  cellDiv.innerHTML = '<i class="fa-solid fa-times text-red-500 text-4xl opacity-80"></i>';
+              }
+            } else if (isAvailable) {
+              // Available Desk
+              cellDiv.className = marginClasses + baseClasses + 'border-dashed bg-gray-100 border-gray-300 text-gray-400 transition transform hover:bg-gray-200 cursor-default';
+              cellDiv.innerHTML = '<i class="fa-solid fa-chair text-lg block mb-1 opacity-50"></i><span class="text-xs uppercase font-bold tracking-wider">Available</span>';
+              
+              // --- Make available desks clickable for pending office bookings ---
+              if (window.pendingOfficeBooking) {
+                  clickableSeatsCount++;
+                  cellDiv.className = marginClasses + baseClasses + 'border-dashed border-green-500 bg-green-50 text-green-700 transition transform hover:-translate-y-1 hover:shadow-lg cursor-pointer shadow animate-pulse';
+                  cellDiv.innerHTML = '<i class="fa-solid fa-hand-pointer text-lg block mb-1"></i><span class="text-xs uppercase font-bold tracking-wider">Select Seat</span>';
+                  (function(rowIdx, colIdx) {
+                      cellDiv.onclick = function() { completePendingOfficeBooking(rowIdx, colIdx); };
+                  })(r, c);
+              }
+              // --- END NEW ---
+            } else {
+              // Occupied Desk
+              var displayName = getFirstName(rawVal);
+              var deskClass = 'bg-blue-50 border-blue-200 text-blue-800 shadow-sm';
+              var statusIcon = '<i class="fa-solid fa-desktop text-lg block mb-1 opacity-50"></i>';
+              var statusLabel = '';
+              var forceAvailable = false;
+              var isAwayThisDay = false; // NEW: Track if the desk owner is away
+              
+              var emp = findEmployeeByMapName(rawVal);
+              
+              if (emp) {
+                  displayName = getFirstName(emp.name);
+                  
+                  if (isManualOverride) {
+                      deskClass = 'bg-blue-50 border-blue-200 text-blue-800 shadow-sm';
+                  } else {
+                      var booking = appData.bookings.find(function(b) {
+                          if (b.email !== emp.email || b.status !== 'Approved') return false;
+                          var s = new Date(b.startDate); s.setHours(0,0,0,0);
+                          var e = new Date(b.endDate); e.setHours(0,0,0,0);
+                          return targetDate >= s && targetDate <= e;
+                      });
+                      
+                      if (booking) {
+                          if (booking.type === 'Holiday' || booking.type === 'Travel' || booking.type === 'Maternity') {
+                              isAwayThisDay = true;
+                              deskClass = 'bg-gray-100 border-gray-300 text-gray-400 opacity-60';
+                              statusIcon = '<i class="fa-solid fa-plane text-lg block mb-1"></i>';
+                              statusLabel = '<span class="text-xs block uppercase">' + booking.type.substring(0,3) + '</span>';
+                          } else if (booking.type === 'Sickness') {
+                              var canSeeSick = (appData.currentUser.email === emp.email) || 
+                                               (appData.currentUser.email.toLowerCase() === 'natalie.warner@morrisonsplc.co.uk') || 
+                                               (appData.currentUser.role === 'Admin') || 
+                                               (emp.manager && appData.currentUser.email.toLowerCase() === emp.manager.toLowerCase());
+                              
+                              if (canSeeSick) {
+                                  isAwayThisDay = true;
+                                  deskClass = 'bg-red-50 border-red-200 text-red-500 opacity-80';
+                                  statusIcon = '<i class="fa-solid fa-notes-medical text-lg block mb-1"></i>';
+                                  statusLabel = '<span class="text-xs block uppercase font-bold">ILL</span>';
+                              } else {
+                                  forceAvailable = true;
+                              }
+                          } else if (booking.type === 'WFH') {
+                              isAwayThisDay = true;
+                              deskClass = 'bg-gray-100 border-gray-300 text-gray-400 opacity-60';
+                              statusIcon = '<i class="fa-solid fa-house text-lg block mb-1"></i>';
+                              statusLabel = '<span class="text-[10px] block uppercase font-bold">WFH</span>';
+                          }
+                      } else {
+                          var sched = appData.schedules[emp.email] || {};
+                          var daySched = sched[selectedDay];
+                          if (daySched && daySched.type === 'WFH') {
+                              isAwayThisDay = true;
+                              deskClass = 'bg-gray-100 border-gray-300 text-gray-400 opacity-60';
+                              statusIcon = '<i class="fa-solid fa-house text-lg block mb-1"></i>';
+                              statusLabel = '<span class="text-[10px] block uppercase font-bold">WFH</span>';
+                          } else if (daySched && daySched.type === 'None') {
+                              isAwayThisDay = true;
+                              deskClass = 'bg-gray-100 border-gray-300 text-gray-400 opacity-60';
+                              statusIcon = '<i class="fa-solid fa-ban text-lg block mb-1"></i>';
+                              statusLabel = '<span class="text-[10px] block uppercase">OFF</span>';
+                          }
+                      }
+                  }
+              }
+
+              if (forceAvailable) {
+                  cellDiv.className = marginClasses + baseClasses + 'border-dashed bg-gray-100 border-gray-300 text-gray-400 transition transform hover:bg-gray-200 cursor-default';
+                  cellDiv.innerHTML = '<i class="fa-solid fa-chair text-lg block mb-1 opacity-50"></i><span class="text-xs uppercase font-bold tracking-wider">Available</span>';
+                  
+                  if (window.pendingOfficeBooking) {
+                      clickableSeatsCount++;
+                      cellDiv.className = marginClasses + baseClasses + 'border-dashed border-green-500 bg-green-50 text-green-700 transition transform hover:-translate-y-1 hover:shadow-lg cursor-pointer shadow animate-pulse';
+                      cellDiv.innerHTML = '<i class="fa-solid fa-hand-pointer text-lg block mb-1"></i><span class="text-xs uppercase font-bold tracking-wider">Select Seat</span>';
+                      (function(rowIdx, colIdx) {
+                          cellDiv.onclick = function() { completePendingOfficeBooking(rowIdx, colIdx); };
+                      })(r, c);
+                  }
+              } else if (window.pendingOfficeBooking && isAwayThisDay) {
+                  clickableSeatsCount++;
+                  // --- NEW: Make "away" desks clickable for pending office bookings ---
+                  cellDiv.className = marginClasses + baseClasses + 'border-dashed border-green-500 bg-green-50 text-green-700 transition transform hover:-translate-y-1 hover:shadow-lg cursor-pointer shadow animate-pulse';
+                  cellDiv.innerHTML = '<i class="fa-solid fa-hand-pointer text-lg block mb-1"></i><span class="text-xs uppercase font-bold tracking-wider">Select Seat</span>';
+                  (function(rowIdx, colIdx) {
+                      cellDiv.onclick = function() { completePendingOfficeBooking(rowIdx, colIdx); };
+                  })(r, c);
+              } else {
+                  cellDiv.className = marginClasses + baseClasses + 'transition transform hover:-shadow-md cursor-default ' + deskClass;
+                  cellDiv.innerHTML = statusIcon + '<span class="truncate w-full">' + displayName + '</span>' + statusLabel;
+              }
+            }
+            
+            rowDiv.appendChild(cellDiv);
+          }
+          container.appendChild(rowDiv);
+        }
+
+        // --- NEW: OVERFLOW DISPLAY OR PENDING SELECTION BANNER ---
+        if (window.pendingOfficeBooking) {
+            var pb = window.pendingOfficeBooking;
+            var currentPickDateStr = pb.datesToPick[pb.currentIndex];
+            var displayDate = formatDate(currentPickDateStr);
+            var stepText = pb.datesToPick.length > 1 ? " (Day " + (pb.currentIndex + 1) + " of " + pb.datesToPick.length + ")" : "";
+            
+            var bannerDiv = document.createElement('div');
+            
+            if (typeof clickableSeatsCount !== 'undefined' && clickableSeatsCount === 0) {
+                bannerDiv.className = 'mt-8 w-full max-w-3xl mx-auto bg-red-50 border border-red-400 rounded-xl p-4 flex justify-between items-center shadow-md';
+                bannerDiv.innerHTML = '<div><h3 class="text-red-800 font-bold text-lg mb-1"><i class="fa-solid fa-triangle-exclamation mr-2"></i>No Desks Available</h3><p class="text-red-700 text-sm">There are no free desks remaining for <strong>' + displayDate + '</strong>. Please cancel and select a different day.</p></div>' +
+                                      '<button onclick="cancelPendingOfficeBooking()" class="px-4 py-2 bg-red-100 text-red-700 border border-red-300 rounded hover:bg-red-200 font-bold text-sm">Cancel Booking</button>';
+            } else {
+                bannerDiv.className = 'mt-8 w-full max-w-3xl mx-auto bg-green-50 border border-green-400 rounded-xl p-4 flex justify-between items-center shadow-md';
+                bannerDiv.innerHTML = '<div><h3 class="text-green-800 font-bold text-lg mb-1"><i class="fa-solid fa-hand-pointer mr-2"></i>Select a Desk' + stepText + '</h3><p class="text-green-700 text-sm">Please click any pulsing green desk above to request a seat for <strong>' + displayDate + '</strong>.</p></div>' +
+                                      '<button onclick="cancelPendingOfficeBooking()" class="px-4 py-2 bg-white text-gray-600 border border-gray-300 rounded hover:bg-gray-100 font-bold text-sm">Cancel Booking</button>';
+            }
+            container.appendChild(bannerDiv);
+        } else if (typeof leftoverPeople !== 'undefined' && leftoverPeople.length > 0) {
+            var overflowDiv = document.createElement('div');
+            overflowDiv.className = 'mt-8 w-full max-w-3xl mx-auto bg-red-50 border border-red-200 rounded-xl p-5 text-center shadow-sm';
+            overflowDiv.innerHTML = '<div class="text-red-500 mb-2"><i class="fa-solid fa-triangle-exclamation text-3xl"></i></div>' +
+                                    '<h3 class="text-red-800 font-bold text-lg mb-1">Over Capacity Today!</h3>' +
+                                    '<p class="text-red-700 text-sm mb-4">There are no available desks remaining for the following booked colleagues:</p>' +
+                                    '<div class="flex flex-wrap justify-center gap-3">' + 
+                                    leftoverPeople.map(function(e) { return '<span class="bg-white border border-red-300 text-red-700 px-4 py-2 rounded-lg shadow-sm text-sm font-bold flex items-center gap-2"><i class="fa-solid fa-user-xmark opacity-70"></i> ' + getFirstName(e.name) + '</span>'; }).join('') + 
+                                    '</div>';
+            container.appendChild(overflowDiv);
+        }
+
+        // SURGICAL PATCH: Render Desk Plan Logs for Admins and Managers
+        var logsSection = document.getElementById('desk-plan-logs-section');
+        if (logsSection && appData.currentUser && (appData.currentUser.role === 'Admin' || appData.currentUser.role === 'Manager')) {
+            logsSection.classList.remove('hidden');
+            var logsBody = document.getElementById('desk-plan-logs-body');
+            logsBody.innerHTML = '';
+            var deskLogsToShow = window.localDeskLogs || [];
+            
+            // Also grab backend audit logs related to desks for persistent history
+            var backendDeskLogs = (appData.auditLogs || []).filter(function(log) {
+                return log.action && log.action.indexOf('Desk') !== -1;
+            });
+            
+            if (deskLogsToShow.length === 0 && backendDeskLogs.length === 0) {
+                logsBody.innerHTML = '<tr><td class="p-3 text-gray-400 italic text-center">No manual desk adjustments made yet.</td></tr>';
+            } else {
+                deskLogsToShow.forEach(function(log) {
+                    logsBody.innerHTML += '<tr class="hover:bg-gray-50"><td class="p-2 text-gray-500 w-32">' + log.time + '</td><td class="p-2 text-blue-600 font-bold">' + log.actor + '</td><td class="p-2 text-gray-700 font-bold">For: ' + log.targetDate + '</td><td class="p-2 text-gray-600">' + log.details + '</td></tr>';
+                });
+                backendDeskLogs.slice(0, 20).forEach(function(log) {
+                    var timeStr = new Date(log.timestamp).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+                    logsBody.innerHTML += '<tr class="hover:bg-gray-50 bg-gray-50"><td class="p-2 text-gray-400 w-32">' + timeStr + '</td><td class="p-2 text-blue-500 font-bold">' + log.actor + '</td><td class="p-2 text-gray-500 font-bold">' + log.action + '</td><td class="p-2 text-gray-500">' + log.details + '</td></tr>';
+                });
+            }
+        }
+
       }
 
       function renderAdminView() {
@@ -2375,6 +3269,19 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           var mgrEmp = appData.employees.find(function(e) { return e.email === mgrEmail; });
           var mgrName = (mgrEmp || {}).name || (mgrEmail ? mgrEmail : '--');
           
+          // NEW: Birthday mapping
+          var bdayObj = appData.birthdays.find(function(b) { return String(b.name || '').trim().toLowerCase() === String(emp.name || '').trim().toLowerCase(); });
+          var rawBday = emp.birthday || (bdayObj ? bdayObj.date : '');
+          var formattedBday = '--';
+          if (rawBday) {
+              var d = new Date(rawBday);
+              if (!isNaN(d.getTime())) {
+                  // Adjust for timezone to prevent date slipping
+                  var localDate = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+                  formattedBday = localDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+              }
+          }
+
           return {
             emp: emp,
             totalAllowance: totalAllowance,
@@ -2389,7 +3296,9 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
             sickDays: sickStats.days,
             bradford: bradford,
             status: status,
-            mgrName: mgrName
+            mgrName: mgrName,
+            rawBday: rawBday,
+            formattedBday: formattedBday
           };
         });
         
@@ -2411,7 +3320,8 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           switch (colleagueSortField) {
             case 'name': aVal = a.emp.name; bVal = b.emp.name; break;
             case 'department': aVal = a.emp.department || ''; bVal = b.emp.department || ''; break;
-            case 'remaining': aVal = a.unbooked; bVal = b.unbooked; break;
+            case 'birthday': aVal = a.rawBday || ''; bVal = b.rawBday || ''; break;
+            case 'remaining': aVal = a.unbookedHours; bVal = b.unbookedHours; break;
             case 'utilization': aVal = a.utilization; bVal = b.utilization; break;
             case 'lastHoliday': aVal = a.daysSinceLastHoliday; bVal = b.daysSinceLastHoliday; break;
             case 'sickDays': aVal = a.sickDays; bVal = b.sickDays; break;
@@ -2491,6 +3401,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
           row += '<td class="p-3 text-center text-xl">' + statusIcon + '</td>';
           row += '<td class="p-3"><div class="font-bold text-gray-700">' + emp.name + '</div><div class="text-xs text-gray-400">' + emp.email + '</div></td>';
           row += '<td class="p-3 text-sm text-gray-600">' + (emp.department || '--') + '</td>';
+          row += '<td class="p-3 text-sm text-gray-600 font-medium">' + m.formattedBday + '</td>';
           row += '<td class="p-3 text-center"><div class="font-bold text-gray-800">' + m.unbookedHours.toFixed(1) + ' hrs</div><div class="text-xs text-gray-500">(' + (m.unbookedHours / 7.5).toFixed(1) + ' days)</div></td>';
           row += '<td class="p-3">' + utilBar + '</td>';
           row += '<td class="p-3 text-xs text-gray-600">' + lastHolDisplay + '</td>';
@@ -2576,10 +3487,69 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         e.preventDefault();
         var dCount = calculateBusinessDays(e.target.startDate.value, e.target.endDate.value);
         if (dCount === 0 && e.target.type.value === 'Holiday') { alert("Selected dates are weekends only."); return; }
+        
+        var type = e.target.type.value;
+        var startDate = e.target.startDate.value;
+        var endDate = e.target.endDate.value;
+        var hours = e.target.hours.value;
+        var targetEmail = document.getElementById('booking-target-user').value || appData.currentUser.email;
+
+        // --- NEW: Intercept EXTRA Office days for manual desk selection ---
+        if (type === 'Office') {
+            var sDate = new Date(startDate);
+            var eDate = new Date(endDate);
+            sDate.setHours(0,0,0,0);
+            eDate.setHours(0,0,0,0);
+            
+            var datesToPick = [];
+            var curDate = new Date(sDate);
+            var sched = appData.schedules[targetEmail] || {};
+            
+            while (curDate <= eDate) {
+                var dayName = curDate.toLocaleDateString('en-US', { weekday: 'long' });
+                var isNormalOfficeDay = sched[dayName] && sched[dayName].type === 'Office';
+                var isWeekend = curDate.getDay() === 0 || curDate.getDay() === 6;
+                
+                // Only prompt desk selection for days they are NOT normally in the office
+                if (!isNormalOfficeDay && !isWeekend) {
+                    var offsetDateStr = new Date(curDate.getTime() - (curDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                    datesToPick.push(offsetDateStr);
+                }
+                curDate.setDate(curDate.getDate() + 1);
+            }
+            
+            if (datesToPick.length > 0) {
+                var emp = appData.employees.find(function(em) { return em.email === targetEmail; });
+                var empName = emp ? emp.name : targetEmail;
+                
+                window.pendingOfficeBooking = {
+                    email: targetEmail,
+                    name: getFirstName(empName),
+                    type: type,
+                    startDate: startDate,
+                    endDate: endDate,
+                    hours: hours,
+                    daysCount: dCount,
+                    datesToPick: datesToPick,
+                    currentIndex: 0,
+                    pickedSeats: []
+                };
+                
+                closeModals();
+                loadView('desk-plan');
+                var dp = document.getElementById('desk-date-picker');
+                if(dp) dp.value = datesToPick[0];
+                renderDeskPlan();
+                
+                return;
+            }
+        }
+        // --- END NEW ---
+
         var btn=document.getElementById('btn-submit-booking');
         btn.innerHTML='Sending...';
         btn.disabled=true;
-        var fd = { type: e.target.type.value, startDate: e.target.startDate.value, endDate: e.target.endDate.value, hours: e.target.hours.value, targetEmail: document.getElementById('booking-target-user').value || null };
+        var fd = { type: type, startDate: startDate, endDate: endDate, hours: hours, targetEmail: document.getElementById('booking-target-user').value || null };
         google.script.run.withSuccessHandler(function(res) {
             if (res.success === false) { alert(res.message); btn.innerHTML='Submit'; btn.disabled=false; return; }
             var email = fd.targetEmail || appData.currentUser.email;
@@ -2601,7 +3571,7 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
 
       function handleEmployee(e) {
         e.preventDefault();
-        var fd = { name:e.target.name.value, email:e.target.email.value, allowance:e.target.allowance.value, carryOver:e.target.carryOver.value, role:e.target.role.value, manager:e.target.manager.value, department:e.target.department.value };
+        var fd = { name:e.target.name.value, email:e.target.email.value, allowance:e.target.allowance.value, carryOver:e.target.carryOver.value, role:e.target.role.value, manager:e.target.manager.value, department:e.target.department.value, birthday:(e.target.birthday ? e.target.birthday.value : '') };
         var isNew = !appData.employees.some(function(emp) { return emp.email === fd.email; });
         
         // Validate on new employee creation only
@@ -2619,9 +3589,18 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
         google.script.run.withSuccessHandler(function() {
             var idx = appData.employees.findIndex(function(emp) { return emp.email === fd.email; });
             if (idx >= 0) appData.employees[idx] = fd; else appData.employees.push(fd);
+            
+            // NEW: Instantly update birthdays for the dashboard widget
+            if (fd.birthday) {
+                var bIdx = appData.birthdays.findIndex(function(b) { return String(b.name).toLowerCase() === String(fd.name).toLowerCase(); });
+                if (bIdx >= 0) appData.birthdays[bIdx].date = fd.birthday;
+                else appData.birthdays.push({name: fd.name, date: fd.birthday});
+            }
+            
             renderAdminView();
             closeModals();
             if (isNew && confirm('Colleague ' + fd.name + ' saved. Set schedule now?')) { openScheduleModal(fd.email, fd.name); }
+            refreshAllViews(); // Update the dashboard instantly
         }).withFailureHandler(handleServerError).saveEmployee(fd);
       }
 
@@ -2713,6 +3692,19 @@ var appData = { currentUser: null, employees: [], bookings: [], schedules: {}, a
                 form.role.value = emp.role;
                 form.department.value = emp.department || '';
                 form.manager.value = emp.manager || '';
+                
+                var bdayObj = appData.birthdays.find(function(b) { return String(b.name || '').trim().toLowerCase() === String(emp.name || '').trim().toLowerCase(); });
+                var rawBday = emp.birthday || (bdayObj ? bdayObj.date : '');
+                if (rawBday) {
+                    var d = new Date(rawBday);
+                    if (!isNaN(d.getTime()) && form.birthday) {
+                        // Fix timezone offset to ensure the date picker doesn't slip back one day
+                        var localDate = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+                        form.birthday.value = localDate.toISOString().split('T')[0];
+                    }
+                } else if (form.birthday) {
+                    form.birthday.value = '';
+                }
             }
         } else {
             form.reset();
