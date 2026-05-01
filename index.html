@@ -5031,7 +5031,7 @@
         
         if (!section || !tbody) return;
         
-        // Show section only for managers
+        // Show section only for admins
         if (appData.currentUser.role === 'Admin') {
           section.classList.remove('hidden');
         } else {
