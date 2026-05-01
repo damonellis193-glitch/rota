@@ -253,16 +253,23 @@ function getInitialData() {
           const lastRow = auditSheet.getLastRow();
           const startRow = Math.max(2, lastRow - 49);
           if (lastRow > 1) {
-            const range = auditSheet.getRange(startRow, 1, (lastRow - startRow + 1), 4);
+            const numCols = Math.max(auditSheet.getLastColumn(), 10);
+            const range = auditSheet.getRange(startRow, 1, (lastRow - startRow + 1), numCols);
             const rawLogs = range.getValues();
             auditLogs = rawLogs
               .filter(r => r[0] && r[1] && r[2]) // Filter rows with required fields
               .reverse()
               .map(r => ({
-                timestamp: r[0] instanceof Date ? r[0].toISOString() : String(r[0]),
-                actor: String(r[1]).trim(),
-                action: String(r[2]).trim(),
-                details: String(r[3] || '').trim()
+                timestamp:    r[0] instanceof Date ? r[0].toISOString() : String(r[0]),
+                actor:        String(r[1]).trim(),
+                action:       String(r[2]).trim(),
+                details:      String(r[3] || '').trim(),
+                bookingId:    String(r[4] || '').trim(),
+                bookingType:  String(r[5] || '').trim(),
+                targetPerson: String(r[6] || '').trim(),
+                startDate:    r[7] ? (r[7] instanceof Date ? r[7].toISOString() : String(r[7])) : '',
+                endDate:      r[8] ? (r[8] instanceof Date ? r[8].toISOString() : String(r[8])) : '',
+                status:       String(r[9] || '').trim()
               }));
           }
         } catch (auditError) {
@@ -498,7 +505,18 @@ function setupDatabase(ss) {
   }
   if (!ss.getSheetByName('AuditLogs')) {
     const s = ss.insertSheet('AuditLogs');
-    s.appendRow(['Timestamp', 'Actor', 'Action', 'Details']);
+    s.appendRow(['Timestamp', 'Actor', 'Action', 'Details', 'BookingID', 'BookingType', 'TargetPerson', 'StartDate', 'EndDate', 'Status']);
+  } else {
+    // Add missing columns to existing AuditLogs sheet (backward-compatible migration)
+    const auditSheet = ss.getSheetByName('AuditLogs');
+    const headerRow = auditSheet.getRange(1, 1, 1, auditSheet.getLastColumn()).getValues()[0];
+    const expectedHeaders = ['Timestamp', 'Actor', 'Action', 'Details', 'BookingID', 'BookingType', 'TargetPerson', 'StartDate', 'EndDate', 'Status'];
+    const currentColCount = headerRow.filter(h => h !== '').length;
+    if (currentColCount < expectedHeaders.length) {
+      for (let col = currentColCount + 1; col <= expectedHeaders.length; col++) {
+        auditSheet.getRange(1, col).setValue(expectedHeaders[col - 1]);
+      }
+    }
   }
   if (!ss.getSheetByName('CarryoverRequests')) {
     const s = ss.insertSheet('CarryoverRequests');
@@ -536,14 +554,60 @@ function setupDatabase(ss) {
   }
 }
 
-function logAction(actorEmail, action, details) {
+// logAction — writes a row to the AuditLogs sheet.
+// extra (optional): { bookingId, bookingType, targetPerson, startDate, endDate, status }
+function logAction(actorEmail, action, details, extra) {
   try {
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     let sheet = ss.getSheetByName('AuditLogs');
     if (!sheet) { setupDatabase(ss); sheet = ss.getSheetByName('AuditLogs'); }
-    sheet.appendRow([new Date(), actorEmail, action, details]);
+    const e = extra || {};
+    sheet.appendRow([
+      new Date(),
+      actorEmail,
+      action,
+      details || '',
+      e.bookingId    || '',
+      e.bookingType  || '',
+      e.targetPerson || '',
+      e.startDate    || '',
+      e.endDate      || '',
+      e.status       || ''
+    ]);
   } catch(e) {
     console.error("Audit Log Failed: " + e.toString());
+  }
+}
+
+// getAllAuditLogs — returns all audit log rows for the admin UI (newest first).
+function getAllAuditLogs() {
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const sheet = ss.getSheetByName('AuditLogs');
+    if (!sheet) return { success: true, logs: [] };
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) return { success: true, logs: [] };
+    const numCols = Math.max(sheet.getLastColumn(), 10);
+    const raw = sheet.getRange(2, 1, lastRow - 1, numCols).getValues();
+    const logs = raw
+      .filter(r => r[0] && r[1])
+      .reverse()
+      .map(r => ({
+        timestamp:    r[0] instanceof Date ? r[0].toISOString() : String(r[0]),
+        actor:        String(r[1] || '').trim(),
+        action:       String(r[2] || '').trim(),
+        details:      String(r[3] || '').trim(),
+        bookingId:    String(r[4] || '').trim(),
+        bookingType:  String(r[5] || '').trim(),
+        targetPerson: String(r[6] || '').trim(),
+        startDate:    r[7] ? (r[7] instanceof Date ? r[7].toISOString() : String(r[7])) : '',
+        endDate:      r[8] ? (r[8] instanceof Date ? r[8].toISOString() : String(r[8])) : '',
+        status:       String(r[9] || '').trim()
+      }));
+    return { success: true, logs: logs };
+  } catch(e) {
+    console.error('getAllAuditLogs failed: ' + e.toString());
+    return { success: false, logs: [], message: e.toString() };
   }
 }
 
@@ -734,7 +798,16 @@ function submitBooking(formObj) {
     hoursUsed
   ]);
   
-  logAction(currentUserEmail, 'Booking Submitted', `Type: ${formObj.type}, For: ${bookingEmail}, Status: ${status}, Days: ${daysUsed}, Hours: ${hoursUsed}`);
+  const bookingEmpForLog = allEmps.find(e => e.email === bookingEmail);
+  const targetPersonName = bookingEmpForLog ? bookingEmpForLog.name : bookingEmail;
+  logAction(currentUserEmail, 'SUBMIT', `Submitted ${formObj.type} for ${targetPersonName}, ${formObj.startDate} → ${formObj.endDate} (${daysUsed}d / ${hoursUsed}h), Status: ${status}`, {
+    bookingId:    id,
+    bookingType:  formObj.type,
+    targetPerson: targetPersonName,
+    startDate:    formObj.startDate,
+    endDate:      formObj.endDate,
+    status:       status
+  });
 
   // Send email notification to direct manager if status is Pending and notifications are enabled
   if (status === 'Pending') {
@@ -766,12 +839,27 @@ function updateBookingStatus(bookingId, newStatus) {
   const sheet = ss.getSheetByName('Bookings');
   const data = sheet.getDataRange().getValues();
   const actor = Session.getActiveUser().getEmail();
+  const empSheet = ss.getSheetByName('Employees');
+  const empData = empSheet ? empSheet.getDataRange().getValues() : [];
 
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]) === String(bookingId)) {
       sheet.getRange(i + 1, 7).setValue(newStatus);
-      const owner = data[i][1];
-      logAction(actor, 'Status Change', `Booking ${bookingId} for ${owner} set to ${newStatus}`);
+      const owner = String(data[i][1]).trim();
+      const bType = String(data[i][2] || '').trim();
+      const startD = data[i][3] ? (data[i][3] instanceof Date ? data[i][3].toISOString().split('T')[0] : String(data[i][3])) : '';
+      const endD   = data[i][4] ? (data[i][4] instanceof Date ? data[i][4].toISOString().split('T')[0] : String(data[i][4])) : '';
+      const ownerEmp = empData.slice(1).find(r => String(r[1]).trim() === owner);
+      const ownerName = ownerEmp ? String(ownerEmp[0]).trim() : owner;
+      const actionType = newStatus === 'Approved' ? 'APPROVE' : newStatus === 'Rejected' ? 'REJECT' : newStatus === 'Cancelled' ? 'CANCEL' : 'STATUS_CHANGE';
+      logAction(actor, actionType, `${actionType} ${bType} for ${ownerName}, ${startD} → ${endD}, Status: ${newStatus}`, {
+        bookingId:    bookingId,
+        bookingType:  bType,
+        targetPerson: ownerName,
+        startDate:    startD,
+        endDate:      endD,
+        status:       newStatus
+      });
       return { success: true };
     }
   }
@@ -783,17 +871,41 @@ function requestBookingCancellation(bookingId) {
   const sheet = ss.getSheetByName('Bookings');
   const data = sheet.getDataRange().getValues();
   const actor = Session.getActiveUser().getEmail();
+  const empSheet = ss.getSheetByName('Employees');
+  const empData = empSheet ? empSheet.getDataRange().getValues() : [];
 
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]) === String(bookingId)) {
-      const currentStatus = data[i][6]; 
+      const currentStatus = data[i][6];
+      const bType  = String(data[i][2] || '').trim();
+      const startD = data[i][3] ? (data[i][3] instanceof Date ? data[i][3].toISOString().split('T')[0] : String(data[i][3])) : '';
+      const endD   = data[i][4] ? (data[i][4] instanceof Date ? data[i][4].toISOString().split('T')[0] : String(data[i][4])) : '';
+      const owner  = String(data[i][1]).trim();
+      const ownerEmp  = empData.slice(1).find(r => String(r[1]).trim() === owner);
+      const ownerName = ownerEmp ? String(ownerEmp[0]).trim() : owner;
+
       if (currentStatus === 'Pending') {
+        // Capture all details BEFORE deleting the row
+        logAction(actor, 'CANCEL', `Withdrew Pending ${bType} for ${ownerName}, ${startD} → ${endD} (was Pending)`, {
+          bookingId:    bookingId,
+          bookingType:  bType,
+          targetPerson: ownerName,
+          startDate:    startD,
+          endDate:      endD,
+          status:       'Cancelled'
+        });
         sheet.deleteRow(i + 1);
-        logAction(actor, 'Booking Withdrawn', `ID: ${bookingId} (Soft Deleted)`);
         return { success: true, action: 'deleted' };
       } else if (currentStatus === 'Approved') {
         sheet.getRange(i + 1, 7).setValue('Cancellation Requested');
-        logAction(actor, 'Cancellation Requested', `ID: ${bookingId}`);
+        logAction(actor, 'CANCEL_REQUEST', `Requested cancellation of ${bType} for ${ownerName}, ${startD} → ${endD} (was Approved)`, {
+          bookingId:    bookingId,
+          bookingType:  bType,
+          targetPerson: ownerName,
+          startDate:    startD,
+          endDate:      endD,
+          status:       'Cancellation Requested'
+        });
         return { success: true, action: 'requested' };
       }
     }

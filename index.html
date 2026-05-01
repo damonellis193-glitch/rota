@@ -30,6 +30,26 @@
       .morrisons-yellow { color: #FFC20E; }
       .btn-primary { background-color: #004E37; color: white; }
       .btn-primary:hover { background-color: #003b29; }
+
+      /* Multi-select dropdown */
+      .ms-dropdown { position: relative; display: inline-block; }
+      .ms-dropdown-toggle { display: flex; align-items: center; gap: 6px; background: white; border: 1px solid #99f6e4; border-radius: 6px; padding: 6px 12px; font-size: 0.8rem; color: #134e4a; cursor: pointer; white-space: nowrap; }
+      .ms-dropdown-toggle:hover { background: #f0fdfa; }
+      .ms-dropdown-panel { display: none; position: absolute; z-index: 200; background: white; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); min-width: 220px; left: 0; top: calc(100% + 4px); }
+      .ms-dropdown.open .ms-dropdown-panel { display: block; }
+      .ms-dropdown-search { width: 100%; border: none; border-bottom: 1px solid #e2e8f0; padding: 8px 10px; font-size: 0.8rem; outline: none; border-radius: 8px 8px 0 0; }
+      .ms-dropdown-actions { display: flex; gap: 8px; padding: 6px 10px; border-bottom: 1px solid #e2e8f0; }
+      .ms-dropdown-actions button { font-size: 0.7rem; background: none; border: none; color: #0d9488; cursor: pointer; padding: 0; text-decoration: underline; }
+      .ms-dropdown-actions button:hover { color: #134e4a; }
+      .ms-dropdown-list { max-height: 200px; overflow-y: auto; padding: 4px 0; }
+      .ms-dropdown-item { display: flex; align-items: center; gap: 8px; padding: 6px 10px; cursor: pointer; font-size: 0.8rem; color: #374151; }
+      .ms-dropdown-item:hover { background: #f0fdfa; }
+      .ms-dropdown-item input[type=checkbox] { accent-color: #0d9488; }
+      .ms-dropdown-empty { padding: 8px 10px; font-size: 0.8rem; color: #9ca3af; font-style: italic; }
+
+      /* Audit log sortable headers */
+      .audit-th-sort { cursor: pointer; user-select: none; white-space: nowrap; }
+      .audit-th-sort:hover { background: #e5e7eb; }
     </style>
   </head>
   <body class="bg-white text-gray-800 font-sans h-screen flex flex-col overflow-hidden">
@@ -550,6 +570,25 @@
                 <button onclick="confirmSelectedMyMorri()" id="btn-confirm-mymorri" class="bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm px-4 py-2 rounded shadow"><i class="fa-solid fa-check mr-2"></i> Confirm Selected</button>
               </div>
             </div>
+            <!-- Filter bar -->
+            <div class="px-4 py-2 bg-teal-50 border-b border-teal-100 flex flex-wrap gap-2 items-center">
+              <span class="text-xs font-bold text-teal-700 uppercase">Filter:</span>
+              <div class="ms-dropdown" id="mymorri-name-dropdown">
+                <button type="button" class="ms-dropdown-toggle" onclick="toggleMyMorriNameDropdown(event)">
+                  <i class="fa-solid fa-user-group text-teal-500"></i>
+                  <span id="mymorri-name-label">All People</span>
+                  <i class="fa-solid fa-chevron-down text-xs"></i>
+                </button>
+                <div class="ms-dropdown-panel">
+                  <input type="text" class="ms-dropdown-search" id="mymorri-name-search" placeholder="Search name…" oninput="filterMyMorriNameList()">
+                  <div class="ms-dropdown-actions">
+                    <button type="button" onclick="myMorriNameSelectAll()">Select all</button>
+                    <button type="button" onclick="myMorriNameClearAll()">Clear all</button>
+                  </div>
+                  <div class="ms-dropdown-list" id="mymorri-name-list"></div>
+                </div>
+              </div>
+            </div>
             <div class="overflow-x-auto">
               <table class="w-full text-left text-sm">
                 <thead class="bg-teal-100 text-teal-900">
@@ -725,11 +764,101 @@
 
           <!-- SYSTEM AUDIT LOGS -->
           <div id="admin-only-audit-logs" class="bg-white rounded-xl shadow overflow-hidden border-t-4 border-gray-500">
-             <div onclick="toggleElement('audit-logs-container', 'audit-icon')" class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center cursor-pointer select-none">
+             <div onclick="toggleAuditLogsSection()" class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center cursor-pointer select-none">
                  <div class="flex items-center"><h3 class="font-bold text-gray-700 mr-2">System Audit Logs</h3><i id="audit-icon" class="fa-solid fa-chevron-down text-gray-500 transition-transform"></i></div>
+                 <button type="button" onclick="event.stopPropagation(); exportAuditCSV()" class="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded border border-gray-300"><i class="fa-solid fa-download mr-1"></i>Export CSV</button>
              </div>
-             <div id="audit-logs-container" class="hidden max-h-60 overflow-y-auto">
-                 <table class="w-full text-left text-xs font-mono"><thead class="bg-gray-100"><tr><th class="p-2">Time</th><th class="p-2">Actor</th><th class="p-2">Action</th><th class="p-2">Details</th></tr></thead><tbody id="audit-logs-body"></tbody></table>
+             <div id="audit-logs-container" class="hidden">
+               <!-- Search & Filters -->
+               <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex flex-wrap gap-2 items-center">
+                 <input type="text" id="audit-search" placeholder="Search all fields…" oninput="renderAuditLogs()" class="border border-gray-300 rounded px-2 py-1 text-xs w-44 focus:outline-none focus:ring-1 focus:ring-gray-400">
+                 <input type="date" id="audit-from" onchange="renderAuditLogs()" class="border border-gray-300 rounded px-2 py-1 text-xs text-gray-700" title="From date">
+                 <span class="text-xs text-gray-400">to</span>
+                 <input type="date" id="audit-to" onchange="renderAuditLogs()" class="border border-gray-300 rounded px-2 py-1 text-xs text-gray-700" title="To date">
+
+                 <!-- User multi-select -->
+                 <div class="ms-dropdown" id="audit-user-dropdown" style="--ms-accent:#6b7280;">
+                   <button type="button" class="ms-dropdown-toggle" style="border-color:#d1d5db;color:#374151;" onclick="toggleMsDropdown('audit-user-dropdown', event)">
+                     <i class="fa-solid fa-user text-gray-400"></i>
+                     <span id="audit-user-label">All Users</span>
+                     <i class="fa-solid fa-chevron-down text-xs"></i>
+                   </button>
+                   <div class="ms-dropdown-panel">
+                     <input type="text" class="ms-dropdown-search" placeholder="Search user…" oninput="filterMsDropdownList('audit-user-list', this.value)">
+                     <div class="ms-dropdown-actions">
+                       <button type="button" onclick="msDropdownSelectAll('audit-user-list'); updateAuditLabel('audit-user-list','audit-user-label','All Users'); renderAuditLogs()">Select all</button>
+                       <button type="button" onclick="msDropdownClearAll('audit-user-list'); updateAuditLabel('audit-user-list','audit-user-label','All Users'); renderAuditLogs()">Clear all</button>
+                     </div>
+                     <div class="ms-dropdown-list" id="audit-user-list"></div>
+                   </div>
+                 </div>
+
+                 <!-- Action type multi-select -->
+                 <div class="ms-dropdown" id="audit-action-dropdown" style="--ms-accent:#6b7280;">
+                   <button type="button" class="ms-dropdown-toggle" style="border-color:#d1d5db;color:#374151;" onclick="toggleMsDropdown('audit-action-dropdown', event)">
+                     <i class="fa-solid fa-bolt text-gray-400"></i>
+                     <span id="audit-action-label">All Actions</span>
+                     <i class="fa-solid fa-chevron-down text-xs"></i>
+                   </button>
+                   <div class="ms-dropdown-panel">
+                     <input type="text" class="ms-dropdown-search" placeholder="Search action…" oninput="filterMsDropdownList('audit-action-list', this.value)">
+                     <div class="ms-dropdown-actions">
+                       <button type="button" onclick="msDropdownSelectAll('audit-action-list'); updateAuditLabel('audit-action-list','audit-action-label','All Actions'); renderAuditLogs()">Select all</button>
+                       <button type="button" onclick="msDropdownClearAll('audit-action-list'); updateAuditLabel('audit-action-list','audit-action-label','All Actions'); renderAuditLogs()">Clear all</button>
+                     </div>
+                     <div class="ms-dropdown-list" id="audit-action-list"></div>
+                   </div>
+                 </div>
+
+                 <!-- Booking type multi-select -->
+                 <div class="ms-dropdown" id="audit-btype-dropdown" style="--ms-accent:#6b7280;">
+                   <button type="button" class="ms-dropdown-toggle" style="border-color:#d1d5db;color:#374151;" onclick="toggleMsDropdown('audit-btype-dropdown', event)">
+                     <i class="fa-solid fa-tag text-gray-400"></i>
+                     <span id="audit-btype-label">All Types</span>
+                     <i class="fa-solid fa-chevron-down text-xs"></i>
+                   </button>
+                   <div class="ms-dropdown-panel">
+                     <input type="text" class="ms-dropdown-search" placeholder="Search type…" oninput="filterMsDropdownList('audit-btype-list', this.value)">
+                     <div class="ms-dropdown-actions">
+                       <button type="button" onclick="msDropdownSelectAll('audit-btype-list'); updateAuditLabel('audit-btype-list','audit-btype-label','All Types'); renderAuditLogs()">Select all</button>
+                       <button type="button" onclick="msDropdownClearAll('audit-btype-list'); updateAuditLabel('audit-btype-list','audit-btype-label','All Types'); renderAuditLogs()">Clear all</button>
+                     </div>
+                     <div class="ms-dropdown-list" id="audit-btype-list"></div>
+                   </div>
+                 </div>
+
+                 <button type="button" onclick="resetAuditFilters()" class="text-xs text-gray-500 hover:text-gray-700 underline ml-1">Reset</button>
+               </div>
+
+               <!-- Table -->
+               <div class="overflow-x-auto" style="max-height: 480px; overflow-y: auto;">
+                 <table class="w-full text-left text-xs">
+                   <thead class="bg-gray-100 sticky top-0">
+                     <tr>
+                       <th class="p-2 audit-th-sort" onclick="auditSort('timestamp')">Time <i class="fa-solid fa-sort ml-1 text-gray-400" id="audit-sort-icon-timestamp"></i></th>
+                       <th class="p-2 audit-th-sort" onclick="auditSort('actor')">User <i class="fa-solid fa-sort ml-1 text-gray-400" id="audit-sort-icon-actor"></i></th>
+                       <th class="p-2 audit-th-sort" onclick="auditSort('action')">Action <i class="fa-solid fa-sort ml-1 text-gray-400" id="audit-sort-icon-action"></i></th>
+                       <th class="p-2 audit-th-sort" onclick="auditSort('bookingType')">Type <i class="fa-solid fa-sort ml-1 text-gray-400" id="audit-sort-icon-bookingType"></i></th>
+                       <th class="p-2">ID</th>
+                       <th class="p-2">Person</th>
+                       <th class="p-2">Start</th>
+                       <th class="p-2">End</th>
+                       <th class="p-2">Status</th>
+                       <th class="p-2">Details</th>
+                     </tr>
+                   </thead>
+                   <tbody id="audit-logs-body"></tbody>
+                 </table>
+               </div>
+               <!-- Pagination -->
+               <div class="px-4 py-2 bg-gray-50 border-t border-gray-200 flex items-center justify-between text-xs text-gray-600">
+                 <span id="audit-page-info">Showing 0–0 of 0</span>
+                 <div class="flex items-center gap-2">
+                   <button type="button" id="audit-prev-btn" onclick="auditPrevPage()" class="px-2 py-1 rounded border border-gray-300 hover:bg-gray-200 disabled:opacity-40" disabled><i class="fa-solid fa-chevron-left"></i></button>
+                   <span id="audit-page-num">Page 1</span>
+                   <button type="button" id="audit-next-btn" onclick="auditNextPage()" class="px-2 py-1 rounded border border-gray-300 hover:bg-gray-200 disabled:opacity-40" disabled><i class="fa-solid fa-chevron-right"></i></button>
+                 </div>
+               </div>
              </div>
           </div>
         </div>
@@ -3312,16 +3441,10 @@
             });
         }
 
-        // AUDIT LOGS RENDER
-        var auditBody = document.getElementById('audit-logs-body');
-        if (appData.auditLogs && appData.auditLogs.length > 0) {
-            auditBody.innerHTML = '';
-            appData.auditLogs.forEach(function(log) {
-                var time = new Date(log.timestamp).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
-                auditBody.innerHTML += '<tr class="border-b border-gray-100 hover:bg-gray-50"><td class="p-2 text-gray-500 whitespace-nowrap">' + time + '</td><td class="p-2 text-blue-600 font-bold">' + log.actor + '</td><td class="p-2 font-bold text-gray-700">' + log.action + '</td><td class="p-2 text-gray-600 break-all">' + log.details + '</td></tr>';
-            });
-        } else {
-            auditBody.innerHTML = '<tr><td colspan="4" class="p-4 text-gray-400 italic">No logs available.</td></tr>';
+        // AUDIT LOGS: The enhanced audit log section loads on-demand when toggled.
+        // Seed allAuditLogs with any logs already loaded in appData so they show immediately.
+        if (!auditLogsLoaded && appData.auditLogs && appData.auditLogs.length > 0) {
+          allAuditLogs = appData.auditLogs;
         }
 
         // Active Bookings Render - delegated to renderActiveBookings()
@@ -4686,26 +4809,101 @@
       
       var myMorriBookings = [];
       var selectedMyMorriIds = [];
+      var myMorriSelectedNames = []; // names selected in the filter (empty = all)
       
       function loadMyMorriBookings() {
         google.script.run
           .withSuccessHandler(function(res) {
             if (res.success) {
               myMorriBookings = res.bookings || [];
+              myMorriSelectedNames = []; // reset filter on fresh load
+              buildMyMorriNameDropdown();
               renderMyMorriBookings();
             }
           })
           .withFailureHandler(handleServerError)
           .getMyMorriBookings();
       }
-      
+
+      // --- My Morri name multi-select dropdown ---
+      function buildMyMorriNameDropdown() {
+        var list = document.getElementById('mymorri-name-list');
+        if (!list) return;
+        var names = [];
+        myMorriBookings.forEach(function(b) {
+          if (names.indexOf(b.name) === -1) names.push(b.name);
+        });
+        names.sort();
+        list.innerHTML = '';
+        if (names.length === 0) {
+          list.innerHTML = '<div class="ms-dropdown-empty">No names available</div>';
+          return;
+        }
+        names.forEach(function(name) {
+          var item = document.createElement('label');
+          item.className = 'ms-dropdown-item';
+          item.innerHTML = '<input type="checkbox" value="' + escapeHtml(name) + '" onchange="onMyMorriNameChange()"> ' + escapeHtml(name);
+          list.appendChild(item);
+        });
+      }
+
+      function filterMyMorriNameList() {
+        var q = (document.getElementById('mymorri-name-search').value || '').toLowerCase();
+        var items = document.querySelectorAll('#mymorri-name-list .ms-dropdown-item');
+        items.forEach(function(item) {
+          item.style.display = item.textContent.toLowerCase().includes(q) ? '' : 'none';
+        });
+      }
+
+      function onMyMorriNameChange() {
+        myMorriSelectedNames = [];
+        document.querySelectorAll('#mymorri-name-list input[type=checkbox]:checked').forEach(function(cb) {
+          myMorriSelectedNames.push(cb.value);
+        });
+        updateMyMorriNameLabel();
+        renderMyMorriBookings();
+      }
+
+      function updateMyMorriNameLabel() {
+        var label = document.getElementById('mymorri-name-label');
+        if (!label) return;
+        if (myMorriSelectedNames.length === 0) label.textContent = 'All People';
+        else if (myMorriSelectedNames.length === 1) label.textContent = myMorriSelectedNames[0];
+        else label.textContent = myMorriSelectedNames.length + ' people';
+      }
+
+      function myMorriNameSelectAll() {
+        document.querySelectorAll('#mymorri-name-list input[type=checkbox]').forEach(function(cb) {
+          if (cb.closest('.ms-dropdown-item').style.display !== 'none') cb.checked = true;
+        });
+        onMyMorriNameChange();
+      }
+
+      function myMorriNameClearAll() {
+        document.querySelectorAll('#mymorri-name-list input[type=checkbox]').forEach(function(cb) {
+          cb.checked = false;
+        });
+        myMorriSelectedNames = [];
+        updateMyMorriNameLabel();
+        renderMyMorriBookings();
+      }
+
+      function toggleMyMorriNameDropdown(e) {
+        e.stopPropagation();
+        var dd = document.getElementById('mymorri-name-dropdown');
+        var isOpen = dd.classList.contains('open');
+        // Close all other dropdowns
+        document.querySelectorAll('.ms-dropdown.open').forEach(function(d) { d.classList.remove('open'); });
+        if (!isOpen) dd.classList.add('open');
+      }
+
       function renderMyMorriBookings() {
         var section = document.getElementById('my-morri-section');
         var tbody = document.getElementById('mymorri-body');
         
         if (!section || !tbody) return;
         
-        // Show section only for managers
+        // Show section only for admins
         if (appData.currentUser.role === 'Admin') {
           section.classList.remove('hidden');
         } else {
@@ -4717,17 +4915,24 @@
         tbody.innerHTML = '';
         selectedMyMorriIds = [];
         
-        if (myMorriBookings.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">No bookings to confirm</td></tr>';
+        // Apply name filter
+        var filtered = myMorriSelectedNames.length === 0
+          ? myMorriBookings
+          : myMorriBookings.filter(function(b) { return myMorriSelectedNames.indexOf(b.name) !== -1; });
+
+        if (filtered.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-gray-400 italic">' +
+            (myMorriBookings.length === 0 ? 'No bookings to confirm' : 'No bookings match the selected filter') +
+            '</td></tr>';
           return;
         }
         
-        myMorriBookings.forEach(function(booking) {
+        filtered.forEach(function(booking) {
           var row = '<tr class="border-b border-gray-100 hover:bg-teal-50">' +
             '<td class="p-3"><input type="checkbox" class="mymorri-checkbox" data-id="' + booking.id + '"></td>' +
-            '<td class="p-3 font-bold text-gray-700">' + booking.name + '</td>' +
-            '<td class="p-3 text-sm text-gray-600">' + booking.email + '</td>' +
-            '<td class="p-3"><span class="px-2 py-1 rounded text-xs font-bold ' + (booking.type === 'Holiday' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') + '">' + booking.type + '</span></td>' +
+            '<td class="p-3 font-bold text-gray-700">' + escapeHtml(booking.name) + '</td>' +
+            '<td class="p-3 text-sm text-gray-600">' + escapeHtml(booking.email) + '</td>' +
+            '<td class="p-3"><span class="px-2 py-1 rounded text-xs font-bold ' + (booking.type === 'Holiday' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') + '">' + escapeHtml(booking.type) + '</span></td>' +
             '<td class="p-3 text-sm">' + formatDate(booking.startDate) + '</td>' +
             '<td class="p-3 text-sm">' + formatDate(booking.endDate) + '</td>' +
             '<td class="p-3 font-mono text-sm">' + booking.hours.toFixed(1) + '</td>' +
@@ -4826,7 +5031,7 @@
         
         if (!section || !tbody) return;
         
-        // Show section only for managers
+        // Show section only for admins
         if (appData.currentUser.role === 'Admin') {
           section.classList.remove('hidden');
         } else {
@@ -4917,6 +5122,278 @@
         var a = document.createElement('a');
         a.href = url;
         a.download = 'my-morri-removals-' + new Date().toISOString().split('T')[0] + '.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }
+
+      // ========================================
+      // Shared multi-select dropdown helpers
+      // ========================================
+      function toggleMsDropdown(id, e) {
+        if (e) e.stopPropagation();
+        var dd = document.getElementById(id);
+        var isOpen = dd.classList.contains('open');
+        document.querySelectorAll('.ms-dropdown.open').forEach(function(d) { d.classList.remove('open'); });
+        if (!isOpen) dd.classList.add('open');
+      }
+      function filterMsDropdownList(listId, q) {
+        q = (q || '').toLowerCase();
+        var items = document.querySelectorAll('#' + listId + ' .ms-dropdown-item');
+        items.forEach(function(item) {
+          item.style.display = item.textContent.toLowerCase().includes(q) ? '' : 'none';
+        });
+      }
+      function msDropdownSelectAll(listId) {
+        document.querySelectorAll('#' + listId + ' input[type=checkbox]').forEach(function(cb) {
+          if (cb.closest('.ms-dropdown-item').style.display !== 'none') cb.checked = true;
+        });
+      }
+      function msDropdownClearAll(listId) {
+        document.querySelectorAll('#' + listId + ' input[type=checkbox]').forEach(function(cb) { cb.checked = false; });
+      }
+      function updateAuditLabel(listId, labelId, allLabel) {
+        var checked = document.querySelectorAll('#' + listId + ' input[type=checkbox]:checked');
+        var label = document.getElementById(labelId);
+        if (!label) return;
+        if (checked.length === 0) label.textContent = allLabel;
+        else if (checked.length === 1) label.textContent = checked[0].value;
+        else label.textContent = checked.length + ' selected';
+      }
+
+      // Close dropdowns when clicking outside
+      document.addEventListener('click', function() {
+        document.querySelectorAll('.ms-dropdown.open').forEach(function(d) { d.classList.remove('open'); });
+      });
+
+      // ========================================
+      // Audit Log (enhanced)
+      // ========================================
+      var allAuditLogs = []; // full data set loaded from backend
+      var auditFiltered = []; // after filters applied
+      var auditPage = 1;
+      var auditPageSize = 50;
+      var auditSortField = 'timestamp';
+      var auditSortAsc = false;
+      var auditLogsLoaded = false;
+
+      function toggleAuditLogsSection() {
+        var container = document.getElementById('audit-logs-container');
+        var icon = document.getElementById('audit-icon');
+        if (!container) return;
+        var isHidden = container.classList.toggle('hidden');
+        if (icon) icon.style.transform = isHidden ? '' : 'rotate(180deg)';
+        if (!isHidden && !auditLogsLoaded) {
+          loadAllAuditLogs();
+        }
+      }
+
+      function loadAllAuditLogs() {
+        var tbody = document.getElementById('audit-logs-body');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="p-4 text-center text-gray-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading…</td></tr>';
+        google.script.run
+          .withSuccessHandler(function(res) {
+            auditLogsLoaded = true;
+            allAuditLogs = (res && res.logs) ? res.logs : (appData.auditLogs || []);
+            buildAuditDropdowns();
+            renderAuditLogs();
+          })
+          .withFailureHandler(function() {
+            auditLogsLoaded = true;
+            allAuditLogs = appData.auditLogs || [];
+            buildAuditDropdowns();
+            renderAuditLogs();
+          })
+          .getAllAuditLogs();
+      }
+
+      function buildAuditDropdowns() {
+        // Collect unique values
+        var users = [], actions = [], btypes = [];
+        allAuditLogs.forEach(function(l) {
+          if (l.actor && users.indexOf(l.actor) === -1) users.push(l.actor);
+          if (l.action && actions.indexOf(l.action) === -1) actions.push(l.action);
+          if (l.bookingType && btypes.indexOf(l.bookingType) === -1) btypes.push(l.bookingType);
+        });
+        users.sort(); actions.sort(); btypes.sort();
+
+        function buildList(listId, values, onchangeFn) {
+          var list = document.getElementById(listId);
+          if (!list) return;
+          list.innerHTML = '';
+          if (values.length === 0) { list.innerHTML = '<div class="ms-dropdown-empty">None</div>'; return; }
+          values.forEach(function(v) {
+            var lbl = document.createElement('label');
+            lbl.className = 'ms-dropdown-item';
+            lbl.innerHTML = '<input type="checkbox" value="' + escapeHtml(v) + '" onchange="' + onchangeFn + '"> ' + escapeHtml(v);
+            list.appendChild(lbl);
+          });
+        }
+        buildList('audit-user-list', users, "updateAuditLabel('audit-user-list','audit-user-label','All Users'); renderAuditLogs()");
+        buildList('audit-action-list', actions, "updateAuditLabel('audit-action-list','audit-action-label','All Actions'); renderAuditLogs()");
+        buildList('audit-btype-list', btypes, "updateAuditLabel('audit-btype-list','audit-btype-label','All Types'); renderAuditLogs()");
+      }
+
+      function getAuditFilterValues(listId) {
+        var checked = document.querySelectorAll('#' + listId + ' input[type=checkbox]:checked');
+        var vals = [];
+        checked.forEach(function(cb) { vals.push(cb.value); });
+        return vals;
+      }
+
+      function renderAuditLogs() {
+        auditPage = 1;
+        applyAuditFilters();
+        renderAuditPage();
+      }
+
+      function applyAuditFilters() {
+        var q = ((document.getElementById('audit-search') || {}).value || '').toLowerCase();
+        var from = (document.getElementById('audit-from') || {}).value || '';
+        var to   = (document.getElementById('audit-to')   || {}).value || '';
+        var users   = getAuditFilterValues('audit-user-list');
+        var actions = getAuditFilterValues('audit-action-list');
+        var btypes  = getAuditFilterValues('audit-btype-list');
+
+        auditFiltered = allAuditLogs.filter(function(l) {
+          // Free-text
+          if (q) {
+            var haystack = [l.timestamp, l.actor, l.action, l.details, l.bookingId, l.bookingType, l.targetPerson, l.startDate, l.endDate, l.status].join(' ').toLowerCase();
+            if (haystack.indexOf(q) === -1) return false;
+          }
+          // Date range
+          if (from || to) {
+            var ts = l.timestamp ? l.timestamp.substring(0, 10) : '';
+            if (from && ts < from) return false;
+            if (to   && ts > to)   return false;
+          }
+          // Multi-selects
+          if (users.length   && users.indexOf(l.actor)       === -1) return false;
+          if (actions.length && actions.indexOf(l.action)    === -1) return false;
+          if (btypes.length  && btypes.indexOf(l.bookingType) === -1) return false;
+          return true;
+        });
+
+        // Sort
+        auditFiltered.sort(function(a, b) {
+          var va = a[auditSortField] || '';
+          var vb = b[auditSortField] || '';
+          if (va < vb) return auditSortAsc ? -1 : 1;
+          if (va > vb) return auditSortAsc ?  1 : -1;
+          return 0;
+        });
+      }
+
+      function renderAuditPage() {
+        var tbody = document.getElementById('audit-logs-body');
+        if (!tbody) return;
+
+        var total = auditFiltered.length;
+        var totalPages = Math.max(1, Math.ceil(total / auditPageSize));
+        if (auditPage > totalPages) auditPage = totalPages;
+
+        var start = (auditPage - 1) * auditPageSize;
+        var end = Math.min(start + auditPageSize, total);
+        var pageRows = auditFiltered.slice(start, end);
+
+        tbody.innerHTML = '';
+        if (pageRows.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="10" class="p-4 text-gray-400 italic text-center">No matching entries.</td></tr>';
+        } else {
+          pageRows.forEach(function(l) {
+            var ts = '';
+            try { ts = new Date(l.timestamp).toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }); } catch(x) { ts = l.timestamp || ''; }
+            var sd = l.startDate ? formatDate(l.startDate) : '';
+            var ed = l.endDate   ? formatDate(l.endDate)   : '';
+            tbody.innerHTML += '<tr class="border-b border-gray-100 hover:bg-gray-50">' +
+              '<td class="p-2 text-gray-500 whitespace-nowrap">' + escapeHtml(ts) + '</td>' +
+              '<td class="p-2 text-blue-700 font-semibold whitespace-nowrap">' + escapeHtml(l.actor) + '</td>' +
+              '<td class="p-2 font-bold text-gray-700 whitespace-nowrap">' + escapeHtml(l.action) + '</td>' +
+              '<td class="p-2">' + (l.bookingType ? '<span class="px-1 py-0.5 rounded text-xs bg-gray-100 text-gray-700">' + escapeHtml(l.bookingType) + '</span>' : '') + '</td>' +
+              '<td class="p-2 font-mono text-gray-500">' + escapeHtml(l.bookingId) + '</td>' +
+              '<td class="p-2">' + escapeHtml(l.targetPerson) + '</td>' +
+              '<td class="p-2 whitespace-nowrap">' + escapeHtml(sd) + '</td>' +
+              '<td class="p-2 whitespace-nowrap">' + escapeHtml(ed) + '</td>' +
+              '<td class="p-2"><span class="px-1 py-0.5 rounded text-xs ' + auditStatusClass(l.status) + '">' + escapeHtml(l.status) + '</span></td>' +
+              '<td class="p-2 text-gray-600 break-all max-w-xs">' + escapeHtml(l.details) + '</td>' +
+              '</tr>';
+          });
+        }
+
+        // Update pagination controls
+        var info = document.getElementById('audit-page-info');
+        var pageNum = document.getElementById('audit-page-num');
+        var prevBtn = document.getElementById('audit-prev-btn');
+        var nextBtn = document.getElementById('audit-next-btn');
+        if (info)    info.textContent   = 'Showing ' + (total === 0 ? 0 : start + 1) + '–' + end + ' of ' + total;
+        if (pageNum) pageNum.textContent = 'Page ' + auditPage + ' of ' + totalPages;
+        if (prevBtn) prevBtn.disabled = auditPage <= 1;
+        if (nextBtn) nextBtn.disabled = auditPage >= totalPages;
+
+        // Update sort icons
+        ['timestamp','actor','action','bookingType'].forEach(function(f) {
+          var icon = document.getElementById('audit-sort-icon-' + f);
+          if (!icon) return;
+          if (f === auditSortField) {
+            icon.className = 'fa-solid ml-1 text-gray-700 ' + (auditSortAsc ? 'fa-sort-up' : 'fa-sort-down');
+          } else {
+            icon.className = 'fa-solid fa-sort ml-1 text-gray-400';
+          }
+        });
+      }
+
+      function auditStatusClass(status) {
+        if (!status) return '';
+        if (status === 'Approved') return 'bg-green-100 text-green-700';
+        if (status === 'Pending')  return 'bg-yellow-100 text-yellow-700';
+        if (status.includes('Cancel')) return 'bg-red-100 text-red-700';
+        if (status === 'Rejected') return 'bg-red-100 text-red-700';
+        return 'bg-gray-100 text-gray-600';
+      }
+
+      function auditSort(field) {
+        if (auditSortField === field) auditSortAsc = !auditSortAsc;
+        else { auditSortField = field; auditSortAsc = false; }
+        applyAuditFilters();
+        renderAuditPage();
+      }
+
+      function auditPrevPage() { if (auditPage > 1) { auditPage--; renderAuditPage(); } }
+      function auditNextPage() {
+        var totalPages = Math.max(1, Math.ceil(auditFiltered.length / auditPageSize));
+        if (auditPage < totalPages) { auditPage++; renderAuditPage(); }
+      }
+
+      function resetAuditFilters() {
+        var s = document.getElementById('audit-search'); if (s) s.value = '';
+        var f = document.getElementById('audit-from');   if (f) f.value = '';
+        var t = document.getElementById('audit-to');     if (t) t.value = '';
+        msDropdownClearAll('audit-user-list');
+        msDropdownClearAll('audit-action-list');
+        msDropdownClearAll('audit-btype-list');
+        updateAuditLabel('audit-user-list',   'audit-user-label',   'All Users');
+        updateAuditLabel('audit-action-list', 'audit-action-label', 'All Actions');
+        updateAuditLabel('audit-btype-list',  'audit-btype-label',  'All Types');
+        renderAuditLogs();
+      }
+
+      function exportAuditCSV() {
+        var rows = auditFiltered.length > 0 ? auditFiltered : allAuditLogs;
+        if (rows.length === 0) { alert('No audit log data to export.'); return; }
+        var header = ['Timestamp','Actor','Action','Details','BookingID','BookingType','TargetPerson','StartDate','EndDate','Status'];
+        var csv = header.join(',') + '\n';
+        rows.forEach(function(l) {
+          var ts = ''; try { ts = new Date(l.timestamp).toLocaleString('en-GB'); } catch(x) { ts = l.timestamp || ''; }
+          csv += [ts, l.actor, l.action, l.details, l.bookingId, l.bookingType, l.targetPerson, l.startDate, l.endDate, l.status]
+            .map(function(v) { return '"' + String(v || '').replace(/"/g, '""') + '"'; })
+            .join(',') + '\n';
+        });
+        var blob = new Blob([csv], { type: 'text/csv' });
+        var url = window.URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'audit-log-' + new Date().toISOString().split('T')[0] + '.csv';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

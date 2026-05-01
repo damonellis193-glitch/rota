@@ -1,15 +1,94 @@
-# Testing Guide: OAuth Authorization Fix
+# Testing Guide: Rota App
 
 ## Overview
-This guide provides step-by-step instructions for testing the OAuth authorization fix implementation.
+This guide covers testing for both the original OAuth authorization fix and the two new features added in the latest PR.
 
-## Prerequisites
-- Google Apps Script project with the updated code
-- Access to create new deployments
-- Multiple browser types (Chrome, Firefox, Safari) for testing
-- Ability to test in incognito/private mode
+---
 
-## Test Scenarios
+## New Feature Tests
+
+### Test A: Book in My Morri — Filter by Name
+
+**Prerequisites:** Log in as an Admin who is the line manager of at least 2 colleagues with approved Holiday or Sickness bookings not yet confirmed in My Morri.
+
+**Steps:**
+1. Navigate to the **Admin** page.
+2. Locate the **Book in My Morri** section — confirm it is visible.
+3. Verify a **"Filter"** bar appears below the header, with an **"All People"** dropdown button.
+4. Click the dropdown button.
+   - Confirm a panel opens with a search box, **Select all** / **Clear all** buttons, and a checkbox list of names.
+   - Verify names are sorted alphabetically and deduplicated.
+5. Type a partial name in the search box — verify the checkbox list filters live.
+6. Select **one** name — confirm the table updates immediately to show only that person's rows.
+7. Select a **second** name — confirm rows for both people are shown.
+8. Click **Clear all** — confirm all rows are shown again (or the "no bookings" placeholder).
+9. Click **Select all** — confirm all people are selected and all rows visible.
+10. **Refresh the page** — confirm the filter resets to "All People" and no names are pre-selected.
+
+**Expected Results:**
+- ✅ Dropdown opens/closes correctly.
+- ✅ Type-to-filter search works in real time.
+- ✅ Single and multi-select filter the table correctly.
+- ✅ Select all / Clear all work correctly.
+- ✅ Filter resets completely on page refresh.
+
+---
+
+### Test B: Richer Audit Log Capture (backend)
+
+**Prerequisites:** Log in as an Admin.
+
+**Steps:**
+1. Submit a new **Holiday** booking for a colleague.
+2. Open the Admin → System Audit Logs section.
+3. Find the most recent `SUBMIT` entry.
+   - Confirm it contains: **Booking ID**, **Booking Type** (Holiday), **Target Person**, **Start Date**, **End Date**, **Status** (Pending or Approved).
+4. As a manager, **approve** the booking.
+5. Find the `APPROVE` entry — verify same fields are populated.
+6. Have the colleague (or admin) **request cancellation** of the booking.
+7. Find the `CANCEL` or `CANCEL_REQUEST` entry — verify **booking details are recorded** (not just the ID).
+8. If the booking was Pending, verify it was deleted from the Bookings sheet but the audit row still records the full details.
+
+**Expected Results:**
+- ✅ `SUBMIT` entry includes booking ID, type, person, dates, status.
+- ✅ `APPROVE`/`REJECT` entries include all booking fields.
+- ✅ `CANCEL`/`CANCEL_REQUEST` entries capture details **before** the booking is removed.
+- ✅ The AuditLogs Google Sheet has 10 columns (Timestamp, Actor, Action, Details, BookingID, BookingType, TargetPerson, StartDate, EndDate, Status).
+
+---
+
+### Test C: Audit Log UI — Search, Filter, Sort, Pagination, Export
+
+**Prerequisites:** Log in as an Admin with at least several audit log entries.
+
+**Steps:**
+1. Open Admin → **System Audit Logs** (click the header to expand).
+   - Verify the section loads and displays audit rows with all columns (Time, User, Action, Type, ID, Person, Start, End, Status, Details).
+2. Type a search term (e.g. a colleague's name) in the **Search all fields** box — verify rows filter immediately.
+3. Set a **From** date — verify only rows on or after that date are shown.
+4. Set a **To** date — verify only rows within the range are shown.
+5. Click the **User** dropdown, select one or more users — verify only their rows are shown.
+6. Click the **Action** dropdown, select an action type — verify correct rows remain.
+7. Click the **Booking type** dropdown, select a type (e.g. Holiday) — verify correct rows remain.
+8. Click the **Time** column header — verify rows sort ascending/descending on click/re-click.
+9. Click the **Action** column header — verify alphabetical sort.
+10. With 51+ log entries: verify **pagination** shows "Page 1 of N", and the **next** button advances to page 2.
+11. Click **Reset** — verify all filters clear and all rows are shown.
+12. Click **Export CSV** — verify a `.csv` file downloads with correct headers and filtered rows.
+
+**Expected Results:**
+- ✅ Free-text search works across all fields.
+- ✅ Date range filter works correctly.
+- ✅ Multi-select dropdowns work for User, Action, Booking type.
+- ✅ Column headers are clickable and toggle sort order.
+- ✅ Pagination renders and prev/next navigate correctly.
+- ✅ Reset clears all filters.
+- ✅ CSV export downloads with correct data.
+- ✅ All filters reset on page refresh (not persisted).
+
+---
+
+## Original OAuth Tests
 
 ### Test 1: Normal Authorization Flow (Happy Path)
 
@@ -37,317 +116,38 @@ This guide provides step-by-step instructions for testing the OAuth authorizatio
 - ✅ App loads and displays dashboard
 - ✅ User email is displayed in navigation
 
-**Common Issues**:
-- If popup doesn't appear, check browser popup settings
-- If OAuth screen doesn't appear, check Apps Script deployment settings
-
 ---
 
 ### Test 2: Popup Blocker Detection
 
-**Objective**: Verify that popup blocker detection works correctly
-
 **Steps**:
 1. Enable strict popup blocking in browser settings
-   - Chrome: Settings → Privacy and security → Site Settings → Pop-ups and redirects → Don't allow sites to send pop-ups
-   - Firefox: Options → Privacy & Security → Permissions → Block pop-up windows
-   - Safari: Preferences → Websites → Pop-up Windows → Block
 2. Open the Web App URL in a new window
 3. Click the "Grant Permissions" button
 4. Verify that popup blocker alert appears
-5. Click "Try Again" button
-6. Allow popups for the site when prompted by browser
-7. Click "Grant Permissions" again
-8. Verify that popup opens this time
-9. Complete authorization
+5. Click "Try Again" button and allow popups
+6. Complete authorization
 
 **Expected Results**:
 - ✅ Popup blocker detection works
 - ✅ Alert message is clear and helpful
-- ✅ "Try Again" button is available
 - ✅ After allowing popups, flow works normally
-
-**Alternative Path**:
-- Click "Manual Authorization Steps" button
-- Verify that detailed instructions appear
-- Follow the manual steps
-- Verify that authorization completes
-
----
-
-### Test 3: Manual Authorization Flow
-
-**Objective**: Verify that manual authorization instructions work
-
-**Steps**:
-1. With popup blocker enabled, click "Grant Permissions"
-2. When popup blocker alert appears, click "Manual Authorization Steps"
-3. Read the displayed instructions
-4. Follow each step in the manual instructions
-5. Verify that each step is accurate
-6. Complete the authorization process manually
-
-**Expected Results**:
-- ✅ Manual instructions are clear and accurate
-- ✅ Instructions match actual browser behavior
-- ✅ Following instructions leads to successful authorization
-- ✅ App loads after manual authorization
-
----
-
-### Test 4: Authorization Error Handling
-
-**Objective**: Verify that errors are handled gracefully
-
-**Steps**:
-1. Test with invalid spreadsheet permissions:
-   - Have an admin remove your access to the spreadsheet
-   - Try to authorize
-   - Verify error message is clear
-2. Test with network interruption:
-   - Start authorization process
-   - Disconnect network during OAuth consent
-   - Verify error handling
-3. Test authorization cancellation:
-   - Click "Grant Permissions"
-   - When OAuth consent screen appears, click "Cancel"
-   - Verify that error is handled gracefully
-
-**Expected Results**:
-- ✅ Permission errors show helpful messages
-- ✅ Network errors are caught and displayed
-- ✅ User can retry after errors
-- ✅ No confusing error messages or stack traces
-- ✅ Cancel is handled without breaking the app
-
----
-
-### Test 5: Multiple Authorization Attempts
-
-**Objective**: Verify that users can retry authorization
-
-**Steps**:
-1. Start authorization process
-2. Cancel the OAuth consent
-3. Click "Grant Permissions" again
-4. This time, approve the consent
-5. Verify app loads correctly
-6. Log out and log back in
-7. Verify app loads without requiring re-authorization
-
-**Expected Results**:
-- ✅ Users can retry after canceling
-- ✅ Multiple attempts don't break the flow
-- ✅ Once authorized, permission persists
-- ✅ Re-login doesn't require re-authorization
-
----
-
-### Test 6: Already Authorized User
-
-**Objective**: Verify behavior for users who already authorized
-
-**Steps**:
-1. Complete authorization successfully
-2. Close the browser
-3. Open the Web App URL again in a new window
-4. Verify that app loads directly without showing permission screen
-
-**Expected Results**:
-- ✅ Already authorized users see app immediately
-- ✅ No permission request screen shown
-- ✅ Normal app functionality works
-
----
-
-### Test 7: Cross-Browser Testing
-
-**Objective**: Verify authorization works in different browsers
-
-**Browsers to Test**:
-- Google Chrome (latest)
-- Mozilla Firefox (latest)
-- Safari (latest)
-- Microsoft Edge (latest)
-
-**Steps** (for each browser):
-1. Open Web App URL in incognito/private mode
-2. Complete authorization flow
-3. Verify popup behavior
-4. Verify OAuth consent screen
-5. Verify app loads correctly
-6. Test popup blocker detection
-7. Test manual authorization if needed
-
-**Expected Results**:
-- ✅ Works in Chrome
-- ✅ Works in Firefox
-- ✅ Works in Safari
-- ✅ Works in Edge
-- ✅ Popup blocker detection works in all browsers
-- ✅ Manual fallback works in all browsers
-
----
-
-### Test 8: Mobile Browser Testing
-
-**Objective**: Verify authorization works on mobile devices
-
-**Devices to Test**:
-- iOS (Safari and Chrome)
-- Android (Chrome and Firefox)
-
-**Steps**:
-1. Open Web App URL on mobile device
-2. Try authorization flow
-3. Verify popup behavior (may open in new tab on mobile)
-4. Complete OAuth consent
-5. Verify app loads and is usable on mobile
-
-**Expected Results**:
-- ✅ Authorization completes on mobile
-- ✅ UI is readable and usable
-- ✅ Popup/tab handling works
-- ✅ App functions correctly after authorization
-
----
-
-### Test 9: Status Message Verification
-
-**Objective**: Verify all status messages display correctly
-
-**Messages to Verify**:
-1. "Opening authorization window..." - Should appear when button clicked
-2. "Requesting Permissions..." - Should appear in popup
-3. "Authorization successful!" - Should appear after OAuth approval
-4. "Popup blocked by browser..." - Should appear when popup blocked
-5. Error messages - Should appear for various error conditions
-
-**Expected Results**:
-- ✅ All messages appear at appropriate times
-- ✅ Messages are clear and helpful
-- ✅ Icons and styling are correct
-- ✅ Messages provide next steps
-
----
-
-### Test 10: Security Testing
-
-**Objective**: Verify no security vulnerabilities
-
-**Tests**:
-1. XSS Test: Try to inject HTML/JavaScript in error messages
-2. Popup Security: Verify popup has restricted features
-3. OAuth Flow: Verify Google's consent screen appears (not a fake)
-4. Data Exposure: Verify no sensitive data in console logs
-5. Error Messages: Verify no stack traces or system info exposed
-
-**Expected Results**:
-- ✅ HTML/JavaScript is escaped, not executed
-- ✅ Popup has no toolbar/location bar
-- ✅ OAuth consent is legitimate Google screen
-- ✅ Console logs don't contain passwords/tokens
-- ✅ Error messages are user-friendly, not technical
-
----
-
-## Test Results Template
-
-```markdown
-## Test Results
-
-**Date**: [Date]
-**Tester**: [Name]
-**Environment**: [Browser/OS]
-
-### Test 1: Normal Authorization Flow
-- [ ] Passed
-- [ ] Failed - Issue: [Description]
-
-### Test 2: Popup Blocker Detection
-- [ ] Passed
-- [ ] Failed - Issue: [Description]
-
-### Test 3: Manual Authorization Flow
-- [ ] Passed
-- [ ] Failed - Issue: [Description]
-
-### Test 4: Authorization Error Handling
-- [ ] Passed
-- [ ] Failed - Issue: [Description]
-
-### Test 5: Multiple Authorization Attempts
-- [ ] Passed
-- [ ] Failed - Issue: [Description]
-
-### Test 6: Already Authorized User
-- [ ] Passed
-- [ ] Failed - Issue: [Description]
-
-### Test 7: Cross-Browser Testing
-- [ ] Chrome - Passed/Failed
-- [ ] Firefox - Passed/Failed
-- [ ] Safari - Passed/Failed
-- [ ] Edge - Passed/Failed
-
-### Test 8: Mobile Browser Testing
-- [ ] iOS - Passed/Failed
-- [ ] Android - Passed/Failed
-
-### Test 9: Status Message Verification
-- [ ] Passed
-- [ ] Failed - Issue: [Description]
-
-### Test 10: Security Testing
-- [ ] Passed
-- [ ] Failed - Issue: [Description]
-
-### Overall Assessment
-- [ ] All tests passed - Ready for production
-- [ ] Some tests failed - Review issues before deployment
-```
 
 ---
 
 ## Troubleshooting Common Issues
 
+### Issue: My Morri filter dropdown doesn't appear
+**Solution**: The section is only visible for Admin users who are line managers of colleagues. Ensure the logged-in user is an Admin.
+
+### Issue: Audit log section loads but shows "No matching entries"
+**Solution**: Use the Reset button to clear all filters, or check that `getAllAuditLogs()` exists in the deployed `code.gs`.
+
+### Issue: Audit log CSV export is empty
+**Solution**: Ensure there are audit entries and no conflicting filter is active. Click Reset and try again.
+
 ### Issue: Popup doesn't open
-**Solution**: 
-- Check if popup blocker is enabled
-- Verify browser allows popups from the site
-- Try clicking button again (may need user interaction)
+**Solution**: Check if popup blocker is enabled; verify browser allows popups from the site.
 
 ### Issue: OAuth screen doesn't appear
-**Solution**:
-- Verify deployment is set to "Execute as: Me"
-- Check that OAuth scopes in appsscript.json are correct
-- Ensure deployment is a Web App type
-
-### Issue: Authorization succeeds but app doesn't load
-**Solution**:
-- Check browser console for errors
-- Verify spreadsheet ID is correct
-- Ensure user has access to spreadsheet
-- Check network connectivity
-
-### Issue: Error messages not clear
-**Solution**:
-- Check browser console for detailed errors
-- Review Apps Script execution logs
-- Verify escapeHtml function is working
-
----
-
-## Success Criteria
-
-The authorization fix is considered successful when:
-- ✅ All test scenarios pass
-- ✅ Works in all major browsers
-- ✅ Works on mobile devices
-- ✅ Popup blocker detection works
-- ✅ Manual fallback works
-- ✅ Error handling is robust
-- ✅ Security tests pass
-- ✅ User experience is smooth
-- ✅ No console errors
-- ✅ Documentation is accurate
+**Solution**: Verify deployment is set to "Execute as: Me"; check OAuth scopes in `appsscript.json`.
