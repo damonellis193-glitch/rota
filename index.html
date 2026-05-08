@@ -1187,6 +1187,46 @@
       </div>
     </div>
 
+    <!-- WFH Swap Modal -->
+    <div id="modal-wfh-swap" class="hidden fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col" style="max-height:90vh;">
+        <div class="morrisons-green p-4 text-white flex justify-between items-center border-b-4 border-yellow-400 shrink-0">
+          <h3 class="font-bold text-lg"><i class="fa-solid fa-building mr-2"></i>Book a Replacement Office Day</h3>
+          <button type="button" onclick="closeWfhSwapModal()"><i class="fa-solid fa-times"></i></button>
+        </div>
+        <div class="p-6 overflow-y-auto flex-1">
+          <p id="wfh-swap-message" class="text-sm text-gray-700 mb-4 bg-amber-50 border border-amber-200 rounded p-3 leading-relaxed"></p>
+          <p id="wfh-swap-progress" class="hidden text-xs font-bold text-gray-400 uppercase tracking-wider mb-3"></p>
+          <!-- Calendar -->
+          <div class="mb-5">
+            <h4 class="text-sm font-bold text-green-900 mb-2"><i class="fa-solid fa-calendar-days mr-1"></i>Choose a replacement date:</h4>
+            <div class="border border-gray-200 rounded-lg p-3 bg-white shadow-sm">
+              <div class="flex items-center justify-between mb-3">
+                <button type="button" onclick="wfhSwapCalPrev()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-600 transition"><i class="fa-solid fa-chevron-left text-xs"></i></button>
+                <span id="wfh-swap-cal-label" class="font-bold text-green-900 text-sm"></span>
+                <button type="button" onclick="wfhSwapCalNext()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-600 transition"><i class="fa-solid fa-chevron-right text-xs"></i></button>
+              </div>
+              <div id="wfh-swap-calendar" class="w-full"></div>
+              <div class="flex gap-4 mt-2 text-xs text-gray-500">
+                <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-blue-100 border border-blue-300 inline-block"></span>WFH day</span>
+                <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-gray-200 inline-block opacity-70"></span>Unavailable</span>
+              </div>
+            </div>
+          </div>
+          <!-- Desk Selector (shown after date is selected) -->
+          <div id="wfh-swap-desk-section" class="hidden mb-5">
+            <h4 class="text-sm font-bold text-green-900 mb-2"><i class="fa-solid fa-chair mr-1"></i>Choose a seat for <span id="wfh-swap-seat-date" class="text-green-700"></span>:</h4>
+            <div id="wfh-swap-desk-container" class="border border-gray-200 rounded-lg bg-gray-50 p-3 overflow-auto" style="max-height:220px;"></div>
+          </div>
+          <!-- Action Buttons -->
+          <div class="flex justify-between items-center pt-4 border-t border-gray-100">
+            <button type="button" onclick="skipWfhSwap()" class="text-sm text-gray-400 hover:text-gray-600 underline"><i class="fa-solid fa-forward-step mr-1"></i>Skip – arrange with manager</button>
+            <button type="button" id="btn-confirm-wfh-swap" onclick="confirmWfhSwap()" disabled class="btn-primary px-6 py-2 rounded font-bold opacity-50 cursor-not-allowed"><i class="fa-solid fa-check mr-2"></i>Confirm Office Day</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Capacity Alert Modal -->
     <div id="capacity-alert-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="closeCapacityAlertModal(event)">
       <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden" onclick="event.stopPropagation()">
@@ -4345,6 +4385,28 @@
             refreshAllViews();
             btn.innerHTML='Submit';
             btn.disabled=false;
+            // --- WFH SWAP: check if any booked WFH day is normally an Office day ---
+            if (fd.type === 'WFH') {
+                var sched = appData.schedules[email] || {};
+                var swapItems = [];
+                var cur = new Date(fd.startDate + 'T12:00:00');
+                var endD = new Date(fd.endDate + 'T12:00:00');
+                while (cur <= endD) {
+                    var dowIdx = cur.getDay();
+                    if (dowIdx !== 0 && dowIdx !== 6) {
+                        var dayN = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][dowIdx];
+                        if (sched[dayN] && sched[dayN].type === 'Office') {
+                            var dStr = new Date(cur.getTime() - cur.getTimezoneOffset()*60000).toISOString().split('T')[0];
+                            swapItems.push({ wfhDate: dStr, dayName: dayN });
+                        }
+                    }
+                    cur.setDate(cur.getDate() + 1);
+                }
+                if (swapItems.length > 0) {
+                    openWfhSwapModal(email, Number(fd.hours) || 7.5, swapItems);
+                }
+            }
+            // --- END WFH SWAP ---
         }).withFailureHandler(function(err) { btn.innerHTML='Submit'; btn.disabled=false; handleServerError(err); }).submitBooking(fd);
       }
 
@@ -4498,7 +4560,7 @@
       }
 
       function closeModals() {
-        ['modal-booking','modal-employee','modal-schedule','modal-chaser','modal-carryover','modal-allowance-change','modal-copy-day'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
+        ['modal-booking','modal-employee','modal-schedule','modal-chaser','modal-carryover','modal-allowance-change','modal-copy-day','modal-wfh-swap'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
       }
 
       function sendChaser() {
@@ -6905,6 +6967,530 @@
           })
           .getDeskLayout();
       };
+
+      // ─────────────────────────────────────────────────────────────
+      // WFH SWAP FLOW – Book a Replacement Office Day
+      // ─────────────────────────────────────────────────────────────
+      window.pendingWfhSwap = null;
+      window.wfhSwapCalYear  = new Date().getFullYear();
+      window.wfhSwapCalMonth = new Date().getMonth();
+      window._lastWfhSwapLayoutJson = null;
+
+      function openWfhSwapModal(email, hours, swapItems) {
+        window.pendingWfhSwap = {
+          email: email,
+          hours: hours,
+          swapItems: swapItems,
+          currentIndex: 0,
+          selectedReplacementDate: null,
+          selectedSeatItemId: null,
+          selectedSeatLabel: null,
+          selectedSeatRow: null,
+          selectedSeatCol: null
+        };
+        window._lastWfhSwapLayoutJson = null;
+        var now = new Date();
+        window.wfhSwapCalYear  = now.getFullYear();
+        window.wfhSwapCalMonth = now.getMonth();
+        wfhSwapRefreshContent();
+        document.getElementById('modal-wfh-swap').classList.remove('hidden');
+      }
+
+      function closeWfhSwapModal() {
+        window.pendingWfhSwap = null;
+        document.getElementById('modal-wfh-swap').classList.add('hidden');
+      }
+
+      function wfhSwapRefreshContent() {
+        var pws = window.pendingWfhSwap;
+        if (!pws) return;
+        var item = pws.swapItems[pws.currentIndex];
+        document.getElementById('wfh-swap-message').innerHTML =
+          'You\'ve booked a WFH day on a day you\'re normally in the office (<strong>' +
+          escapeHtml(item.dayName) + '</strong>). Please choose another day to come in instead.';
+        var progEl = document.getElementById('wfh-swap-progress');
+        if (pws.swapItems.length > 1) {
+          progEl.textContent = 'Swap ' + (pws.currentIndex + 1) + ' of ' + pws.swapItems.length;
+          progEl.classList.remove('hidden');
+        } else {
+          progEl.classList.add('hidden');
+        }
+        pws.selectedReplacementDate = null;
+        pws.selectedSeatItemId = null;
+        pws.selectedSeatLabel  = null;
+        pws.selectedSeatRow    = null;
+        pws.selectedSeatCol    = null;
+        document.getElementById('wfh-swap-desk-section').classList.add('hidden');
+        wfhSwapSetConfirmEnabled(false);
+        wfhSwapRenderCalendar();
+      }
+
+      function wfhSwapCalPrev() {
+        if (--window.wfhSwapCalMonth < 0) { window.wfhSwapCalMonth = 11; window.wfhSwapCalYear--; }
+        wfhSwapRenderCalendar();
+      }
+
+      function wfhSwapCalNext() {
+        if (++window.wfhSwapCalMonth > 11) { window.wfhSwapCalMonth = 0; window.wfhSwapCalYear++; }
+        wfhSwapRenderCalendar();
+      }
+
+      function wfhSwapRenderCalendar() {
+        var pws = window.pendingWfhSwap;
+        if (!pws) return;
+        var year  = window.wfhSwapCalYear;
+        var month = window.wfhSwapCalMonth;
+        var MONTHS = ['January','February','March','April','May','June','July',
+                      'August','September','October','November','December'];
+        var DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+        document.getElementById('wfh-swap-cal-label').textContent = MONTHS[month] + ' ' + year;
+
+        var email = pws.email;
+        var sched = appData.schedules[email] || {};
+        var today = new Date(); today.setHours(0,0,0,0);
+
+        // Build set of dates already booked as Office for this user
+        var officeDates = {};
+        appData.bookings.forEach(function(b) {
+          if (b.email !== email || b.type !== 'Office' || b.status === 'Cancelled') return;
+          var s = new Date(b.startDate + 'T12:00:00');
+          var e = new Date(b.endDate   + 'T12:00:00');
+          for (var c = new Date(s); c <= e; c.setDate(c.getDate() + 1)) {
+            officeDates[new Date(c.getTime() - c.getTimezoneOffset()*60000).toISOString().split('T')[0]] = true;
+          }
+        });
+
+        // Build set of dates already booked as WFH (informational highlight)
+        var wfhDates = {};
+        appData.bookings.forEach(function(b) {
+          if (b.email !== email || b.type !== 'WFH' || b.status === 'Cancelled') return;
+          var s = new Date(b.startDate + 'T12:00:00');
+          var e = new Date(b.endDate   + 'T12:00:00');
+          for (var c = new Date(s); c <= e; c.setDate(c.getDate() + 1)) {
+            wfhDates[new Date(c.getTime() - c.getTimezoneOffset()*60000).toISOString().split('T')[0]] = true;
+          }
+        });
+
+        var html = '<table class="w-full text-center text-sm border-collapse select-none">';
+        html += '<thead><tr>';
+        ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach(function(d) {
+          html += '<th class="py-1 text-[11px] font-bold text-gray-400">' + d + '</th>';
+        });
+        html += '</tr></thead><tbody>';
+
+        var firstOfMonth = new Date(year, month, 1);
+        var startSunday  = new Date(firstOfMonth);
+        startSunday.setDate(1 - firstOfMonth.getDay());
+
+        for (var week = 0; week < 6; week++) {
+          var rowHasMonth = false;
+          for (var d = 0; d < 7; d++) {
+            var chk = new Date(startSunday.getTime());
+            chk.setDate(startSunday.getDate() + week * 7 + d);
+            if (chk.getMonth() === month) { rowHasMonth = true; break; }
+          }
+          if (!rowHasMonth) continue;
+
+          html += '<tr>';
+          for (var d = 0; d < 7; d++) {
+            var cell = new Date(startSunday.getTime());
+            cell.setDate(startSunday.getDate() + week * 7 + d);
+            cell.setHours(0,0,0,0);
+
+            if (cell.getMonth() !== month) { html += '<td></td>'; continue; }
+
+            var dateStr  = new Date(cell.getTime() - cell.getTimezoneOffset()*60000).toISOString().split('T')[0];
+            var dow      = cell.getDay();
+            var dayName  = DAY_NAMES[dow];
+            var schedDay = sched[dayName];
+
+            var isWeekend      = dow === 0 || dow === 6;
+            var isNoneDay      = !schedDay || schedDay.type === 'None';
+            var isOfficeBooked = !!officeDates[dateStr];
+            var isPast         = cell < today;
+            var isSelected     = pws.selectedReplacementDate === dateStr;
+            var isWFH          = !!wfhDates[dateStr];
+
+            var disabled = isWeekend || isNoneDay || isOfficeBooked || isPast;
+            var btnCls;
+            if (isSelected) {
+              btnCls = 'w-8 h-8 mx-auto flex items-center justify-center rounded-full bg-green-600 text-white font-bold shadow-md';
+            } else if (disabled) {
+              btnCls = 'w-8 h-8 mx-auto flex items-center justify-center rounded-full text-gray-300 cursor-not-allowed text-sm';
+            } else if (isWFH) {
+              btnCls = 'w-8 h-8 mx-auto flex items-center justify-center rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 cursor-pointer text-sm';
+            } else {
+              btnCls = 'w-8 h-8 mx-auto flex items-center justify-center rounded-full text-gray-700 hover:bg-green-100 hover:text-green-700 cursor-pointer text-sm';
+            }
+
+            html += '<td class="py-0.5">';
+            if (disabled) {
+              html += '<div class="' + btnCls + '">' + cell.getDate() + '</div>';
+            } else {
+              html += '<button type="button" onclick="wfhSwapSelectDate(\'' + dateStr + '\')" class="' + btnCls + '">' + cell.getDate() + '</button>';
+            }
+            html += '</td>';
+          }
+          html += '</tr>';
+        }
+        html += '</tbody></table>';
+        document.getElementById('wfh-swap-calendar').innerHTML = html;
+      }
+
+      function wfhSwapSelectDate(dateStr) {
+        var pws = window.pendingWfhSwap;
+        if (!pws) return;
+        pws.selectedReplacementDate = dateStr;
+        pws.selectedSeatItemId = null;
+        pws.selectedSeatLabel  = null;
+        pws.selectedSeatRow    = null;
+        pws.selectedSeatCol    = null;
+        wfhSwapRenderCalendar(); // re-render to highlight selection
+
+        var d = new Date(dateStr + 'T12:00:00');
+        document.getElementById('wfh-swap-seat-date').textContent =
+          d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+        document.getElementById('wfh-swap-desk-section').classList.remove('hidden');
+        wfhSwapSetConfirmEnabled(false);
+        wfhSwapRenderDeskPlan(dateStr);
+        document.getElementById('wfh-swap-desk-section').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
+      function wfhSwapRenderDeskPlan(dateStr) {
+        var container = document.getElementById('wfh-swap-desk-container');
+        var pws = window.pendingWfhSwap;
+        if (!container || !pws) return;
+        container.innerHTML = '<div class="text-gray-400 text-sm italic text-center py-4"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading desk plan...</div>';
+        if (google && google.script && google.script.run && google.script.run.getDeskLayout) {
+          google.script.run
+            .withSuccessHandler(function(layoutJson) {
+              window._lastWfhSwapLayoutJson = layoutJson;
+              if (!wfhSwapRenderFromLayout(layoutJson, dateStr)) {
+                wfhSwapRenderFromLegacy(dateStr);
+              }
+            })
+            .withFailureHandler(function() { wfhSwapRenderFromLegacy(dateStr); })
+            .getDeskLayout();
+        } else {
+          wfhSwapRenderFromLegacy(dateStr);
+        }
+      }
+
+      function wfhSwapRenderFromLayout(layoutJson, dateStr) {
+        var container = document.getElementById('wfh-swap-desk-container');
+        var pws = window.pendingWfhSwap;
+        if (!container || !pws) return false;
+
+        var DAY_NAMES = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+        var rawParsed = null;
+        if (layoutJson) {
+          try { rawParsed = typeof layoutJson === 'string' ? JSON.parse(layoutJson) : layoutJson; } catch(e) {}
+        }
+
+        var parts = dateStr.split('-');
+        var targetDate = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+        var selectedDay = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][targetDate.getDay()];
+
+        var items = null;
+        if (rawParsed && typeof rawParsed === 'object' && !Array.isArray(rawParsed) &&
+            DAY_NAMES.some(function(d) { return Object.prototype.hasOwnProperty.call(rawParsed, d); })) {
+          var dayData = rawParsed[selectedDay];
+          if (!dayData) return false;
+          items = Array.isArray(dayData) ? dayData : (dayData.items || null);
+        } else if (rawParsed) {
+          items = Array.isArray(rawParsed) ? rawParsed : (rawParsed.items || null);
+        }
+        if (!items || items.length === 0) return false;
+
+        var html = '<div class="flex flex-wrap gap-2 p-2">';
+        var hasDesk = false;
+
+        items.forEach(function(item) {
+          if (item.type === 'zone') return;
+          hasDesk = true;
+          var rawVal = deskEditorGetItemOverride(item, dateStr);
+          if (rawVal === undefined) rawVal = item.personEmail || '';
+          var isSelected = pws.selectedSeatItemId === item.id;
+
+          if (deskEditorIsUnavailableValue(rawVal)) {
+            html += '<div class="w-20 h-20 rounded-lg flex flex-col items-center justify-center bg-gray-300 border border-gray-400 text-gray-600 text-center">' +
+                    '<i class="fa-solid fa-ban text-xl mb-1"></i>' +
+                    '<div class="text-[10px] font-bold px-1">' + escapeHtml(item.label || '') + '</div></div>';
+          } else if (deskEditorIsAvailableValue(rawVal)) {
+            var cls = isSelected
+              ? 'w-20 h-20 rounded-lg flex flex-col items-center justify-center bg-green-500 border-2 border-green-700 text-white cursor-pointer shadow-lg'
+              : 'w-20 h-20 rounded-lg flex flex-col items-center justify-center bg-green-50 border-2 border-green-400 text-green-700 hover:bg-green-100 cursor-pointer transition';
+            html += '<div class="' + cls + '" onclick="wfhSwapPickSeatItem(' + JSON.stringify(item.id) + ',' + JSON.stringify(item.label||'Desk') + ')">' +
+                    '<i class="fa-solid fa-' + (isSelected ? 'check' : 'hand-pointer') + ' text-xl mb-1"></i>' +
+                    '<div class="text-[10px] font-bold">' + (isSelected ? 'Selected' : 'Select') + '</div>' +
+                    '<div class="text-[9px] text-center">' + escapeHtml(item.label || '') + '</div></div>';
+          } else {
+            var emp = findEmployeeByMapName(rawVal);
+            var status = emp ? deskEditorGetStatusForEmployee(emp.email, dateStr) : { badge: 'In' };
+            var isAway = status.badge && status.badge !== 'In';
+            if (isAway) {
+              var cls = isSelected
+                ? 'w-20 h-20 rounded-lg flex flex-col items-center justify-center bg-green-500 border-2 border-green-700 text-white cursor-pointer shadow-lg'
+                : 'w-20 h-20 rounded-lg flex flex-col items-center justify-center bg-green-50 border-2 border-green-400 text-green-700 hover:bg-green-100 cursor-pointer transition';
+              html += '<div class="' + cls + '" onclick="wfhSwapPickSeatItem(' + JSON.stringify(item.id) + ',' + JSON.stringify(item.label||'Desk') + ')">' +
+                      '<i class="fa-solid fa-' + (isSelected ? 'check' : 'hand-pointer') + ' text-xl mb-1"></i>' +
+                      '<div class="text-[10px] font-bold">' + (isSelected ? 'Selected' : 'Select') + '</div>' +
+                      '<div class="text-[9px] text-center">' + escapeHtml(item.label || '') + '</div></div>';
+            } else {
+              var dname = emp ? getFirstName(emp.name) : getFirstName(rawVal);
+              html += '<div class="w-20 h-20 rounded-lg flex flex-col items-center justify-center bg-blue-500 border border-blue-600 text-white shadow-sm text-center">' +
+                      '<i class="fa-solid fa-desktop text-xl mb-1 opacity-60"></i>' +
+                      '<div class="text-[10px] font-bold truncate w-full px-1">' + escapeHtml(dname) + '</div>' +
+                      '<div class="text-[9px]">' + escapeHtml(item.label || '') + '</div></div>';
+            }
+          }
+        });
+        html += '</div>';
+        if (!hasDesk) return false;
+        container.innerHTML = html;
+        return true;
+      }
+
+      function wfhSwapRenderFromLegacy(dateStr) {
+        var container = document.getElementById('wfh-swap-desk-container');
+        var pws = window.pendingWfhSwap;
+        if (!container || !pws) return;
+
+        if (!appData.deskPlan || appData.deskPlan.length === 0) {
+          container.innerHTML = '<div class="text-amber-600 text-sm italic text-center py-4"><i class="fa-solid fa-triangle-exclamation mr-2"></i>No desk plan found. You may proceed without a seat.</div>';
+          pws.selectedSeatRow = -1; pws.selectedSeatCol = -1;
+          wfhSwapSetConfirmEnabled(true);
+          return;
+        }
+
+        var parts = dateStr.split('-');
+        var targetDate = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+        targetDate.setHours(0,0,0,0);
+        var allDays = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+        var selectedDay = allDays[targetDate.getDay()];
+
+        var startRow = -1;
+        for (var i = 0; i < appData.deskPlan.length; i++) {
+          if (appData.deskPlan[i].some(function(c) { return String(c).includes(selectedDay); })) {
+            startRow = i; break;
+          }
+        }
+        if (startRow === -1) {
+          container.innerHTML = '<div class="text-gray-400 text-sm italic text-center py-4">No desk plan for ' + escapeHtml(selectedDay) + '. You may proceed without a seat.</div>';
+          pws.selectedSeatRow = -1; pws.selectedSeatCol = -1;
+          wfhSwapSetConfirmEnabled(true);
+          return;
+        }
+        var weekDays = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+        var endRow = appData.deskPlan.length;
+        for (var j = startRow + 1; j < appData.deskPlan.length; j++) {
+          if (appData.deskPlan[j].some(function(c) { return weekDays.indexOf(String(c).trim()) !== -1; })) {
+            endRow = j; break;
+          }
+        }
+
+        function getLegacyDeskCols(rowData) {
+          var cols = [];
+          for (var c = 1; c < rowData.length; c++) {
+            if (String(rowData[c]||'').trim().toLowerCase() === 'skip') continue;
+            cols.push(c);
+            if (cols.length === 4) break;
+          }
+          return cols;
+        }
+
+        var overrides = (window.dailyOverrides || {})[dateStr] || {};
+        var html = '<div class="flex flex-wrap gap-2 p-2">';
+        var hasDesk = false;
+
+        for (var r = startRow + 1; r < endRow; r++) {
+          (function(rowIdx) {
+            var cols = getLegacyDeskCols(appData.deskPlan[rowIdx]);
+            cols.forEach(function(colIdx) {
+              var rawVal = overrides[rowIdx + '_' + colIdx] !== undefined
+                ? String(overrides[rowIdx + '_' + colIdx]).trim()
+                : String(appData.deskPlan[rowIdx][colIdx]).trim();
+              hasDesk = true;
+              var isDark  = /^(n\/a|-|_|x|other|unavailable|dark|trade planning|merch)$/i.test(rawVal);
+              var isEmpty = !rawVal || /^(available|free|empty)$/i.test(rawVal);
+              var isSelected = pws.selectedSeatRow === rowIdx && pws.selectedSeatCol === colIdx;
+
+              if (isDark) {
+                html += '<div class="w-20 h-20 rounded-lg flex flex-col items-center justify-center bg-gray-600 border border-gray-700 text-white">' +
+                        '<i class="fa-solid fa-times text-red-400 text-2xl"></i></div>';
+                return;
+              }
+              if (isEmpty) {
+                var cls = isSelected
+                  ? 'w-20 h-20 rounded-lg flex flex-col items-center justify-center bg-green-500 border-2 border-green-700 text-white cursor-pointer shadow-lg'
+                  : 'w-20 h-20 rounded-lg flex flex-col items-center justify-center bg-green-50 border-2 border-green-400 text-green-700 hover:bg-green-100 cursor-pointer transition';
+                html += '<div class="' + cls + '" onclick="wfhSwapPickSeatLegacy(' + rowIdx + ',' + colIdx + ')">' +
+                        '<i class="fa-solid fa-' + (isSelected ? 'check' : 'hand-pointer') + ' text-xl mb-1"></i>' +
+                        '<div class="text-[10px] font-bold">' + (isSelected ? 'Selected' : 'Select') + '</div></div>';
+                return;
+              }
+              var emp = findEmployeeByMapName(rawVal);
+              var isAway = false;
+              if (emp) {
+                var bk = appData.bookings.find(function(b) {
+                  if (b.email !== emp.email || b.status !== 'Approved') return false;
+                  var s = new Date(b.startDate + 'T12:00:00'); s.setHours(0,0,0,0);
+                  var e = new Date(b.endDate   + 'T12:00:00'); e.setHours(0,0,0,0);
+                  return targetDate >= s && targetDate <= e;
+                });
+                if (bk && ['Holiday','WFH','Travel','Maternity','Sickness'].indexOf(bk.type) !== -1) {
+                  isAway = true;
+                } else if (!bk) {
+                  var esd = appData.schedules[emp.email] || {};
+                  var ds  = esd[selectedDay];
+                  if (ds && (ds.type === 'WFH' || ds.type === 'None')) isAway = true;
+                }
+              }
+              if (isAway) {
+                var cls = isSelected
+                  ? 'w-20 h-20 rounded-lg flex flex-col items-center justify-center bg-green-500 border-2 border-green-700 text-white cursor-pointer shadow-lg'
+                  : 'w-20 h-20 rounded-lg flex flex-col items-center justify-center bg-green-50 border-2 border-green-400 text-green-700 hover:bg-green-100 cursor-pointer transition';
+                html += '<div class="' + cls + '" onclick="wfhSwapPickSeatLegacy(' + rowIdx + ',' + colIdx + ')">' +
+                        '<i class="fa-solid fa-' + (isSelected ? 'check' : 'hand-pointer') + ' text-xl mb-1"></i>' +
+                        '<div class="text-[10px] font-bold">' + (isSelected ? 'Selected' : 'Select') + '</div></div>';
+              } else {
+                var dname = emp ? getFirstName(emp.name) : getFirstName(rawVal);
+                html += '<div class="w-20 h-20 rounded-lg flex flex-col items-center justify-center bg-blue-500 border border-blue-600 text-white shadow-sm text-center">' +
+                        '<i class="fa-solid fa-desktop text-xl mb-1 opacity-60"></i>' +
+                        '<div class="text-[10px] font-bold truncate w-full px-1">' + escapeHtml(dname) + '</div></div>';
+              }
+            });
+          })(r);
+        }
+        html += '</div>';
+
+        if (!hasDesk) {
+          container.innerHTML = '<div class="text-gray-400 text-sm italic text-center py-4">No desks found for ' + escapeHtml(selectedDay) + '.</div>';
+          pws.selectedSeatRow = -1; pws.selectedSeatCol = -1;
+          wfhSwapSetConfirmEnabled(true);
+          return;
+        }
+        container.innerHTML = html;
+      }
+
+      function wfhSwapPickSeatItem(itemId, label) {
+        var pws = window.pendingWfhSwap;
+        if (!pws || !pws.selectedReplacementDate) return;
+        pws.selectedSeatItemId = itemId;
+        pws.selectedSeatLabel  = label;
+        pws.selectedSeatRow    = null;
+        pws.selectedSeatCol    = null;
+        wfhSwapRenderFromLayout(window._lastWfhSwapLayoutJson, pws.selectedReplacementDate);
+        wfhSwapSetConfirmEnabled(true);
+      }
+
+      function wfhSwapPickSeatLegacy(r, c) {
+        var pws = window.pendingWfhSwap;
+        if (!pws) return;
+        pws.selectedSeatRow    = r;
+        pws.selectedSeatCol    = c;
+        pws.selectedSeatItemId = null;
+        pws.selectedSeatLabel  = null;
+        wfhSwapRenderFromLegacy(pws.selectedReplacementDate);
+        wfhSwapSetConfirmEnabled(true);
+      }
+
+      function wfhSwapSetConfirmEnabled(enabled) {
+        var btn = document.getElementById('btn-confirm-wfh-swap');
+        if (!btn) return;
+        btn.disabled = !enabled;
+        if (enabled) {
+          btn.classList.remove('opacity-50', 'cursor-not-allowed');
+          btn.classList.add('cursor-pointer');
+        } else {
+          btn.classList.add('opacity-50', 'cursor-not-allowed');
+          btn.classList.remove('cursor-pointer');
+        }
+      }
+
+      function confirmWfhSwap() {
+        var pws = window.pendingWfhSwap;
+        if (!pws || !pws.selectedReplacementDate) return;
+        var btn = document.getElementById('btn-confirm-wfh-swap');
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Confirming...';
+        btn.disabled = true;
+        btn.classList.add('opacity-50');
+
+        var parts = pws.selectedReplacementDate.split('-');
+        var repDate  = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+        var dayN     = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][repDate.getDay()];
+        var sched    = appData.schedules[pws.email] || {};
+        var schedDay = sched[dayN];
+        var hours    = schedDay && schedDay.hours ? Number(schedDay.hours) : (pws.hours || 7.5);
+
+        // Log legacy desk selection to audit trail
+        if (pws.selectedSeatRow !== null && pws.selectedSeatRow >= 0 &&
+            google && google.script && google.script.run && google.script.run.logDeskOverride) {
+          google.script.run.logDeskOverride(
+            pws.selectedReplacementDate, pws.selectedSeatRow, pws.selectedSeatCol,
+            pws.email, appData.currentUser ? appData.currentUser.name : pws.email,
+            'WFH Swap Replacement Seat'
+          );
+        }
+
+        var currentEmail = appData.currentUser ? appData.currentUser.email : null;
+        var fd = {
+          type:        'Office',
+          startDate:   pws.selectedReplacementDate,
+          endDate:     pws.selectedReplacementDate,
+          hours:       hours,
+          targetEmail: (pws.email !== currentEmail) ? pws.email : null
+        };
+
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res.success === false) {
+              alert(res.message);
+              btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i>Confirm Office Day';
+              btn.disabled = false;
+              btn.classList.remove('opacity-50');
+              wfhSwapSetConfirmEnabled(true);
+              return;
+            }
+            var newB = { id: res.id, email: pws.email, type: 'Office',
+              startDate: fd.startDate, endDate: fd.endDate,
+              daysCount: res.daysCount, status: res.status, hours: hours };
+            appData.bookings.push(newB);
+            refreshAllViews();
+            pws.currentIndex++;
+            if (pws.currentIndex < pws.swapItems.length) {
+              btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i>Confirm Office Day';
+              btn.classList.remove('opacity-50');
+              wfhSwapRefreshContent();
+            } else {
+              closeWfhSwapModal();
+              alert('Replacement Office day booked successfully!');
+            }
+          })
+          .withFailureHandler(function(err) {
+            btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i>Confirm Office Day';
+            btn.disabled = false;
+            btn.classList.remove('opacity-50');
+            wfhSwapSetConfirmEnabled(true);
+            handleServerError(err);
+          })
+          .submitBooking(fd);
+      }
+
+      function skipWfhSwap() {
+        var pws = window.pendingWfhSwap;
+        if (!pws) return;
+        pws.currentIndex++;
+        if (pws.currentIndex < pws.swapItems.length) {
+          wfhSwapRefreshContent();
+        } else {
+          closeWfhSwapModal();
+          alert('Please remember to arrange your replacement office day with your manager.');
+        }
+      }
+      // ─────────────────────────────────────────────────────────────
+      // END WFH SWAP FLOW
+      // ─────────────────────────────────────────────────────────────
     </script>
 
   </body>
