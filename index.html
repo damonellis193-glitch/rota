@@ -360,7 +360,7 @@
             </div>
           </div>
           <div class="bg-white rounded-xl shadow flex-1 flex flex-col border border-gray-200 p-4" style="min-height: calc(100vh - 180px);">
-             <div id="desk-map-container" class="relative overflow-auto bg-gray-50 rounded-lg border border-gray-200 p-6" style="min-height: 500px; height: calc(100vh - 260px);">
+             <div id="desk-map-container" class="relative overflow-auto bg-gray-50 rounded-lg border border-gray-200 p-6 flex flex-wrap justify-center items-center content-center gap-4" style="min-height: 500px; height: calc(100vh - 260px);">
                 <div class="text-gray-500 italic mt-10">Loading desk plan...</div>
              </div>
           </div>
@@ -3342,7 +3342,7 @@
         }
 
         var bankCard = document.createElement('div');
-        bankCard.className = 'bg-white rounded-xl shadow border border-gray-200 p-3 flex flex-col gap-2 w-full';
+        bankCard.className = 'bg-white rounded-xl shadow border border-gray-200 p-4 flex flex-col gap-4 w-auto max-w-full mx-auto';
 
         var bankLabel = document.createElement('div');
         bankLabel.className = 'text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center mb-1';
@@ -3357,7 +3357,7 @@
             if (deskCols.length === 0) return;
 
             var rowInner = document.createElement('div');
-            rowInner.className = 'flex gap-2 justify-center';
+            rowInner.className = 'flex flex-wrap gap-4 justify-center';
 
             deskCols.forEach(function(c, deskIdx) {
                         var isManualOverride = todaysOverrides[r + "_" + c] !== undefined;
@@ -3367,7 +3367,7 @@
                         if (rawVal.toLowerCase() === 'skip') return;
 
                         var cellDiv = document.createElement('div');
-                        var baseClasses = 'w-40 h-28 flex flex-col items-center justify-center rounded-lg border-2 text-base font-bold text-center overflow-hidden leading-tight p-2 ';
+                        var baseClasses = 'w-48 h-36 flex flex-col items-center justify-center rounded-lg border-2 text-base font-bold text-center overflow-hidden leading-tight p-3 ';
 
                         // Attach Context Menu
                         (function(rowIdx, colIdx) {
@@ -6562,6 +6562,15 @@
 
       function deskEditorRenderReadOnlyLayout(layoutJson) {
         var DAY_NAMES = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+        var DEFAULT_CANVAS_WIDTH = 1200;
+        var DEFAULT_CANVAS_HEIGHT = 800;
+        var MIN_DESK_WIDTH = 192;
+        var MIN_DESK_HEIGHT = 144;
+        var DEFAULT_ZONE_WIDTH = 260;
+        var DEFAULT_ZONE_HEIGHT = 160;
+        var FALLBACK_GRID_PADDING = 20;
+        var FALLBACK_GRID_GAP = 24;
+        var MIN_LAYOUT_SCALE = 0.8;
         var rawParsed = null;
         if (layoutJson) {
           try {
@@ -6576,7 +6585,6 @@
         var targetDate = new Date(dateStr + 'T12:00:00');
         var selectedDay = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][targetDate.getDay()];
 
-        container.innerHTML = '';
         if (selectedDay === 'Sunday' || selectedDay === 'Saturday') {
           container.innerHTML = '<div class="text-xl text-gray-500 italic mt-10 text-center"><i class="fa-solid fa-mug-hot text-4xl mb-4 text-gray-300 block"></i>It is the weekend... sit where you like.</div>';
           return true;
@@ -6593,14 +6601,14 @@
             return true;
           }
           if (Array.isArray(dayData)) {
-            payload = { items: dayData, canvasWidth: 1200, canvasHeight: 800 };
+            payload = { items: dayData, canvasWidth: DEFAULT_CANVAS_WIDTH, canvasHeight: DEFAULT_CANVAS_HEIGHT };
           } else {
             payload = dayData;
           }
         } else if (rawParsed) {
           // Old flat-array or single-layout format
           if (Array.isArray(rawParsed)) {
-            payload = { items: rawParsed, canvasWidth: 1200, canvasHeight: 800 };
+            payload = { items: rawParsed, canvasWidth: DEFAULT_CANVAS_WIDTH, canvasHeight: DEFAULT_CANVAS_HEIGHT };
           } else if (rawParsed.items) {
             payload = rawParsed;
           }
@@ -6612,23 +6620,43 @@
 
         var wrap = document.createElement('div');
         wrap.className = 'relative bg-slate-50 border border-slate-200 rounded-xl shadow-inner overflow-hidden';
-        wrap.style.width = ((payload.canvasWidth || 1200)) + 'px';
-        wrap.style.height = ((payload.canvasHeight || 800)) + 'px';
-        wrap.style.minWidth = ((payload.canvasWidth || 1200)) + 'px';
+        wrap.style.width = ((payload.canvasWidth || DEFAULT_CANVAS_WIDTH)) + 'px';
+        wrap.style.height = ((payload.canvasHeight || DEFAULT_CANVAS_HEIGHT)) + 'px';
+        wrap.style.minWidth = ((payload.canvasWidth || DEFAULT_CANVAS_WIDTH)) + 'px';
 
         var items = Array.isArray(payload.items) ? payload.items.slice() : [];
         window._deskPlanLayoutItems = items.slice();
         items.sort(function(a, b) { return (a.type === 'zone' ? -1 : 1) - (b.type === 'zone' ? -1 : 1); });
+        var occupiedDeskSlots = {};
+        var autoDeskSlotIndex = 0;
 
         items.forEach(function(item) {
           var rawValue = deskEditorGetItemOverride(item, dateStr);
           if (rawValue === undefined) rawValue = item.personEmail || '';
           var element = document.createElement('div');
+          var itemWidth = item.type === 'zone' ? (Number(item.w) || DEFAULT_ZONE_WIDTH) : Math.max(Number(item.w) || 0, MIN_DESK_WIDTH);
+          var itemHeight = item.type === 'zone' ? (Number(item.h) || DEFAULT_ZONE_HEIGHT) : Math.max(Number(item.h) || 0, MIN_DESK_HEIGHT);
+          var itemX = Number(item.x);
+          var itemY = Number(item.y);
+          if (item.type !== 'zone') {
+            var hasExplicitPosition = Number.isFinite(itemX) && Number.isFinite(itemY);
+            var slotKey = Math.round(itemX || 0) + ',' + Math.round(itemY || 0);
+            if (!hasExplicitPosition || occupiedDeskSlots[slotKey]) {
+              var deskCols = Math.max(1, Math.floor((((payload.canvasWidth || DEFAULT_CANVAS_WIDTH) - (FALLBACK_GRID_PADDING * 2)) / (itemWidth + FALLBACK_GRID_GAP))));
+              itemX = FALLBACK_GRID_PADDING + (autoDeskSlotIndex % deskCols) * (itemWidth + FALLBACK_GRID_GAP);
+              itemY = FALLBACK_GRID_PADDING + Math.floor(autoDeskSlotIndex / deskCols) * (itemHeight + FALLBACK_GRID_GAP);
+              autoDeskSlotIndex++;
+              slotKey = Math.round(itemX) + ',' + Math.round(itemY);
+            }
+            occupiedDeskSlots[slotKey] = true;
+          }
+          if (!Number.isFinite(itemX)) itemX = 0;
+          if (!Number.isFinite(itemY)) itemY = 0;
           element.style.position = 'absolute';
-          element.style.left = (Number(item.x) || 0) + 'px';
-          element.style.top = (Number(item.y) || 0) + 'px';
-          element.style.width = (item.type === 'zone' ? (Number(item.w) || 260) : Math.max(Number(item.w) || 0, 120)) + 'px';
-          element.style.height = (item.type === 'zone' ? (Number(item.h) || 160) : Math.max(Number(item.h) || 0, 100)) + 'px';
+          element.style.left = itemX + 'px';
+          element.style.top = itemY + 'px';
+          element.style.width = itemWidth + 'px';
+          element.style.height = itemHeight + 'px';
           element.style.transform = 'rotate(' + (Number(item.rotation) || 0) + 'deg)';
           element.style.transformOrigin = 'center center';
           element.setAttribute('data-item-id', item.id);
@@ -6687,20 +6715,21 @@
           wrap.innerHTML = '<div class="absolute inset-0 flex items-center justify-center text-sm text-slate-400 italic">No desks or zones saved yet.</div>';
         }
 
-        container.appendChild(wrap);
+        container.replaceChildren(wrap);
 
-        // Auto-scale: fit the desk layout to fill ~90% of the visible container
+        // Auto-scale: keep desks readable; avoid shrinking too aggressively
         (function() {
           var cW = container.offsetWidth || 0;
           var cH = container.offsetHeight || 0;
           if (cW < 50 || cH < 50) return;
-          var contentW = payload.canvasWidth || 1200;
-          var contentH = payload.canvasHeight || 800;
+          var contentW = payload.canvasWidth || DEFAULT_CANVAS_WIDTH;
+          var contentH = payload.canvasHeight || DEFAULT_CANVAS_HEIGHT;
           var padding = 48; // p-6 = 24px each side
           var availW = Math.max(cW - padding, 100);
           var availH = Math.max(cH - padding, 100);
           var scale = Math.min((availW / contentW) * 0.9, (availH / contentH) * 0.9);
-          scale = Math.max(0.1, scale);
+          // Keep a minimum scale so desk content remains legible on smaller viewports.
+          scale = Math.max(MIN_LAYOUT_SCALE, scale);
           if (Math.abs(scale - 1) > 0.02) { // Skip transform when scale is within 2% of 1:1 to avoid unnecessary reflow
             wrap.style.transform = 'scale(' + scale.toFixed(4) + ')';
             wrap.style.transformOrigin = 'top left';
@@ -6861,7 +6890,9 @@
           deskEditorLegacyRenderDeskPlan();
           return;
         }
-        container.innerHTML = '<div class="text-gray-500 italic mt-10">Loading desk plan...</div>';
+        if (!container.hasChildNodes()) {
+          container.innerHTML = '<div class="text-gray-500 italic mt-10">Loading desk plan...</div>';
+        }
         google.script.run
           .withSuccessHandler(function(layoutJson) {
             if (requestId !== deskEditorLayoutRequestId) return;
