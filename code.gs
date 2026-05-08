@@ -552,6 +552,11 @@ function setupDatabase(ss) {
     s.appendRow(['OverridesJSON']);
     s.appendRow(['{}']); // Initialize with an empty JSON object
   }
+  if (!ss.getSheetByName('DeskLayouts')) {
+    const s = ss.insertSheet('DeskLayouts');
+    s.appendRow(['LayoutJSON']);
+    s.appendRow(['']);
+  }
 }
 
 // logAction — writes a row to the AuditLogs sheet.
@@ -636,6 +641,50 @@ function saveDeskOverrides(overridesMap, logs) {
   } catch (e) {
     console.error("Save Overrides Failed: " + e.toString());
     return { success: false, message: e.toString() };
+  }
+}
+
+
+function getDeskLayout() {
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    let sheet = ss.getSheetByName('DeskLayouts');
+    if (!sheet) {
+      setupDatabase(ss);
+      sheet = ss.getSheetByName('DeskLayouts');
+    }
+    return String(sheet.getRange(2, 1).getValue() || '');
+  } catch (e) {
+    console.error('getDeskLayout failed: ' + e.toString());
+    return '';
+  }
+}
+
+function saveDeskLayout(layoutJson) {
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    setupDatabase(ss);
+    const userEmail = Session.getActiveUser().getEmail();
+    const employeesSheet = ss.getSheetByName('Employees');
+    const employeeRows = employeesSheet ? employeesSheet.getDataRange().getValues() : [];
+    const currentUser = employeeRows.slice(1).map(function(row) {
+      return { email: String(row[1] || '').trim(), role: String(row[3] || '').trim() };
+    }).find(function(employee) {
+      return employee.email === userEmail;
+    });
+
+    if (!currentUser || (currentUser.role !== 'Admin' && currentUser.role !== 'Manager')) {
+      throw new Error('Only admins and managers can save desk layouts.');
+    }
+
+    JSON.parse(layoutJson || '{}');
+    const sheet = ss.getSheetByName('DeskLayouts');
+    sheet.getRange(2, 1).setValue(String(layoutJson || ''));
+    logAction(userEmail, 'Desk Layout Saved', 'Desk layout updated via editor');
+    return { success: true };
+  } catch (e) {
+    console.error('saveDeskLayout failed: ' + e.toString());
+    throw e;
   }
 }
 
