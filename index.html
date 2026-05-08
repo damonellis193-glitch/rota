@@ -6562,6 +6562,13 @@
 
       function deskEditorRenderReadOnlyLayout(layoutJson) {
         var DAY_NAMES = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+        var MIN_DESK_WIDTH = 140;
+        var MIN_DESK_HEIGHT = 120;
+        var DEFAULT_ZONE_WIDTH = 260;
+        var DEFAULT_ZONE_HEIGHT = 160;
+        var FALLBACK_GRID_PADDING = 20;
+        var FALLBACK_GRID_GAP = 24;
+        var MIN_READABLE_SCALE = 0.8;
         var rawParsed = null;
         if (layoutJson) {
           try {
@@ -6625,17 +6632,17 @@
           var rawValue = deskEditorGetItemOverride(item, dateStr);
           if (rawValue === undefined) rawValue = item.personEmail || '';
           var element = document.createElement('div');
-          var itemWidth = item.type === 'zone' ? (Number(item.w) || 260) : Math.max(Number(item.w) || 0, 140);
-          var itemHeight = item.type === 'zone' ? (Number(item.h) || 160) : Math.max(Number(item.h) || 0, 120);
+          var itemWidth = item.type === 'zone' ? (Number(item.w) || DEFAULT_ZONE_WIDTH) : Math.max(Number(item.w) || 0, MIN_DESK_WIDTH);
+          var itemHeight = item.type === 'zone' ? (Number(item.h) || DEFAULT_ZONE_HEIGHT) : Math.max(Number(item.h) || 0, MIN_DESK_HEIGHT);
           var itemX = Number(item.x);
           var itemY = Number(item.y);
           if (item.type !== 'zone') {
             var hasExplicitPosition = Number.isFinite(itemX) && Number.isFinite(itemY);
             var slotKey = Math.round(itemX || 0) + ',' + Math.round(itemY || 0);
             if (!hasExplicitPosition || occupiedDeskSlots[slotKey]) {
-              var deskCols = Math.max(1, Math.floor((((payload.canvasWidth || 1200) - 40) / (itemWidth + 24))));
-              itemX = 20 + (autoDeskSlotIndex % deskCols) * (itemWidth + 24);
-              itemY = 20 + Math.floor(autoDeskSlotIndex / deskCols) * (itemHeight + 24);
+              var deskCols = Math.max(1, Math.floor((((payload.canvasWidth || 1200) - (FALLBACK_GRID_PADDING * 2)) / (itemWidth + FALLBACK_GRID_GAP))));
+              itemX = FALLBACK_GRID_PADDING + (autoDeskSlotIndex % deskCols) * (itemWidth + FALLBACK_GRID_GAP);
+              itemY = FALLBACK_GRID_PADDING + Math.floor(autoDeskSlotIndex / deskCols) * (itemHeight + FALLBACK_GRID_GAP);
               autoDeskSlotIndex++;
               slotKey = Math.round(itemX) + ',' + Math.round(itemY);
             }
@@ -6719,7 +6726,8 @@
           var availW = Math.max(cW - padding, 100);
           var availH = Math.max(cH - padding, 100);
           var scale = Math.min((availW / contentW) * 0.9, (availH / contentH) * 0.9);
-          scale = Math.max(0.8, scale);
+          // Keep a minimum readable scale so desk labels remain legible even on smaller viewports.
+          scale = Math.max(MIN_READABLE_SCALE, scale);
           if (Math.abs(scale - 1) > 0.02) { // Skip transform when scale is within 2% of 1:1 to avoid unnecessary reflow
             wrap.style.transform = 'scale(' + scale.toFixed(4) + ')';
             wrap.style.transformOrigin = 'top left';
