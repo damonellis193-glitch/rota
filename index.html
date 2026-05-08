@@ -359,8 +359,8 @@
               <input type="date" id="desk-date-picker" onchange="renderDeskPlan()" class="border border-green-300 rounded px-3 py-2 text-sm bg-white text-green-900 focus:outline-none focus:ring-2 focus:ring-green-500 font-bold shadow-sm">
             </div>
           </div>
-          <div class="bg-white rounded-xl shadow flex-1 flex flex-col overflow-hidden border border-gray-200 p-4">
-             <div id="desk-map-container" class="flex-1 overflow-auto bg-gray-50 rounded-lg border border-gray-200 p-6 flex flex-col items-center justify-start gap-4">
+          <div class="bg-white rounded-xl shadow flex-1 flex flex-col border border-gray-200 p-4" style="min-height: calc(100vh - 180px);">
+             <div id="desk-map-container" class="relative overflow-auto bg-gray-50 rounded-lg border border-gray-200 p-6" style="min-height: 500px; height: calc(100vh - 260px);">
                 <div class="text-gray-500 italic mt-10">Loading desk plan...</div>
              </div>
           </div>
@@ -2312,7 +2312,9 @@
         document.getElementById('view-' + viewName).classList.remove('hidden');
         if (viewName === 'my-team') renderMyTeamCalendar();
         if (viewName === 'patterns') renderPatternsView();
-        if (viewName === 'desk-plan') renderDeskPlan();
+        // Trigger render immediately (in case layout is already available) and again after a short
+        // delay to handle GAS iframe race conditions where dimensions aren't ready on first call.
+        if (viewName === 'desk-plan') { renderDeskPlan(); setTimeout(renderDeskPlan, 100); }
         if (viewName === 'capacity-settings') loadCapacitySettings();
         if (viewName === 'dashboard' && appData.currentUser.role === 'Admin') {
           renderWeeklyCapacity();
@@ -6625,8 +6627,8 @@
           element.style.position = 'absolute';
           element.style.left = (Number(item.x) || 0) + 'px';
           element.style.top = (Number(item.y) || 0) + 'px';
-          element.style.width = (Number(item.w) || (item.type === 'zone' ? 260 : 100)) + 'px';
-          element.style.height = (Number(item.h) || (item.type === 'zone' ? 160 : 60)) + 'px';
+          element.style.width = (item.type === 'zone' ? (Number(item.w) || 260) : Math.max(Number(item.w) || 0, 120)) + 'px';
+          element.style.height = (item.type === 'zone' ? (Number(item.h) || 160) : Math.max(Number(item.h) || 0, 100)) + 'px';
           element.style.transform = 'rotate(' + (Number(item.rotation) || 0) + 'deg)';
           element.style.transformOrigin = 'center center';
           element.setAttribute('data-item-id', item.id);
@@ -6686,6 +6688,29 @@
         }
 
         container.appendChild(wrap);
+
+        // Auto-scale: fit the desk layout to fill ~90% of the visible container
+        (function() {
+          var cW = container.offsetWidth || 0;
+          var cH = container.offsetHeight || 0;
+          if (cW < 50 || cH < 50) return;
+          var contentW = payload.canvasWidth || 1200;
+          var contentH = payload.canvasHeight || 800;
+          var padding = 48; // p-6 = 24px each side
+          var availW = Math.max(cW - padding, 100);
+          var availH = Math.max(cH - padding, 100);
+          var scale = Math.min((availW / contentW) * 0.9, (availH / contentH) * 0.9);
+          scale = Math.max(0.1, scale);
+          if (Math.abs(scale - 1) > 0.02) { // Skip transform when scale is within 2% of 1:1 to avoid unnecessary reflow
+            wrap.style.transform = 'scale(' + scale.toFixed(4) + ')';
+            wrap.style.transformOrigin = 'top left';
+            // Adjust layout footprint so the container scrolls to the correct dimensions
+            var scaledH = Math.ceil(contentH * scale);
+            var scaledW = Math.ceil(contentW * scale);
+            wrap.style.marginBottom = (scaledH - contentH) + 'px';
+            wrap.style.marginRight = (scaledW - contentW) + 'px';
+          }
+        })();
 
         deskEditorRenderLogsSection();
         return true;
@@ -6826,6 +6851,12 @@
         var requestId = ++deskEditorLayoutRequestId;
         var container = document.getElementById('desk-map-container');
         if (!container) return;
+        // Guard: if container hasn't laid out yet (height < 100px means flex chain collapsed),
+        // retry after a short delay to avoid a blank render in GAS's sandboxed iframe
+        if (container.offsetHeight < 100) {
+          setTimeout(renderDeskPlan, 150);
+          return;
+        }
         if (!(google && google.script && google.script.run && google.script.run.getDeskLayout)) {
           deskEditorLegacyRenderDeskPlan();
           return;
