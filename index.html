@@ -6562,13 +6562,15 @@
 
       function deskEditorRenderReadOnlyLayout(layoutJson) {
         var DAY_NAMES = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-        var MIN_DESK_WIDTH = 140;
-        var MIN_DESK_HEIGHT = 120;
+        var DEFAULT_CANVAS_WIDTH = 1200;
+        var DEFAULT_CANVAS_HEIGHT = 800;
+        var MIN_DESK_WIDTH = 192;
+        var MIN_DESK_HEIGHT = 144;
         var DEFAULT_ZONE_WIDTH = 260;
         var DEFAULT_ZONE_HEIGHT = 160;
         var FALLBACK_GRID_PADDING = 20;
         var FALLBACK_GRID_GAP = 24;
-        var MIN_READABLE_SCALE = 0.8;
+        var MIN_LAYOUT_SCALE = 0.8;
         var rawParsed = null;
         if (layoutJson) {
           try {
@@ -6599,14 +6601,14 @@
             return true;
           }
           if (Array.isArray(dayData)) {
-            payload = { items: dayData, canvasWidth: 1200, canvasHeight: 800 };
+            payload = { items: dayData, canvasWidth: DEFAULT_CANVAS_WIDTH, canvasHeight: DEFAULT_CANVAS_HEIGHT };
           } else {
             payload = dayData;
           }
         } else if (rawParsed) {
           // Old flat-array or single-layout format
           if (Array.isArray(rawParsed)) {
-            payload = { items: rawParsed, canvasWidth: 1200, canvasHeight: 800 };
+            payload = { items: rawParsed, canvasWidth: DEFAULT_CANVAS_WIDTH, canvasHeight: DEFAULT_CANVAS_HEIGHT };
           } else if (rawParsed.items) {
             payload = rawParsed;
           }
@@ -6618,9 +6620,9 @@
 
         var wrap = document.createElement('div');
         wrap.className = 'relative bg-slate-50 border border-slate-200 rounded-xl shadow-inner overflow-hidden';
-        wrap.style.width = ((payload.canvasWidth || 1200)) + 'px';
-        wrap.style.height = ((payload.canvasHeight || 800)) + 'px';
-        wrap.style.minWidth = ((payload.canvasWidth || 1200)) + 'px';
+        wrap.style.width = ((payload.canvasWidth || DEFAULT_CANVAS_WIDTH)) + 'px';
+        wrap.style.height = ((payload.canvasHeight || DEFAULT_CANVAS_HEIGHT)) + 'px';
+        wrap.style.minWidth = ((payload.canvasWidth || DEFAULT_CANVAS_WIDTH)) + 'px';
 
         var items = Array.isArray(payload.items) ? payload.items.slice() : [];
         window._deskPlanLayoutItems = items.slice();
@@ -6640,7 +6642,7 @@
             var hasExplicitPosition = Number.isFinite(itemX) && Number.isFinite(itemY);
             var slotKey = Math.round(itemX || 0) + ',' + Math.round(itemY || 0);
             if (!hasExplicitPosition || occupiedDeskSlots[slotKey]) {
-              var deskCols = Math.max(1, Math.floor((((payload.canvasWidth || 1200) - (FALLBACK_GRID_PADDING * 2)) / (itemWidth + FALLBACK_GRID_GAP))));
+              var deskCols = Math.max(1, Math.floor((((payload.canvasWidth || DEFAULT_CANVAS_WIDTH) - (FALLBACK_GRID_PADDING * 2)) / (itemWidth + FALLBACK_GRID_GAP))));
               itemX = FALLBACK_GRID_PADDING + (autoDeskSlotIndex % deskCols) * (itemWidth + FALLBACK_GRID_GAP);
               itemY = FALLBACK_GRID_PADDING + Math.floor(autoDeskSlotIndex / deskCols) * (itemHeight + FALLBACK_GRID_GAP);
               autoDeskSlotIndex++;
@@ -6720,14 +6722,14 @@
           var cW = container.offsetWidth || 0;
           var cH = container.offsetHeight || 0;
           if (cW < 50 || cH < 50) return;
-          var contentW = payload.canvasWidth || 1200;
-          var contentH = payload.canvasHeight || 800;
+          var contentW = payload.canvasWidth || DEFAULT_CANVAS_WIDTH;
+          var contentH = payload.canvasHeight || DEFAULT_CANVAS_HEIGHT;
           var padding = 48; // p-6 = 24px each side
           var availW = Math.max(cW - padding, 100);
           var availH = Math.max(cH - padding, 100);
           var scale = Math.min((availW / contentW) * 0.9, (availH / contentH) * 0.9);
-          // Keep a minimum readable scale so desk labels remain legible even on smaller viewports.
-          scale = Math.max(MIN_READABLE_SCALE, scale);
+          // Keep a minimum scale so desk content remains legible on smaller viewports.
+          scale = Math.max(MIN_LAYOUT_SCALE, scale);
           if (Math.abs(scale - 1) > 0.02) { // Skip transform when scale is within 2% of 1:1 to avoid unnecessary reflow
             wrap.style.transform = 'scale(' + scale.toFixed(4) + ')';
             wrap.style.transformOrigin = 'top left';
