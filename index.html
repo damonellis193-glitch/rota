@@ -1612,16 +1612,40 @@
                     ],
                     capacitySettings: {Monday:5, Tuesday:5, Wednesday:5, Thursday:5, Friday:5, Saturday:0, Sunday:0},
                     deskPlan: [
+                      // Each day section has two level-groups of 4 banks each (8 banks total).
+                      // Column 0 is a padding column. Banks are separated by empty columns.
+                      // An empty row separates the two level-groups within a day.
+                      // Layout per level-group: col0(pad) | B1:cols1-2 | gap:col3 | B2:cols4-5 | gap:col6 | B3:cols7-8 | gap:col9 | B4:cols10-11
                       ['Monday'],
-                      ['', 'Jade', 'Natalie', 'Available', 'Phil', 'Will', 'Savaira', 'Madi', 'Available'],
+                      ['', 'Damon',     'Alex',      '', 'Natalie',   'Phil',      '', 'Will',      'Teresa',    '', 'Savaira',   'Madi'],
+                      ['', 'Available', 'Available', '', 'Available', 'Available', '', 'Available', 'Available', '', 'Rebecca',   'Available'],
+                      [],
+                      ['', 'Emma',      'Jade',      '', 'Available', 'Available', '', 'Available', 'Available', '', 'Available', 'Available'],
+                      ['', 'Available', 'Available', '', 'Available', 'Available', '', 'Available', 'Available', '', 'Available', 'Available'],
                       ['Tuesday'],
-                      ['', 'Emma', 'Jade', 'Natalie', 'Phil', 'Damon', 'Alex', 'Madi', 'Available'],
+                      ['', 'Damon',     'Alex',      '', 'Natalie',   'Phil',      '', 'Emma',      'Jade',      '', 'Will',      'Teresa'],
+                      ['', 'Available', 'Savaira',   '', 'Available', 'Madi',      '', 'Available', 'Rebecca',   '', 'Available', 'Available'],
+                      [],
+                      ['', 'Available', 'Available', '', 'Available', 'Available', '', 'Available', 'Available', '', 'Available', 'Available'],
+                      ['', 'Available', 'Available', '', 'Available', 'Available', '', 'Available', 'Available', '', 'Available', 'Available'],
                       ['Wednesday'],
-                      ['', 'Emma', 'Sami', 'Will', 'Teresa', 'Rebecca', 'Savaira', 'Available', 'Available'],
+                      ['', 'Emma',      'Damon',     '', 'Natalie',   'Phil',      '', 'Will',      'Teresa',    '', 'Savaira',   'Alex'],
+                      ['', 'Jade',      'Available', '', 'Rebecca',   'Madi',      '', 'Available', 'Available', '', 'Available', 'Available'],
+                      [],
+                      ['', 'Available', 'Available', '', 'Available', 'Available', '', 'Available', 'Available', '', 'Available', 'Available'],
+                      ['', 'Available', 'Available', '', 'Available', 'Available', '', 'Available', 'Available', '', 'Available', 'Available'],
                       ['Thursday'],
-                      ['', 'Emma', 'Jade', 'Natalie', 'Phil', 'Rebecca', 'Will', 'Damon', 'Available'],
+                      ['', 'Emma',      'Jade',      '', 'Natalie',   'Phil',      '', 'Rebecca',   'Will',      '', 'Damon',     'Alex'],
+                      ['', 'Teresa',    'Savaira',   '', 'Madi',      'Available', '', 'Available', 'Available', '', 'Available', 'Available'],
+                      [],
+                      ['', 'Available', 'Available', '', 'Available', 'Available', '', 'Available', 'Available', '', 'Available', 'Available'],
+                      ['', 'Available', 'Available', '', 'Available', 'Available', '', 'Available', 'Available', '', 'Available', 'Available'],
                       ['Friday'],
-                      ['', 'Damon', 'Alex', 'Natalie', 'Teresa', 'Rebecca', 'Savaira', 'Madi', 'Available']
+                      ['', 'Damon',     'Alex',      '', 'Natalie',   'Teresa',    '', 'Rebecca',   'Savaira',   '', 'Madi',      'Phil'],
+                      ['', 'Available', 'Available', '', 'Available', 'Available', '', 'Available', 'Available', '', 'Will',      'Available'],
+                      [],
+                      ['', 'Available', 'Available', '', 'Available', 'Available', '', 'Available', 'Available', '', 'Available', 'Available'],
+                      ['', 'Available', 'Available', '', 'Available', 'Available', '', 'Available', 'Available', '', 'Available', 'Available']
                     ]
                   }); 
                 }, 500); 
@@ -3049,206 +3073,243 @@
         });
         
         // --- END DYNAMIC LOGIC ---
-        
-        var rowCount = 0; // Tracks which row we are on to add the middle gap
-        var clickableSeatsCount = 0; // SURGICAL PATCH: Track how many desks are actually free to click
 
-        // Render the actual Grid
-        for (var r = startRow + 1; r < endRow; r++) {
-          var rowData = appData.deskPlan[r];
-          if (rowData.join('').trim() === '') continue; // Skip blank rows
-          
-          rowCount++; // Increment row counter
+        var clickableSeatsCount = 0; // Track how many desks are actually free to click
 
-          var rowDiv = document.createElement('div');
-          
-          // Add a large gap after the 2nd row to separate top and bottom blocks
-          var rowGap = 'mb-4 ';
-          rowDiv.className = rowGap + 'flex gap-4 justify-center w-full min-w-max';
-
-          for (var c = 0; c < rowData.length; c++) {
-            
-            var isManualOverride = todaysOverrides[r + "_" + c] !== undefined;
-            var rawVal = isManualOverride ? String(todaysOverrides[r + "_" + c]).trim() : String(rowData[c]).trim();
-            
-            // Skip leading empty columns (padding in sheet)
-            if (c === 0 && !rawVal) {
-              var paddingDiv = document.createElement('div');
-              paddingDiv.className = 'w-6 md:w-10 h-24 border-2 border-dashed border-transparent';
-              rowDiv.appendChild(paddingDiv);
-              continue;
-            }
-
-            // Keep desk cards in a flat grid with no staggered offsets.
-            var marginClasses = '';
-
-            // FIX FOR MERGED CELLS / EMPTY SPACES: 
-            if (!rawVal || rawVal.toLowerCase() === 'skip') {
-              var ghostDiv2 = document.createElement('div');
-              ghostDiv2.className = 'w-36 h-24 border-2 border-transparent ' + marginClasses;
-              rowDiv.appendChild(ghostDiv2);
-              continue;
-            }
-
-            var cellDiv = document.createElement('div');
-            var baseClasses = 'w-36 h-24 flex flex-col items-center justify-center rounded-lg border-2 text-base font-bold text-center overflow-hidden leading-tight p-2 ';
-            
-            // --- NEW: Attach Context Menu ---
-            (function(rowIdx, colIdx) {
-                cellDiv.addEventListener('contextmenu', function(e) {
-                    showDeskContextMenu(e, rowIdx, colIdx);
-                });
-            })(r, c);
-            
-            // --- DYNAMIC SEAT ASSIGNMENT RENDER ---
-            var dynamicEmp = dynamicAssignments[r + "_" + c];
-            var isVacated = vacatedSeats[r + "_" + c];
-
-            if (dynamicEmp) {
-                if (dynamicEmp.isShifted) {
-                    // Spoof the rawVal to be this employee's email so the standard rendering draws them in blue!
-                    rawVal = dynamicEmp.email;
-                    isVacated = false; // It's occupied now
-                } else {
-                    // Hot-desk visitors render in Bright Green
-                    cellDiv.className = marginClasses + baseClasses + 'bg-green-50 border-green-400 text-green-900 shadow-md transition transform hover:-translate-y-1 cursor-default';
-                    var sIcon = '<i class="fa-solid fa-street-view text-lg block mb-1 text-green-600 opacity-80"></i>';
-                    var sLabel = '<span class="text-xs block uppercase font-bold text-green-700">IN OFFICE</span>';
-                    cellDiv.innerHTML = sIcon + '<span class="truncate w-full">' + dynamicEmp.name.split(' ')[0] + '</span>' + sLabel;
-                    rowDiv.appendChild(cellDiv);
-                    continue; // Move to next cell, skipping standard owner logic
-                }
-            } else if (isVacated && !isManualOverride) {
-                // Force the cell to be available so the old occupant is not duplicated!
-                rawVal = 'Available';
-            }
-            // --- END NEW ---
-
-            // Check for explicit "Dark Grey" flags
-            var isDarkGrey = rawVal.match(/^(n\/a|-|_|x|other|unavailable|dark|trade planning|merch)$/i);
-            var isAvailable = rawVal.toLowerCase() === 'available' || rawVal.toLowerCase() === 'free' || rawVal.toLowerCase() === 'empty';
-            
-            if (isDarkGrey) {
-              cellDiv.className = marginClasses + baseClasses + 'bg-gray-600 border-gray-700 shadow-inner opacity-90';
-              var lowerVal = rawVal.toLowerCase();
-              if (lowerVal === 'trade planning' || lowerVal === 'merch') {
-                  cellDiv.innerHTML = '<span class="text-red-500 text-sm font-extrabold uppercase text-center leading-tight break-words">' + rawVal + '</span>';
-              } else {
-                  cellDiv.innerHTML = '<i class="fa-solid fa-times text-red-500 text-4xl opacity-80"></i>';
-              }
-            } else if (isAvailable) {
-              // Available Desk
-              cellDiv.className = marginClasses + baseClasses + 'border-dashed bg-gray-100 border-gray-300 text-gray-400 transition transform hover:bg-gray-200 cursor-default';
-              cellDiv.innerHTML = '<i class="fa-solid fa-chair text-lg block mb-1 opacity-50"></i><span class="text-xs uppercase font-bold tracking-wider">Available</span>';
-              
-              // --- Make available desks clickable for pending office bookings ---
-              if (window.pendingOfficeBooking) {
-                  clickableSeatsCount++;
-                  cellDiv.className = marginClasses + baseClasses + 'border-dashed border-green-500 bg-green-50 text-green-700 transition transform hover:-translate-y-1 hover:shadow-lg cursor-pointer shadow animate-pulse';
-                  cellDiv.innerHTML = '<i class="fa-solid fa-hand-pointer text-lg block mb-1"></i><span class="text-xs uppercase font-bold tracking-wider">Select Seat</span>';
-                  (function(rowIdx, colIdx) {
-                      cellDiv.onclick = function() { completePendingOfficeBooking(rowIdx, colIdx); };
-                  })(r, c);
-              }
-              // --- END NEW ---
-            } else {
-              // Occupied Desk
-              var displayName = getFirstName(rawVal);
-              var deskClass = 'bg-blue-50 border-blue-200 text-blue-800 shadow-sm';
-              var statusIcon = '<i class="fa-solid fa-desktop text-lg block mb-1 opacity-50"></i>';
-              var statusLabel = '';
-              var forceAvailable = false;
-              var isAwayThisDay = false; // NEW: Track if the desk owner is away
-              
-              var emp = findEmployeeByMapName(rawVal);
-              
-              if (emp) {
-                  displayName = getFirstName(emp.name);
-                  
-                  if (isManualOverride) {
-                      deskClass = 'bg-blue-50 border-blue-200 text-blue-800 shadow-sm';
-                  } else {
-                      var booking = appData.bookings.find(function(b) {
-                          if (b.email !== emp.email || b.status !== 'Approved') return false;
-                          var s = new Date(b.startDate); s.setHours(0,0,0,0);
-                          var e = new Date(b.endDate); e.setHours(0,0,0,0);
-                          return targetDate >= s && targetDate <= e;
-                      });
-                      
-                      if (booking) {
-                          if (booking.type === 'Holiday' || booking.type === 'Travel' || booking.type === 'Maternity') {
-                              isAwayThisDay = true;
-                              deskClass = 'bg-gray-100 border-gray-300 text-gray-400 opacity-60';
-                              statusIcon = '<i class="fa-solid fa-plane text-lg block mb-1"></i>';
-                              statusLabel = '<span class="text-xs block uppercase">' + booking.type.substring(0,3) + '</span>';
-                          } else if (booking.type === 'Sickness') {
-                              var canSeeSick = (appData.currentUser.email === emp.email) || 
-                                               (appData.currentUser.email.toLowerCase() === 'natalie.warner@morrisonsplc.co.uk') || 
-                                               (appData.currentUser.role === 'Admin') || 
-                                               (emp.manager && appData.currentUser.email.toLowerCase() === emp.manager.toLowerCase());
-                              
-                              if (canSeeSick) {
-                                  isAwayThisDay = true;
-                                  deskClass = 'bg-red-50 border-red-200 text-red-500 opacity-80';
-                                  statusIcon = '<i class="fa-solid fa-notes-medical text-lg block mb-1"></i>';
-                                  statusLabel = '<span class="text-xs block uppercase font-bold">ILL</span>';
-                              } else {
-                                  forceAvailable = true;
-                              }
-                          } else if (booking.type === 'WFH') {
-                              isAwayThisDay = true;
-                              deskClass = 'bg-gray-100 border-gray-300 text-gray-400 opacity-60';
-                              statusIcon = '<i class="fa-solid fa-house text-lg block mb-1"></i>';
-                              statusLabel = '<span class="text-[10px] block uppercase font-bold">WFH</span>';
-                          }
-                      } else {
-                          var sched = appData.schedules[emp.email] || {};
-                          var daySched = sched[selectedDay];
-                          if (daySched && daySched.type === 'WFH') {
-                              isAwayThisDay = true;
-                              deskClass = 'bg-gray-100 border-gray-300 text-gray-400 opacity-60';
-                              statusIcon = '<i class="fa-solid fa-house text-lg block mb-1"></i>';
-                              statusLabel = '<span class="text-[10px] block uppercase font-bold">WFH</span>';
-                          } else if (daySched && daySched.type === 'None') {
-                              isAwayThisDay = true;
-                              deskClass = 'bg-gray-100 border-gray-300 text-gray-400 opacity-60';
-                              statusIcon = '<i class="fa-solid fa-ban text-lg block mb-1"></i>';
-                              statusLabel = '<span class="text-[10px] block uppercase">OFF</span>';
-                          }
-                      }
-                  }
-              }
-
-              if (forceAvailable) {
-                  cellDiv.className = marginClasses + baseClasses + 'border-dashed bg-gray-100 border-gray-300 text-gray-400 transition transform hover:bg-gray-200 cursor-default';
-                  cellDiv.innerHTML = '<i class="fa-solid fa-chair text-lg block mb-1 opacity-50"></i><span class="text-xs uppercase font-bold tracking-wider">Available</span>';
-                  
-                  if (window.pendingOfficeBooking) {
-                      clickableSeatsCount++;
-                      cellDiv.className = marginClasses + baseClasses + 'border-dashed border-green-500 bg-green-50 text-green-700 transition transform hover:-translate-y-1 hover:shadow-lg cursor-pointer shadow animate-pulse';
-                      cellDiv.innerHTML = '<i class="fa-solid fa-hand-pointer text-lg block mb-1"></i><span class="text-xs uppercase font-bold tracking-wider">Select Seat</span>';
-                      (function(rowIdx, colIdx) {
-                          cellDiv.onclick = function() { completePendingOfficeBooking(rowIdx, colIdx); };
-                      })(r, c);
-                  }
-              } else if (window.pendingOfficeBooking && isAwayThisDay) {
-                  clickableSeatsCount++;
-                  // --- NEW: Make "away" desks clickable for pending office bookings ---
-                  cellDiv.className = marginClasses + baseClasses + 'border-dashed border-green-500 bg-green-50 text-green-700 transition transform hover:-translate-y-1 hover:shadow-lg cursor-pointer shadow animate-pulse';
-                  cellDiv.innerHTML = '<i class="fa-solid fa-hand-pointer text-lg block mb-1"></i><span class="text-xs uppercase font-bold tracking-wider">Select Seat</span>';
-                  (function(rowIdx, colIdx) {
-                      cellDiv.onclick = function() { completePendingOfficeBooking(rowIdx, colIdx); };
-                  })(r, c);
-              } else {
-                  cellDiv.className = marginClasses + baseClasses + 'transition transform hover:-shadow-md cursor-default ' + deskClass;
-                  cellDiv.innerHTML = statusIcon + '<span class="truncate w-full">' + displayName + '</span>' + statusLabel;
-              }
-            }
-            
-            rowDiv.appendChild(cellDiv);
-          }
-          container.appendChild(rowDiv);
+        // === BANK-AWARE RENDERING ===
+        // Step 1: Collect all rows for this day section (including empty rows as separators)
+        var allDataRows = [];
+        for (var ri = startRow + 1; ri < endRow; ri++) {
+            allDataRows.push({ index: ri, data: appData.deskPlan[ri] });
         }
+
+        // Step 2: Find bank column ranges by determining which columns contain any content.
+        //         Column 0 is a sheet padding column and is always skipped.
+        //         Empty columns that separate banks are NOT counted as content.
+        var maxCols = 0;
+        allDataRows.forEach(function(row) { maxCols = Math.max(maxCols, row.data.length); });
+
+        var colHasContent = [];
+        for (var ci = 0; ci < maxCols; ci++) colHasContent[ci] = false;
+        allDataRows.forEach(function(row) {
+            for (var c = 1; c < row.data.length; c++) {
+                var oKey = row.index + '_' + c;
+                var v = todaysOverrides[oKey] !== undefined ? String(todaysOverrides[oKey]).trim() : String(row.data[c] || '').trim();
+                if (v && v.toLowerCase() !== 'skip') colHasContent[c] = true;
+            }
+        });
+
+        // Find contiguous runs of content columns — each run is one bank
+        var bankRanges = [];
+        var inBankScan = false, bankScanStart = -1;
+        for (var ci2 = 1; ci2 < maxCols; ci2++) {
+            if (colHasContent[ci2] && !inBankScan) { inBankScan = true; bankScanStart = ci2; }
+            else if (!colHasContent[ci2] && inBankScan) { inBankScan = false; bankRanges.push([bankScanStart, ci2 - 1]); }
+        }
+        if (inBankScan) bankRanges.push([bankScanStart, maxCols - 1]);
+
+        if (bankRanges.length === 0) {
+            container.innerHTML = '<div class="text-gray-500 italic mt-10">No desk data found for ' + selectedDay + '.</div>';
+            return;
+        }
+
+        // Step 3: Group data rows into "level groups" — sets of rows separated by fully empty rows.
+        //         Each level group represents one horizontal tier of banks (e.g. Banks 1–4 on top, Banks 5–8 below).
+        var bankLevelGroups = [];
+        var currentLevelRows = [];
+        allDataRows.forEach(function(row) {
+            var isEmpty = row.data.join('').trim() === '';
+            if (isEmpty) {
+                if (currentLevelRows.length > 0) { bankLevelGroups.push(currentLevelRows); currentLevelRows = []; }
+            } else {
+                currentLevelRows.push(row);
+            }
+        });
+        if (currentLevelRows.length > 0) bankLevelGroups.push(currentLevelRows);
+
+        // Step 4: Render — each level group produces a flex row of bank cards.
+        //         Banks are numbered sequentially across level groups (1, 2, 3 … N).
+        var bankIndexOffset = 0;
+        bankLevelGroups.forEach(function(levelRows) {
+            var levelDiv = document.createElement('div');
+            levelDiv.className = 'flex flex-wrap gap-4 justify-center w-full';
+
+            bankRanges.forEach(function(range, bankIdx) {
+                var bankCard = document.createElement('div');
+                bankCard.className = 'bg-white rounded-xl shadow border border-gray-200 p-3 flex flex-col gap-2 min-w-max';
+
+                var bankLabel = document.createElement('div');
+                bankLabel.className = 'text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center mb-1';
+                bankLabel.textContent = 'Bank ' + (bankIndexOffset + bankIdx + 1);
+                bankCard.appendChild(bankLabel);
+
+                levelRows.forEach(function(row) {
+                    var r = row.index;
+                    var rowData = row.data;
+                    var rowInner = document.createElement('div');
+                    rowInner.className = 'flex gap-2 justify-center';
+
+                    for (var c = range[0]; c <= range[1]; c++) {
+                        var isManualOverride = todaysOverrides[r + "_" + c] !== undefined;
+                        var rawVal = isManualOverride ? String(todaysOverrides[r + "_" + c]).trim() : String(rowData[c] || '').trim();
+
+                        // Skip empty or "skip" cells within a bank column range
+                        if (!rawVal || rawVal.toLowerCase() === 'skip') continue;
+
+                        var cellDiv = document.createElement('div');
+                        var baseClasses = 'w-36 h-24 flex flex-col items-center justify-center rounded-lg border-2 text-base font-bold text-center overflow-hidden leading-tight p-2 ';
+
+                        // Attach Context Menu
+                        (function(rowIdx, colIdx) {
+                            cellDiv.addEventListener('contextmenu', function(e) {
+                                showDeskContextMenu(e, rowIdx, colIdx);
+                            });
+                        })(r, c);
+
+                        // Dynamic seat assignment
+                        var dynamicEmp = dynamicAssignments[r + "_" + c];
+                        var isVacated = vacatedSeats[r + "_" + c];
+
+                        if (dynamicEmp) {
+                            if (dynamicEmp.isShifted) {
+                                rawVal = dynamicEmp.email;
+                                isVacated = false;
+                            } else {
+                                // Hot-desk visitor: render in bright green
+                                cellDiv.className = baseClasses + 'bg-green-50 border-green-400 text-green-900 shadow-md transition transform hover:-translate-y-1 cursor-default';
+                                var sIcon = '<i class="fa-solid fa-street-view text-lg block mb-1 text-green-600 opacity-80"></i>';
+                                var sLabel = '<span class="text-xs block uppercase font-bold text-green-700">IN OFFICE</span>';
+                                cellDiv.innerHTML = sIcon + '<span class="truncate w-full">' + dynamicEmp.name.split(' ')[0] + '</span>' + sLabel;
+                                rowInner.appendChild(cellDiv);
+                                continue;
+                            }
+                        } else if (isVacated && !isManualOverride) {
+                            rawVal = 'Available';
+                        }
+
+                        var isDarkGrey = rawVal.match(/^(n\/a|-|_|x|other|unavailable|dark|trade planning|merch)$/i);
+                        var isAvailable = rawVal.toLowerCase() === 'available' || rawVal.toLowerCase() === 'free' || rawVal.toLowerCase() === 'empty';
+
+                        if (isDarkGrey) {
+                            cellDiv.className = baseClasses + 'bg-gray-600 border-gray-700 shadow-inner opacity-90';
+                            var lowerVal = rawVal.toLowerCase();
+                            if (lowerVal === 'trade planning' || lowerVal === 'merch') {
+                                cellDiv.innerHTML = '<span class="text-red-500 text-sm font-extrabold uppercase text-center leading-tight break-words">' + rawVal + '</span>';
+                            } else {
+                                cellDiv.innerHTML = '<i class="fa-solid fa-times text-red-500 text-4xl opacity-80"></i>';
+                            }
+                        } else if (isAvailable) {
+                            cellDiv.className = baseClasses + 'border-dashed bg-gray-100 border-gray-300 text-gray-400 transition transform hover:bg-gray-200 cursor-default';
+                            cellDiv.innerHTML = '<i class="fa-solid fa-chair text-lg block mb-1 opacity-50"></i><span class="text-xs uppercase font-bold tracking-wider">Available</span>';
+                            if (window.pendingOfficeBooking) {
+                                clickableSeatsCount++;
+                                cellDiv.className = baseClasses + 'border-dashed border-green-500 bg-green-50 text-green-700 transition transform hover:-translate-y-1 hover:shadow-lg cursor-pointer shadow animate-pulse';
+                                cellDiv.innerHTML = '<i class="fa-solid fa-hand-pointer text-lg block mb-1"></i><span class="text-xs uppercase font-bold tracking-wider">Select Seat</span>';
+                                (function(rowIdx, colIdx) {
+                                    cellDiv.onclick = function() { completePendingOfficeBooking(rowIdx, colIdx); };
+                                })(r, c);
+                            }
+                        } else {
+                            // Occupied desk
+                            var displayName = getFirstName(rawVal);
+                            var deskClass = 'bg-blue-50 border-blue-200 text-blue-800 shadow-sm';
+                            var statusIcon = '<i class="fa-solid fa-desktop text-lg block mb-1 opacity-50"></i>';
+                            var statusLabel = '';
+                            var forceAvailable = false;
+                            var isAwayThisDay = false;
+
+                            var emp = findEmployeeByMapName(rawVal);
+
+                            if (emp) {
+                                displayName = getFirstName(emp.name);
+                                if (isManualOverride) {
+                                    deskClass = 'bg-blue-50 border-blue-200 text-blue-800 shadow-sm';
+                                } else {
+                                    var booking = appData.bookings.find(function(b) {
+                                        if (b.email !== emp.email || b.status !== 'Approved') return false;
+                                        var s = new Date(b.startDate); s.setHours(0,0,0,0);
+                                        var e = new Date(b.endDate); e.setHours(0,0,0,0);
+                                        return targetDate >= s && targetDate <= e;
+                                    });
+                                    if (booking) {
+                                        if (booking.type === 'Holiday' || booking.type === 'Travel' || booking.type === 'Maternity') {
+                                            isAwayThisDay = true;
+                                            deskClass = 'bg-gray-100 border-gray-300 text-gray-400 opacity-60';
+                                            statusIcon = '<i class="fa-solid fa-plane text-lg block mb-1"></i>';
+                                            statusLabel = '<span class="text-xs block uppercase">' + booking.type.substring(0,3) + '</span>';
+                                        } else if (booking.type === 'Sickness') {
+                                            var canSeeSick = (appData.currentUser.email === emp.email) ||
+                                                             (appData.currentUser.email.toLowerCase() === 'natalie.warner@morrisonsplc.co.uk') ||
+                                                             (appData.currentUser.role === 'Admin') ||
+                                                             (emp.manager && appData.currentUser.email.toLowerCase() === emp.manager.toLowerCase());
+                                            if (canSeeSick) {
+                                                isAwayThisDay = true;
+                                                deskClass = 'bg-red-50 border-red-200 text-red-500 opacity-80';
+                                                statusIcon = '<i class="fa-solid fa-notes-medical text-lg block mb-1"></i>';
+                                                statusLabel = '<span class="text-xs block uppercase font-bold">ILL</span>';
+                                            } else {
+                                                forceAvailable = true;
+                                            }
+                                        } else if (booking.type === 'WFH') {
+                                            isAwayThisDay = true;
+                                            deskClass = 'bg-gray-100 border-gray-300 text-gray-400 opacity-60';
+                                            statusIcon = '<i class="fa-solid fa-house text-lg block mb-1"></i>';
+                                            statusLabel = '<span class="text-[10px] block uppercase font-bold">WFH</span>';
+                                        }
+                                    } else {
+                                        var sched = appData.schedules[emp.email] || {};
+                                        var daySched = sched[selectedDay];
+                                        if (daySched && daySched.type === 'WFH') {
+                                            isAwayThisDay = true;
+                                            deskClass = 'bg-gray-100 border-gray-300 text-gray-400 opacity-60';
+                                            statusIcon = '<i class="fa-solid fa-house text-lg block mb-1"></i>';
+                                            statusLabel = '<span class="text-[10px] block uppercase font-bold">WFH</span>';
+                                        } else if (daySched && daySched.type === 'None') {
+                                            isAwayThisDay = true;
+                                            deskClass = 'bg-gray-100 border-gray-300 text-gray-400 opacity-60';
+                                            statusIcon = '<i class="fa-solid fa-ban text-lg block mb-1"></i>';
+                                            statusLabel = '<span class="text-[10px] block uppercase">OFF</span>';
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (forceAvailable) {
+                                cellDiv.className = baseClasses + 'border-dashed bg-gray-100 border-gray-300 text-gray-400 transition transform hover:bg-gray-200 cursor-default';
+                                cellDiv.innerHTML = '<i class="fa-solid fa-chair text-lg block mb-1 opacity-50"></i><span class="text-xs uppercase font-bold tracking-wider">Available</span>';
+                                if (window.pendingOfficeBooking) {
+                                    clickableSeatsCount++;
+                                    cellDiv.className = baseClasses + 'border-dashed border-green-500 bg-green-50 text-green-700 transition transform hover:-translate-y-1 hover:shadow-lg cursor-pointer shadow animate-pulse';
+                                    cellDiv.innerHTML = '<i class="fa-solid fa-hand-pointer text-lg block mb-1"></i><span class="text-xs uppercase font-bold tracking-wider">Select Seat</span>';
+                                    (function(rowIdx, colIdx) {
+                                        cellDiv.onclick = function() { completePendingOfficeBooking(rowIdx, colIdx); };
+                                    })(r, c);
+                                }
+                            } else if (window.pendingOfficeBooking && isAwayThisDay) {
+                                clickableSeatsCount++;
+                                cellDiv.className = baseClasses + 'border-dashed border-green-500 bg-green-50 text-green-700 transition transform hover:-translate-y-1 hover:shadow-lg cursor-pointer shadow animate-pulse';
+                                cellDiv.innerHTML = '<i class="fa-solid fa-hand-pointer text-lg block mb-1"></i><span class="text-xs uppercase font-bold tracking-wider">Select Seat</span>';
+                                (function(rowIdx, colIdx) {
+                                    cellDiv.onclick = function() { completePendingOfficeBooking(rowIdx, colIdx); };
+                                })(r, c);
+                            } else {
+                                cellDiv.className = baseClasses + 'transition transform hover:-shadow-md cursor-default ' + deskClass;
+                                cellDiv.innerHTML = statusIcon + '<span class="truncate w-full">' + displayName + '</span>' + statusLabel;
+                            }
+                        }
+
+                        rowInner.appendChild(cellDiv);
+                    } // end for c
+
+                    bankCard.appendChild(rowInner);
+                }); // end levelRows.forEach
+
+                levelDiv.appendChild(bankCard);
+            }); // end bankRanges.forEach
+
+            container.appendChild(levelDiv);
+            bankIndexOffset += bankRanges.length;
+        }); // end bankLevelGroups.forEach
 
         // --- NEW: OVERFLOW DISPLAY OR PENDING SELECTION BANNER ---
         if (window.pendingOfficeBooking) {
