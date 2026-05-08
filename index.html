@@ -3076,7 +3076,16 @@
         // Collect all rows for this day section.
         var allDataRows = [];
         for (var ri = startRow + 1; ri < endRow; ri++) {
-            allDataRows.push({ index: ri, data: appData.deskPlan[ri] });
+            var _rowData = appData.deskPlan[ri];
+            if (!_rowData) continue;
+            var _nonEmptyCount = 0;
+            for (var _ci = 1; _ci < _rowData.length; _ci++) {
+                var _v = String(_rowData[_ci] || '').trim();
+                if (_v && _v.toLowerCase() !== 'skip') _nonEmptyCount++;
+            }
+            if (_nonEmptyCount >= 2) {
+                allDataRows.push({ index: ri, data: _rowData });
+            }
         }
 
         var hasDeskData = allDataRows.some(function(row) {
