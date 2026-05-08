@@ -2875,6 +2875,16 @@
             return appData.employees.find(function(e) { return getFirstName(e.name).toLowerCase().indexOf(fName) === 0; });
         }
 
+        function getDeskColsForRow(rowData) {
+            var deskCols = [];
+            for (var c = 1; c < rowData.length; c++) {
+                if (String(rowData[c] || '').trim().toLowerCase() === 'skip') continue;
+                deskCols.push(c);
+                if (deskCols.length === 4) break;
+            }
+            return deskCols;
+        }
+
         var dynamicAssignments = {};
         var vacatedSeats = {}; // Track seats that have been uprooted
         
@@ -2902,7 +2912,9 @@
         // 2. Who is physically mapped today?
         var todaysMapEmails = [];
         for (var r2 = startRow + 1; r2 < endRow; r2++) {
-            for (var c2 = 0; c2 < appData.deskPlan[r2].length; c2++) {
+            var todaysDeskCols = getDeskColsForRow(appData.deskPlan[r2]);
+            for (var dc2 = 0; dc2 < todaysDeskCols.length; dc2++) {
+                var c2 = todaysDeskCols[dc2];
                 var val2 = todaysOverrides[r2 + "_" + c2] !== undefined ? String(todaysOverrides[r2 + "_" + c2]).trim() : String(appData.deskPlan[r2][c2]).trim();
                 if (val2 && val2.toLowerCase() !== 'skip' && !val2.match(/^(n\/a|-|_|x|other|unavailable|dark|trade planning|merch|available|free|empty)$/i)) {
                     var mapEmp = findEmployeeByMapName(val2);
@@ -2933,7 +2945,9 @@
                 currentDayStart = i;
             }
             if (i > currentDayStart && (i < startRow || i > endRow)) { 
-                for (var j = 0; j < appData.deskPlan[i].length; j++) {
+                var typicalDeskCols = getDeskColsForRow(appData.deskPlan[i]);
+                for (var dj = 0; dj < typicalDeskCols.length; dj++) {
+                    var j = typicalDeskCols[dj];
                     var val = String(appData.deskPlan[i][j]).trim();
                     if (val && val.toLowerCase() !== 'skip' && !val.match(/^(n\/a|-|_|x|other|unavailable|dark|trade planning|merch|available|free|empty)$/i)) {
                         var empFound = findEmployeeByMapName(val);
@@ -2950,11 +2964,12 @@
         
         for (var r3 = startRow + 1; r3 < endRow; r3++) {
             var rOffset = r3 - startRow; // Row 1-2 = Top Bank. Row 3-4 = Bottom Bank.
-            for (var c3 = 0; c3 < appData.deskPlan[r3].length; c3++) {
+            var availableDeskCols = getDeskColsForRow(appData.deskPlan[r3]);
+            for (var dc3 = 0; dc3 < availableDeskCols.length; dc3++) {
+                var c3 = availableDeskCols[dc3];
                 var rawVal = todaysOverrides[r3 + "_" + c3] !== undefined ? String(todaysOverrides[r3 + "_" + c3]).trim() : String(appData.deskPlan[r3][c3]).trim();
-                
-                if (c3 === 0 && !rawVal) continue; // Skip padding
-                if (!rawVal || rawVal.toLowerCase() === 'skip') continue; // Skip merged/invisible
+                if (!rawVal) rawVal = 'Available';
+                if (rawVal.toLowerCase() === 'skip') continue; // Skip merged/invisible
                 if (rawVal.match(/^(n\/a|-|_|x|other|unavailable|dark|trade planning|merch)$/i)) continue; // Skip greyed out
                 
                 var isExplicitlyAvailable = (rawVal.toLowerCase() === 'available' || rawVal.toLowerCase() === 'free' || rawVal.toLowerCase() === 'empty');
@@ -3065,10 +3080,12 @@
         }
 
         var hasDeskData = allDataRows.some(function(row) {
-            for (var c = 1; c < row.data.length; c++) {
+            var deskCols = getDeskColsForRow(row.data);
+            for (var di = 0; di < deskCols.length; di++) {
+                var c = deskCols[di];
                 var oKey = row.index + '_' + c;
                 var v = todaysOverrides[oKey] !== undefined ? String(todaysOverrides[oKey]).trim() : String(row.data[c] || '').trim();
-                if (v && v.toLowerCase() !== 'skip') return true;
+                if (v.toLowerCase() !== 'skip') return true;
             }
             return false;
         });
@@ -3089,14 +3106,7 @@
         allDataRows.forEach(function(row) {
             var r = row.index;
             var rowData = row.data;
-            var deskCols = [];
-            for (var c = 1; c < rowData.length; c++) {
-                var overrideKey = r + '_' + c;
-                var rowVal = todaysOverrides[overrideKey] !== undefined ? String(todaysOverrides[overrideKey]).trim() : String(rowData[c] || '').trim();
-                if (rowVal && rowVal.toLowerCase() !== 'skip') {
-                    deskCols.push(c);
-                }
-            }
+            var deskCols = getDeskColsForRow(rowData);
 
             if (deskCols.length === 0) return;
 
@@ -3107,8 +3117,8 @@
                         var isManualOverride = todaysOverrides[r + "_" + c] !== undefined;
                         var rawVal = isManualOverride ? String(todaysOverrides[r + "_" + c]).trim() : String(rowData[c] || '').trim();
 
-                        // Skip empty or "skip" cells within the bank row
-                        if (!rawVal || rawVal.toLowerCase() === 'skip') return;
+                        if (!rawVal) rawVal = 'Available';
+                        if (rawVal.toLowerCase() === 'skip') return;
 
                         var cellDiv = document.createElement('div');
                         var baseClasses = 'w-36 h-24 flex flex-col items-center justify-center rounded-lg border-2 text-base font-bold text-center overflow-hidden leading-tight p-2 ';
