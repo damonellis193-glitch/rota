@@ -3144,9 +3144,6 @@
                                 var sIcon = '<i class="fa-solid fa-street-view text-lg block mb-1 text-green-600 opacity-80"></i>';
                                 var sLabel = '<span class="text-xs block uppercase font-bold text-green-700">IN OFFICE</span>';
                                 cellDiv.innerHTML = sIcon + '<span class="truncate w-full">' + dynamicEmp.name.split(' ')[0] + '</span>' + sLabel;
-                                if (deskIdx === 0 || deskIdx === deskCols.length - 1) {
-                                    cellDiv.className += ' mt-4';
-                                }
                                 rowInner.appendChild(cellDiv);
                                 return;
                             }
@@ -3263,10 +3260,6 @@
                                 cellDiv.className = baseClasses + 'transition transform hover:-shadow-md cursor-default ' + deskClass;
                                 cellDiv.innerHTML = statusIcon + '<span class="truncate w-full">' + displayName + '</span>' + statusLabel;
                             }
-                        }
-
-                        if (deskIdx === 0 || deskIdx === deskCols.length - 1) {
-                            cellDiv.className += ' mt-4';
                         }
 
                         rowInner.appendChild(cellDiv);
