@@ -3340,7 +3340,7 @@
         }
 
         var bankCard = document.createElement('div');
-        bankCard.className = 'bg-white rounded-xl shadow border border-gray-200 p-3 flex flex-col gap-2 min-w-max';
+        bankCard.className = 'bg-white rounded-xl shadow border border-gray-200 p-3 flex flex-col gap-2 w-full';
 
         var bankLabel = document.createElement('div');
         bankLabel.className = 'text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center mb-1';
@@ -3365,7 +3365,7 @@
                         if (rawVal.toLowerCase() === 'skip') return;
 
                         var cellDiv = document.createElement('div');
-                        var baseClasses = 'w-36 h-24 flex flex-col items-center justify-center rounded-lg border-2 text-base font-bold text-center overflow-hidden leading-tight p-2 ';
+                        var baseClasses = 'w-40 h-28 flex flex-col items-center justify-center rounded-lg border-2 text-base font-bold text-center overflow-hidden leading-tight p-2 ';
 
                         // Attach Context Menu
                         (function(rowIdx, colIdx) {
@@ -3420,7 +3420,7 @@
                         } else {
                             // Occupied desk
                             var displayName = getFirstName(rawVal);
-                            var deskClass = 'bg-blue-50 border-blue-200 text-blue-800 shadow-sm';
+                            var deskClass = 'bg-blue-500 border-blue-600 text-white shadow-sm';
                             var statusIcon = '<i class="fa-solid fa-desktop text-lg block mb-1 opacity-50"></i>';
                             var statusLabel = '';
                             var forceAvailable = false;
@@ -3431,7 +3431,7 @@
                             if (emp) {
                                 displayName = getFirstName(emp.name);
                                 if (isManualOverride) {
-                                    deskClass = 'bg-blue-50 border-blue-200 text-blue-800 shadow-sm';
+                                    deskClass = 'bg-blue-500 border-blue-600 text-white shadow-sm';
                                 } else {
                                     var booking = appData.bookings.find(function(b) {
                                         if (b.email !== emp.email || b.status !== 'Approved') return false;
