@@ -7104,14 +7104,15 @@
             var dayName  = DAY_NAMES[dow];
             var schedDay = sched[dayName];
 
-            var isWeekend      = dow === 0 || dow === 6;
-            var isNoneDay      = !schedDay || schedDay.type === 'None';
-            var isOfficeBooked = !!officeDates[dateStr];
-            var isPast         = cell < today;
-            var isSelected     = pws.selectedReplacementDate === dateStr;
-            var isWFH          = !!wfhDates[dateStr];
+            var isWeekend        = dow === 0 || dow === 6;
+            var isNoneDay        = !schedDay || schedDay.type === 'None';
+            var isOfficeBooked   = !!officeDates[dateStr];
+            var isScheduledOffice = !!(schedDay && schedDay.type === 'Office');
+            var isPast           = cell < today;
+            var isSelected       = pws.selectedReplacementDate === dateStr;
+            var isWFH            = !!wfhDates[dateStr];
 
-            var disabled = isWeekend || isNoneDay || isOfficeBooked || isPast;
+            var disabled = isWeekend || isNoneDay || isOfficeBooked || isScheduledOffice || isPast;
             var btnCls;
             if (isSelected) {
               btnCls = 'w-8 h-8 mx-auto flex items-center justify-center rounded-full bg-green-600 text-white font-bold shadow-md';
