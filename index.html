@@ -50,6 +50,25 @@
       /* Audit log sortable headers */
       .audit-th-sort { cursor: pointer; user-select: none; white-space: nowrap; }
       .audit-th-sort:hover { background: #e5e7eb; }
+
+      /* Desk Plan Editor */
+      #desk-editor-canvas { position: relative; overflow: hidden; background-color: #f8fafc; background-image: radial-gradient(#cbd5e1 1px, transparent 1px); background-size: 20px 20px; cursor: default; user-select: none; touch-action: none; }
+      .desk-item { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: grab; border-radius: 6px; box-sizing: border-box; transition: box-shadow 0.1s; }
+      .desk-item:hover { box-shadow: 0 0 0 2px #6366f1, 0 4px 12px rgba(0,0,0,0.15); }
+      .desk-item.selected { box-shadow: 0 0 0 3px #4f46e5, 0 4px 16px rgba(0,0,0,0.2); }
+      .desk-item.dragging { cursor: grabbing; opacity: 0.85; z-index: 1000; }
+      .desk-label { font-size: 10px; font-weight: 700; color: #1e293b; margin-top: 2px; text-align: center; pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90px; }
+      .desk-person { font-size: 9px; color: #475569; text-align: center; pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90px; }
+      .desk-rotate-handle { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); width: 16px; height: 16px; background: #6366f1; border-radius: 50%; cursor: grab; display: none; align-items: center; justify-content: center; color: white; font-size: 9px; }
+      .desk-item.selected .desk-rotate-handle { display: flex; }
+      .desk-delete-handle { position: absolute; top: -10px; right: -10px; width: 18px; height: 18px; background: #ef4444; border-radius: 50%; cursor: pointer; display: none; align-items: center; justify-content: center; color: white; font-size: 9px; }
+      .desk-item.selected .desk-delete-handle { display: flex; }
+      .desk-edit-handle { position: absolute; bottom: -10px; right: -10px; width: 18px; height: 18px; background: #0ea5e9; border-radius: 50%; cursor: pointer; display: none; align-items: center; justify-content: center; color: white; font-size: 9px; }
+      .desk-item.selected .desk-edit-handle { display: flex; }
+      /* Room/zone items */
+      .zone-item { position: absolute; border: 2px dashed #94a3b8; background: rgba(148,163,184,0.08); border-radius: 8px; cursor: grab; box-sizing: border-box; }
+      .zone-item.selected { border-color: #6366f1; background: rgba(99,102,241,0.08); }
+      .zone-label { position: absolute; top: 4px; left: 6px; font-size: 10px; font-weight: 700; color: #64748b; pointer-events: none; }
     </style>
   </head>
   <body class="bg-white text-gray-800 font-sans h-screen flex flex-col overflow-hidden">
@@ -81,6 +100,9 @@
             </button>
             <button onclick="loadView('desk-plan')" class="hover:bg-green-800 px-3 py-2 rounded transition text-sm flex flex-col items-center md:flex-row md:space-x-2">
               <i class="fa-solid fa-map-location-dot"></i><span class="hidden md:inline">Desk Plan</span>
+            </button>
+            <button id="desk-editor-btn" onclick="loadView('desk-plan-editor')" class="hidden bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-2 rounded transition text-sm flex flex-col items-center md:flex-row md:space-x-2">
+              <i class="fa-solid fa-pen-ruler"></i><span class="hidden md:inline">Edit Layout</span>
             </button>
             <button id="admin-btn" onclick="loadView('admin')" class="hidden bg-yellow-400 hover:bg-yellow-500 text-green-900 font-bold px-3 py-2 rounded transition border border-yellow-500 text-sm flex flex-col items-center md:flex-row md:space-x-2 relative">
               <i class="fa-solid fa-lock"></i><span class="hidden md:inline">Admin</span>
@@ -348,6 +370,76 @@
              <div id="desk-plan-logs-container" class="hidden max-h-40 overflow-y-auto bg-white p-2">
                  <table class="w-full text-left text-xs font-mono"><tbody id="desk-plan-logs-body" class="divide-y divide-gray-100"></tbody></table>
              </div>
+          </div>
+        </div>
+
+        <!-- DESK PLAN EDITOR (Admin/Manager only) -->
+        <div id="view-desk-plan-editor" class="hidden h-full flex flex-col p-2 md:p-3 w-full">
+          <!-- Toolbar -->
+          <div class="flex flex-wrap items-center gap-2 mb-3 shrink-0 bg-white rounded-xl shadow px-4 py-3 border border-gray-200">
+            <h2 class="text-xl font-bold text-indigo-900 mr-3"><i class="fa-solid fa-pen-ruler mr-2"></i>Desk Plan Editor</h2>
+            <div class="h-6 w-px bg-gray-300"></div>
+            <!-- Add items -->
+            <button onclick="deskEditorAddDesk()" class="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded shadow transition">
+              <i class="fa-solid fa-plus"></i> Add Desk
+            </button>
+            <button onclick="deskEditorAddZone()" class="flex items-center gap-1 bg-slate-500 hover:bg-slate-600 text-white text-xs font-bold px-3 py-2 rounded shadow transition">
+              <i class="fa-solid fa-vector-square"></i> Add Zone
+            </button>
+            <div class="h-6 w-px bg-gray-300"></div>
+            <!-- Rotation controls -->
+            <button onclick="deskEditorRotateSelected(-15)" title="Rotate -15°" class="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold px-3 py-2 rounded border border-gray-300 transition">
+              <i class="fa-solid fa-rotate-left"></i> -15°
+            </button>
+            <button onclick="deskEditorRotateSelected(15)" title="Rotate +15°" class="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold px-3 py-2 rounded border border-gray-300 transition">
+              <i class="fa-solid fa-rotate-right"></i> +15°
+            </button>
+            <button onclick="deskEditorRotateSelected(90)" title="Rotate 90°" class="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold px-3 py-2 rounded border border-gray-300 transition">
+              <i class="fa-solid fa-redo"></i> 90°
+            </button>
+            <div class="h-6 w-px bg-gray-300"></div>
+            <!-- Canvas zoom -->
+            <button onclick="deskEditorZoom(0.1)" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold px-2 py-2 rounded border border-gray-300"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+            <span id="desk-editor-zoom-label" class="text-xs text-gray-500 w-12 text-center font-mono">100%</span>
+            <button onclick="deskEditorZoom(-0.1)" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold px-2 py-2 rounded border border-gray-300"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+            <button onclick="deskEditorResetZoom()" class="text-xs text-gray-500 hover:text-gray-700 underline ml-1">Reset</button>
+            <div class="h-6 w-px bg-gray-300"></div>
+            <!-- Canvas size -->
+            <label class="text-xs text-gray-600 font-bold">W:</label>
+            <input type="number" id="desk-canvas-width" value="1200" min="400" max="3000" step="50" onchange="deskEditorResizeCanvas()" class="border rounded px-2 py-1 text-xs w-20">
+            <label class="text-xs text-gray-600 font-bold">H:</label>
+            <input type="number" id="desk-canvas-height" value="800" min="300" max="2000" step="50" onchange="deskEditorResizeCanvas()" class="border rounded px-2 py-1 text-xs w-20">
+            <div class="h-6 w-px bg-gray-300"></div>
+            <!-- Grid snap -->
+            <label class="flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
+              <input type="checkbox" id="desk-editor-snap" checked class="accent-indigo-600"> Snap to grid
+            </label>
+            <div class="flex-1"></div>
+            <!-- Save / discard -->
+            <button onclick="deskEditorUndo()" title="Undo" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-2 rounded border border-gray-300"><i class="fa-solid fa-undo"></i></button>
+            <button onclick="deskEditorRedo()" title="Redo" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-2 rounded border border-gray-300"><i class="fa-solid fa-redo"></i></button>
+            <button onclick="deskEditorClearAll()" class="bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold px-3 py-2 rounded border border-red-300 transition">
+              <i class="fa-solid fa-trash mr-1"></i> Clear All
+            </button>
+            <button onclick="deskEditorSaveLayout()" id="btn-save-desk-layout" class="bg-green-600 hover:bg-green-700 text-white font-bold text-sm px-5 py-2 rounded shadow transition">
+              <i class="fa-solid fa-floppy-disk mr-1"></i> Save Layout
+            </button>
+            <button onclick="loadView('desk-plan')" class="text-xs text-gray-500 hover:underline ml-1"><i class="fa-solid fa-eye mr-1"></i>Preview</button>
+          </div>
+
+          <!-- Canvas wrapper (scrollable) -->
+          <div class="flex-1 overflow-auto rounded-xl shadow border border-gray-200 bg-white relative" id="desk-editor-scroll">
+            <div id="desk-editor-canvas-wrap" style="transform-origin: 0 0;">
+              <div id="desk-editor-canvas" style="width:1200px;height:800px;"></div>
+            </div>
+          </div>
+
+          <!-- Status bar -->
+          <div class="shrink-0 mt-2 flex items-center gap-4 text-xs text-gray-500 px-1">
+            <span id="desk-editor-item-count">0 items</span>
+            <span id="desk-editor-selected-info" class="text-indigo-600 font-bold"></span>
+            <span class="flex-1"></span>
+            <span>Click to select · Drag to move · Use handles to rotate/delete/edit · Shift+click to multi-select</span>
           </div>
         </div>
 
@@ -972,6 +1064,52 @@
           <div class="flex justify-end space-x-2">
             <button type="button" onclick="closeModals()" class="px-4 py-2 text-gray-500">Cancel</button>
             <button type="submit" id="btn-submit-carryover" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded font-bold">Submit Request</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Desk Edit Modal -->
+    <div id="modal-desk-edit" class="hidden fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
+        <div class="bg-indigo-600 p-4 text-white flex justify-between items-center border-b-4 border-indigo-800">
+          <h3 class="font-bold"><i class="fa-solid fa-pen-to-square mr-2"></i><span id="desk-edit-modal-title">Edit Desk</span></h3>
+          <button onclick="closeDeskEditModal()"><i class="fa-solid fa-times"></i></button>
+        </div>
+        <form onsubmit="handleDeskEditSave(event)" class="p-5 space-y-4">
+          <input type="hidden" id="desk-edit-id">
+          <input type="hidden" id="desk-edit-type"> <!-- 'desk' or 'zone' -->
+          <div>
+            <label class="text-xs font-bold uppercase text-gray-500 block mb-1">Label / Name</label>
+            <input type="text" id="desk-edit-label" required maxlength="30" class="w-full border rounded p-2 text-sm" placeholder="e.g. Desk 1, Meeting Room A">
+          </div>
+          <div id="desk-edit-person-row">
+            <label class="text-xs font-bold uppercase text-gray-500 block mb-1">Assigned Colleague</label>
+            <select id="desk-edit-person" class="w-full border rounded p-2 text-sm">
+              <option value="">-- Unassigned --</option>
+            </select>
+          </div>
+          <div id="desk-edit-color-row">
+            <label class="text-xs font-bold uppercase text-gray-500 block mb-1">Desk Colour</label>
+            <div class="flex gap-2 flex-wrap" id="desk-color-swatches"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs font-bold uppercase text-gray-500 block mb-1">Width (px)</label>
+              <input type="number" id="desk-edit-width" min="40" max="300" step="5" class="w-full border rounded p-2 text-sm">
+            </div>
+            <div>
+              <label class="text-xs font-bold uppercase text-gray-500 block mb-1">Height (px)</label>
+              <input type="number" id="desk-edit-height" min="30" max="200" step="5" class="w-full border rounded p-2 text-sm">
+            </div>
+          </div>
+          <div>
+            <label class="text-xs font-bold uppercase text-gray-500 block mb-1">Rotation (°)</label>
+            <input type="number" id="desk-edit-rotation" min="-360" max="360" step="1" class="w-full border rounded p-2 text-sm">
+          </div>
+          <div class="flex justify-end space-x-2 pt-2">
+            <button type="button" onclick="closeDeskEditModal()" class="px-4 py-2 text-gray-500">Cancel</button>
+            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded font-bold">Save</button>
           </div>
         </form>
       </div>
@@ -1670,6 +1808,27 @@
               confirmMyMorriBookings: function() {
                 var self = this;
                 setTimeout(function() { self._s({success:true, count:0}); }, 500);
+              },
+              getMyMorriRemovals: function() {
+                var self = this;
+                setTimeout(function() { self._s({success:true, removals:[]}); }, 500);
+              },
+              confirmMyMorriRemovals: function() {
+                var self = this;
+                setTimeout(function() { self._s({success:true, count:0}); }, 500);
+              },
+              getDeskLayout: function() {
+                var self = this;
+                setTimeout(function() { if (self._s) self._s(window._mockDeskLayout || ''); }, 200);
+              },
+              saveDeskLayout: function(layoutJson) {
+                var self = this;
+                window._mockDeskLayout = layoutJson || '';
+                setTimeout(function() { if (self._s) self._s({success:true}); }, 200);
+              },
+              logAction: function() {
+                var self = this;
+                setTimeout(function() { if (self._s) self._s({success:true}); }, 100);
               } 
             } 
           } 
@@ -1995,7 +2154,13 @@
         document.getElementById('view-dashboard').classList.remove('hidden');
         document.getElementById('user-display').textContent = appData.currentUser.name;
         document.getElementById('user-role-display').textContent = appData.currentUser.role;
-        if(appData.currentUser.role === 'Admin' || appData.currentUser.role === 'Manager') document.getElementById('admin-btn').classList.remove('hidden');
+        buildDeskEmployeeMap(appData.employees || []);
+        if (appData.currentUser.role === 'Admin' || appData.currentUser.role === 'Manager') {
+          document.getElementById('admin-btn').classList.remove('hidden');
+          if (document.getElementById('desk-editor-btn')) document.getElementById('desk-editor-btn').classList.remove('hidden');
+        } else if (document.getElementById('desk-editor-btn')) {
+          document.getElementById('desk-editor-btn').classList.add('hidden');
+        }
         refreshAllViews();
         startPolling(); 
         console.log('[Rota App] Initialization complete');
@@ -2048,6 +2213,14 @@
         if(!appData.auditLogs) appData.auditLogs=[];
         if(!appData.carryoverRequests) appData.carryoverRequests=[];
         if(!appData.birthdays) appData.birthdays=[];
+        buildDeskEmployeeMap(appData.employees || []);
+        if (document.getElementById('desk-editor-btn')) {
+          if (appData.currentUser && (appData.currentUser.role === 'Admin' || appData.currentUser.role === 'Manager')) {
+            document.getElementById('desk-editor-btn').classList.remove('hidden');
+          } else {
+            document.getElementById('desk-editor-btn').classList.add('hidden');
+          }
+        }
         if (document.getElementById('modal-booking').classList.contains('hidden') && document.getElementById('modal-employee').classList.contains('hidden')) {
           refreshAllViews();
         }
@@ -5530,5 +5703,962 @@
       }
 
     </script>
+    <script>
+      var deskEditorItems = [];
+      var deskEditorSelectedIds = new Set();
+      var deskEditorUndoStack = [];
+      var deskEditorRedoStack = [];
+      var deskEditorZoomLevel = 1.0;
+      var deskEditorDirty = false;
+      var DESK_SNAP = 20;
+      var DESK_COLORS = ['#e2e8f0','#bfdbfe','#bbf7d0','#fef08a','#fecaca','#e9d5ff','#fed7aa','#f0fdf4'];
+      var deskEditorInitialized = false;
+      var deskEditorInteraction = null;
+      var deskEditorCurrentColor = DESK_COLORS[0];
+      var deskEditorLayoutRequestId = 0;
+      var deskEditorSaveButtonOriginalHtml = '';
+      var deskEditorLegacyRenderDeskPlan = window.renderDeskPlan;
+      var deskEditorLegacyLoadView = window.loadView;
+      var deskEditorLegacyUpdateDeskCell = window.updateDeskCell;
+
+      function buildDeskEmployeeMap(employees) {
+        window._deskEmployeeList = (employees || []).map(function(employee) {
+          return { name: employee.name, email: employee.email };
+        }).sort(function(a, b) {
+          return a.name.localeCompare(b.name);
+        });
+        window._deskEmployeeMap = {};
+        (employees || []).forEach(function(employee) {
+          window._deskEmployeeMap[employee.email] = employee.name;
+        });
+      }
+
+      function deskEditorHasAccess() {
+        return !!(appData && appData.currentUser && (appData.currentUser.role === 'Admin' || appData.currentUser.role === 'Manager'));
+      }
+
+      function deskEditorSelectedIdArray() {
+        return Array.from(deskEditorSelectedIds);
+      }
+
+      function deskEditorClamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+      }
+
+      function deskEditorWrapRotation(rotation) {
+        var value = Number(rotation) || 0;
+        if (value > 360 || value < -360) value = value % 360;
+        if (Object.is(value, -0)) value = 0;
+        return value;
+      }
+
+      function deskEditorGenerateId(prefix) {
+        return prefix + '-' + new Date().getTime() + '-' + Math.floor(Math.random() * 100000);
+      }
+
+      function deskEditorGetCanvas() {
+        return document.getElementById('desk-editor-canvas');
+      }
+
+      function deskEditorGetCanvasWrap() {
+        return document.getElementById('desk-editor-canvas-wrap');
+      }
+
+      function deskEditorGetCanvasDimensions() {
+        return {
+          width: parseInt(document.getElementById('desk-canvas-width').value, 10) || 1200,
+          height: parseInt(document.getElementById('desk-canvas-height').value, 10) || 800
+        };
+      }
+
+      function deskEditorSetCanvasSize(width, height) {
+        var safeWidth = deskEditorClamp(parseInt(width, 10) || 1200, 400, 3000);
+        var safeHeight = deskEditorClamp(parseInt(height, 10) || 800, 300, 2000);
+        document.getElementById('desk-canvas-width').value = safeWidth;
+        document.getElementById('desk-canvas-height').value = safeHeight;
+        var canvas = deskEditorGetCanvas();
+        if (canvas) {
+          canvas.style.width = safeWidth + 'px';
+          canvas.style.height = safeHeight + 'px';
+        }
+      }
+
+      function deskEditorCloneState() {
+        var dims = deskEditorGetCanvasDimensions();
+        return {
+          items: JSON.parse(JSON.stringify(deskEditorItems)),
+          canvasWidth: dims.width,
+          canvasHeight: dims.height
+        };
+      }
+
+      function deskEditorPushUndoSnapshot(snapshot) {
+        if (!snapshot) return;
+        deskEditorUndoStack.push(JSON.parse(JSON.stringify(snapshot)));
+        if (deskEditorUndoStack.length > 50) deskEditorUndoStack.shift();
+        deskEditorRedoStack = [];
+      }
+
+      function deskEditorPushUndo() {
+        deskEditorPushUndoSnapshot(deskEditorCloneState());
+      }
+
+      function deskEditorRestoreState(state) {
+        if (!state) return;
+        deskEditorItems = JSON.parse(JSON.stringify(state.items || []));
+        deskEditorSetCanvasSize(state.canvasWidth || 1200, state.canvasHeight || 800);
+        deskEditorRender();
+      }
+
+      function deskEditorGetPointerPosition(event) {
+        var canvas = deskEditorGetCanvas();
+        var rect = canvas.getBoundingClientRect();
+        return {
+          x: (event.clientX - rect.left) / deskEditorZoomLevel,
+          y: (event.clientY - rect.top) / deskEditorZoomLevel
+        };
+      }
+
+      function deskEditorIsSnapEnabled() {
+        var snap = document.getElementById('desk-editor-snap');
+        return !snap || snap.checked;
+      }
+
+      function deskEditorSnap(value) {
+        return deskEditorIsSnapEnabled() ? Math.round(value / DESK_SNAP) * DESK_SNAP : value;
+      }
+
+      function deskEditorFindItem(id) {
+        return deskEditorItems.find(function(item) { return item.id === id; });
+      }
+
+      function deskEditorGetLayoutItemById(id) {
+        var editorItem = deskEditorFindItem(id);
+        if (editorItem) return editorItem;
+        var savedItems = window._deskPlanLayoutItems || [];
+        return savedItems.find(function(item) { return item.id === id; }) || null;
+      }
+
+      function deskEditorClearSelection() {
+        deskEditorSelectedIds = new Set();
+      }
+
+      function deskEditorSelectOnly(id) {
+        deskEditorSelectedIds = new Set(id ? [id] : []);
+      }
+
+      function deskEditorToggleSelection(id) {
+        if (deskEditorSelectedIds.has(id)) deskEditorSelectedIds.delete(id);
+        else deskEditorSelectedIds.add(id);
+      }
+
+      function deskEditorUpdateStatusBar() {
+        var countEl = document.getElementById('desk-editor-item-count');
+        var selectedEl = document.getElementById('desk-editor-selected-info');
+        if (countEl) countEl.textContent = deskEditorItems.length + ' item' + (deskEditorItems.length === 1 ? '' : 's');
+        if (selectedEl) {
+          var selected = deskEditorSelectedIdArray();
+          if (selected.length === 0) selectedEl.textContent = '';
+          else if (selected.length === 1) {
+            var item = deskEditorFindItem(selected[0]);
+            selectedEl.textContent = item ? item.label : '1 selected';
+          } else {
+            selectedEl.textContent = selected.length + ' selected';
+          }
+        }
+      }
+
+      function deskEditorResolveName(value) {
+        if (!value) return '';
+        if (window._deskEmployeeMap && window._deskEmployeeMap[value]) return window._deskEmployeeMap[value];
+        var employee = findEmployeeByMapName(value);
+        return employee ? employee.name : value;
+      }
+
+      function deskEditorAttachCanvasListeners() {
+        if (deskEditorInitialized) return;
+        var canvas = deskEditorGetCanvas();
+        if (!canvas) return;
+
+        canvas.addEventListener('pointerdown', function(event) {
+          var target = event.target;
+          var rotateHandle = target.closest('.desk-rotate-handle');
+          var deleteHandle = target.closest('.desk-delete-handle');
+          var editHandle = target.closest('.desk-edit-handle');
+          var itemEl = target.closest('[data-item-id]');
+
+          if (deleteHandle && itemEl) {
+            event.preventDefault();
+            deskEditorDeleteItem(itemEl.getAttribute('data-item-id'));
+            return;
+          }
+
+          if (editHandle && itemEl) {
+            event.preventDefault();
+            openDeskEditModal(itemEl.getAttribute('data-item-id'));
+            return;
+          }
+
+          if (rotateHandle && itemEl) {
+            event.preventDefault();
+            var rotateItem = deskEditorFindItem(itemEl.getAttribute('data-item-id'));
+            if (!rotateItem) return;
+            if (!deskEditorSelectedIds.has(rotateItem.id)) deskEditorSelectOnly(rotateItem.id);
+            deskEditorInteraction = {
+              mode: 'rotate',
+              pointerId: event.pointerId,
+              itemId: rotateItem.id,
+              beforeState: deskEditorCloneState()
+            };
+            canvas.setPointerCapture(event.pointerId);
+            deskEditorRender();
+            return;
+          }
+
+          if (itemEl) {
+            event.preventDefault();
+            var itemId = itemEl.getAttribute('data-item-id');
+            if (event.shiftKey) deskEditorToggleSelection(itemId);
+            else deskEditorSelectOnly(itemId);
+            if (!deskEditorSelectedIds.has(itemId)) deskEditorSelectedIds.add(itemId);
+            var pointer = deskEditorGetPointerPosition(event);
+            var startPositions = {};
+            deskEditorSelectedIdArray().forEach(function(selectedId) {
+              var item = deskEditorFindItem(selectedId);
+              if (item) startPositions[selectedId] = { x: item.x, y: item.y, rotation: item.rotation || 0 };
+            });
+            deskEditorInteraction = {
+              mode: 'move',
+              pointerId: event.pointerId,
+              startPointer: pointer,
+              startPositions: startPositions,
+              beforeState: deskEditorCloneState(),
+              moved: false
+            };
+            canvas.setPointerCapture(event.pointerId);
+            deskEditorRender();
+            return;
+          }
+
+          if (target === canvas) {
+            deskEditorClearSelection();
+            deskEditorRender();
+          }
+        });
+
+        canvas.addEventListener('pointermove', function(event) {
+          if (!deskEditorInteraction || deskEditorInteraction.pointerId !== event.pointerId) return;
+          var pointer = deskEditorGetPointerPosition(event);
+          if (deskEditorInteraction.mode === 'move') {
+            var deltaX = pointer.x - deskEditorInteraction.startPointer.x;
+            var deltaY = pointer.y - deskEditorInteraction.startPointer.y;
+            deskEditorSelectedIdArray().forEach(function(selectedId) {
+              var item = deskEditorFindItem(selectedId);
+              var start = deskEditorInteraction.startPositions[selectedId];
+              if (!item || !start) return;
+              item.x = deskEditorSnap(start.x + deltaX);
+              item.y = deskEditorSnap(start.y + deltaY);
+            });
+            deskEditorInteraction.moved = true;
+            deskEditorRender();
+          } else if (deskEditorInteraction.mode === 'rotate') {
+            var item = deskEditorFindItem(deskEditorInteraction.itemId);
+            if (!item) return;
+            var centerX = item.x + (item.w / 2);
+            var centerY = item.y + (item.h / 2);
+            var angle = Math.atan2(pointer.y - centerY, pointer.x - centerX) * (180 / Math.PI) + 90;
+            item.rotation = deskEditorWrapRotation(Math.round(angle / 5) * 5);
+            deskEditorRender();
+          }
+        });
+
+        canvas.addEventListener('pointerup', function(event) {
+          if (!deskEditorInteraction || deskEditorInteraction.pointerId !== event.pointerId) return;
+          if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+          var interaction = deskEditorInteraction;
+          deskEditorInteraction = null;
+          if (interaction.mode === 'move' && interaction.moved) {
+            deskEditorPushUndoSnapshot(interaction.beforeState);
+            deskEditorDirty = true;
+          }
+          if (interaction.mode === 'rotate') {
+            deskEditorPushUndoSnapshot(interaction.beforeState);
+            deskEditorDirty = true;
+          }
+          deskEditorRender();
+        });
+
+        canvas.addEventListener('pointercancel', function(event) {
+          if (!deskEditorInteraction || deskEditorInteraction.pointerId !== event.pointerId) return;
+          deskEditorInteraction = null;
+          if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+          deskEditorRender();
+        });
+
+        deskEditorInitialized = true;
+      }
+
+      function initDeskEditor() {
+        if (!deskEditorHasAccess()) return;
+        deskEditorAttachCanvasListeners();
+        deskEditorResetZoom();
+        if (google && google.script && google.script.run && google.script.run.getDeskLayout) {
+          google.script.run
+            .withSuccessHandler(deskEditorOnLoad)
+            .withFailureHandler(function() { deskEditorOnLoad(''); })
+            .getDeskLayout();
+        } else {
+          deskEditorOnLoad('');
+        }
+      }
+
+      function deskEditorOnLoad(layoutJson) {
+        var parsed = null;
+        if (layoutJson) {
+          try {
+            parsed = typeof layoutJson === 'string' ? JSON.parse(layoutJson) : layoutJson;
+          } catch (error) {
+            parsed = null;
+          }
+        }
+        if (Array.isArray(parsed)) parsed = { items: parsed };
+        if (!parsed || typeof parsed !== 'object') parsed = { items: [], canvasWidth: 1200, canvasHeight: 800 };
+        deskEditorItems = Array.isArray(parsed.items) ? parsed.items : [];
+        deskEditorItems.forEach(function(item) {
+          if (!item.id) item.id = deskEditorGenerateId(item.type || 'desk');
+          if (!item.type) item.type = 'desk';
+          item.rotation = Number(item.rotation) || 0;
+          item.color = item.color || DESK_COLORS[0];
+          item.w = Number(item.w) || (item.type === 'zone' ? 260 : 100);
+          item.h = Number(item.h) || (item.type === 'zone' ? 160 : 60);
+          item.x = Number(item.x) || 0;
+          item.y = Number(item.y) || 0;
+        });
+        deskEditorSetCanvasSize(parsed.canvasWidth || 1200, parsed.canvasHeight || 800);
+        deskEditorSelectedIds = new Set();
+        deskEditorUndoStack = [];
+        deskEditorRedoStack = [];
+        deskEditorDirty = false;
+        deskEditorRender();
+      }
+
+      function deskEditorRender() {
+        var canvas = deskEditorGetCanvas();
+        if (!canvas) return;
+        canvas.innerHTML = '';
+        var itemsToRender = deskEditorItems.slice().sort(function(a, b) {
+          return (a.type === 'zone' ? -1 : 1) - (b.type === 'zone' ? -1 : 1);
+        });
+
+        itemsToRender.forEach(function(item) {
+          var element = document.createElement('div');
+          var isSelected = deskEditorSelectedIds.has(item.id);
+          var isDragging = deskEditorInteraction && deskEditorInteraction.mode === 'move' && deskEditorSelectedIds.has(item.id);
+          element.setAttribute('data-item-id', item.id);
+          element.style.left = item.x + 'px';
+          element.style.top = item.y + 'px';
+          element.style.width = item.w + 'px';
+          element.style.height = item.h + 'px';
+          element.style.transform = 'rotate(' + (item.rotation || 0) + 'deg)';
+          element.style.transformOrigin = 'center center';
+
+          if (item.type === 'zone') {
+            element.className = 'zone-item' + (isSelected ? ' selected' : '');
+            element.innerHTML = '<div class="zone-label">' + escapeHtml(item.label || 'Zone') + '</div>' +
+              '<div class="desk-delete-handle" style="display:' + (isSelected ? 'flex' : 'none') + '"><i class="fa-solid fa-xmark"></i></div>' +
+              '<div class="desk-edit-handle" style="display:' + (isSelected ? 'flex' : 'none') + '"><i class="fa-solid fa-pen"></i></div>';
+          } else {
+            element.className = 'desk-item' + (isSelected ? ' selected' : '') + (isDragging ? ' dragging' : '');
+            element.style.background = item.color || DESK_COLORS[0];
+            element.style.border = '1px solid rgba(15,23,42,0.15)';
+            element.innerHTML = '<div class="desk-rotate-handle"><i class="fa-solid fa-rotate-right"></i></div>' +
+              '<div class="desk-delete-handle"><i class="fa-solid fa-xmark"></i></div>' +
+              '<div class="desk-edit-handle"><i class="fa-solid fa-pen"></i></div>' +
+              '<i class="fa-solid fa-desktop text-slate-600 text-lg pointer-events-none"></i>' +
+              '<div class="desk-label">' + escapeHtml(item.label || 'Desk') + '</div>' +
+              '<div class="desk-person">' + escapeHtml(deskEditorResolveName(item.personEmail)) + '</div>';
+          }
+          canvas.appendChild(element);
+        });
+
+        deskEditorUpdateStatusBar();
+      }
+
+      function deskEditorAddDesk() {
+        deskEditorPushUndo();
+        var deskCount = deskEditorItems.filter(function(item) { return item.type === 'desk'; }).length + 1;
+        var offset = Math.floor(Math.random() * 4) * 20;
+        var newItem = {
+          id: deskEditorGenerateId('desk'),
+          type: 'desk',
+          label: 'Desk ' + deskCount,
+          personEmail: '',
+          x: 100 + offset,
+          y: 100 + offset,
+          w: 100,
+          h: 60,
+          rotation: 0,
+          color: DESK_COLORS[0]
+        };
+        deskEditorItems.push(newItem);
+        deskEditorSelectOnly(newItem.id);
+        deskEditorDirty = true;
+        deskEditorRender();
+        openDeskEditModal(newItem.id);
+      }
+
+      function deskEditorAddZone() {
+        deskEditorPushUndo();
+        var zoneCount = deskEditorItems.filter(function(item) { return item.type === 'zone'; }).length;
+        var newItem = {
+          id: deskEditorGenerateId('zone'),
+          type: 'zone',
+          label: 'Zone ' + String.fromCharCode(65 + zoneCount),
+          personEmail: '',
+          x: 80,
+          y: 80,
+          w: 260,
+          h: 160,
+          rotation: 0,
+          color: DESK_COLORS[0]
+        };
+        deskEditorItems.push(newItem);
+        deskEditorSelectOnly(newItem.id);
+        deskEditorDirty = true;
+        deskEditorRender();
+      }
+
+      function deskEditorRotateSelected(deltaDeg) {
+        var selectedIds = deskEditorSelectedIdArray();
+        if (!selectedIds.length) return;
+        deskEditorPushUndo();
+        selectedIds.forEach(function(id) {
+          var item = deskEditorFindItem(id);
+          if (item) item.rotation = deskEditorWrapRotation((Number(item.rotation) || 0) + deltaDeg);
+        });
+        deskEditorDirty = true;
+        deskEditorRender();
+      }
+
+      function deskEditorZoom(delta) {
+        deskEditorZoomLevel = deskEditorClamp(Math.round((deskEditorZoomLevel + delta) * 100) / 100, 0.25, 3);
+        var wrap = deskEditorGetCanvasWrap();
+        if (wrap) wrap.style.transform = 'scale(' + deskEditorZoomLevel + ')';
+        var label = document.getElementById('desk-editor-zoom-label');
+        if (label) label.textContent = Math.round(deskEditorZoomLevel * 100) + '%';
+      }
+
+      function deskEditorResetZoom() {
+        deskEditorZoomLevel = 1;
+        deskEditorZoom(0);
+      }
+
+      function deskEditorResizeCanvas() {
+        var before = deskEditorCloneState();
+        var dims = deskEditorGetCanvasDimensions();
+        if (before.canvasWidth === dims.width && before.canvasHeight === dims.height) return;
+        deskEditorPushUndoSnapshot(before);
+        deskEditorSetCanvasSize(dims.width, dims.height);
+        deskEditorDirty = true;
+        deskEditorRender();
+      }
+
+      function deskEditorUndo() {
+        if (!deskEditorUndoStack.length) return;
+        deskEditorRedoStack.push(deskEditorCloneState());
+        deskEditorRestoreState(deskEditorUndoStack.pop());
+        deskEditorDirty = true;
+      }
+
+      function deskEditorRedo() {
+        if (!deskEditorRedoStack.length) return;
+        deskEditorUndoStack.push(deskEditorCloneState());
+        deskEditorRestoreState(deskEditorRedoStack.pop());
+        deskEditorDirty = true;
+      }
+
+      function deskEditorClearAll() {
+        if (!confirm('Clear all desks and zones? This cannot be undone from here.')) return;
+        deskEditorPushUndo();
+        deskEditorItems = [];
+        deskEditorSelectedIds = new Set();
+        deskEditorDirty = true;
+        deskEditorRender();
+      }
+
+      function openDeskEditModal(id) {
+        var item = deskEditorFindItem(id);
+        if (!item) return;
+        document.getElementById('desk-edit-id').value = item.id;
+        document.getElementById('desk-edit-type').value = item.type;
+        document.getElementById('desk-edit-label').value = item.label || '';
+        document.getElementById('desk-edit-width').value = item.w || 100;
+        document.getElementById('desk-edit-height').value = item.h || 60;
+        document.getElementById('desk-edit-rotation').value = item.rotation || 0;
+        document.getElementById('desk-edit-modal-title').textContent = item.type === 'zone' ? 'Edit Zone' : 'Edit Desk';
+
+        var personRow = document.getElementById('desk-edit-person-row');
+        var colorRow = document.getElementById('desk-edit-color-row');
+        personRow.classList.toggle('hidden', item.type !== 'desk');
+        colorRow.classList.toggle('hidden', item.type !== 'desk');
+
+        var personSelect = document.getElementById('desk-edit-person');
+        personSelect.innerHTML = '<option value="">-- Unassigned --</option>';
+        (window._deskEmployeeList || []).forEach(function(employee) {
+          var option = document.createElement('option');
+          option.value = employee.email;
+          option.textContent = employee.name;
+          if (employee.email === item.personEmail) option.selected = true;
+          personSelect.appendChild(option);
+        });
+
+        deskEditorCurrentColor = item.color || DESK_COLORS[0];
+        var swatches = document.getElementById('desk-color-swatches');
+        swatches.innerHTML = '';
+        DESK_COLORS.forEach(function(color) {
+          var button = document.createElement('button');
+          button.type = 'button';
+          button.style.background = color;
+          button.style.width = '24px';
+          button.style.height = '24px';
+          button.style.borderRadius = '9999px';
+          button.style.border = color === deskEditorCurrentColor ? '3px solid #312e81' : '1px solid #cbd5e1';
+          button.setAttribute('data-selected', color === deskEditorCurrentColor ? 'true' : 'false');
+          button.onclick = function() {
+            deskEditorCurrentColor = color;
+            Array.from(swatches.children).forEach(function(child) {
+              child.style.border = child === button ? '3px solid #312e81' : '1px solid #cbd5e1';
+              child.setAttribute('data-selected', child === button ? 'true' : 'false');
+            });
+          };
+          swatches.appendChild(button);
+        });
+
+        document.getElementById('modal-desk-edit').classList.remove('hidden');
+      }
+
+      function closeDeskEditModal() {
+        document.getElementById('modal-desk-edit').classList.add('hidden');
+      }
+
+      function handleDeskEditSave(event) {
+        event.preventDefault();
+        var item = deskEditorFindItem(document.getElementById('desk-edit-id').value);
+        if (!item) return;
+        deskEditorPushUndo();
+        item.label = document.getElementById('desk-edit-label').value.trim();
+        item.w = deskEditorClamp(parseInt(document.getElementById('desk-edit-width').value, 10) || item.w, 40, 300);
+        item.h = deskEditorClamp(parseInt(document.getElementById('desk-edit-height').value, 10) || item.h, 30, 200);
+        item.rotation = deskEditorWrapRotation(parseInt(document.getElementById('desk-edit-rotation').value, 10) || 0);
+        if (item.type === 'desk') {
+          item.personEmail = document.getElementById('desk-edit-person').value || '';
+          item.color = deskEditorCurrentColor || item.color || DESK_COLORS[0];
+        }
+        deskEditorDirty = true;
+        closeDeskEditModal();
+        deskEditorRender();
+      }
+
+      function deskEditorDeleteItem(id) {
+        if (!confirm('Delete this item?')) return;
+        deskEditorPushUndo();
+        deskEditorItems = deskEditorItems.filter(function(item) { return item.id !== id; });
+        deskEditorSelectedIds.delete(id);
+        deskEditorDirty = true;
+        deskEditorRender();
+      }
+
+      function deskEditorOnSaveSuccess() {
+        var button = document.getElementById('btn-save-desk-layout');
+        if (button) {
+          button.disabled = false;
+          button.innerHTML = deskEditorSaveButtonOriginalHtml || '<i class="fa-solid fa-floppy-disk mr-1"></i> Save Layout';
+        }
+        deskEditorDirty = false;
+        deskEditorToast('Layout saved!', 'success');
+      }
+
+      function deskEditorOnSaveError(error) {
+        var button = document.getElementById('btn-save-desk-layout');
+        if (button) {
+          button.disabled = false;
+          button.innerHTML = deskEditorSaveButtonOriginalHtml || '<i class="fa-solid fa-floppy-disk mr-1"></i> Save Layout';
+        }
+        deskEditorToast((error && error.message) || String(error), 'error');
+      }
+
+      function deskEditorSaveLayout() {
+        var button = document.getElementById('btn-save-desk-layout');
+        if (!button) return;
+        deskEditorSaveButtonOriginalHtml = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>Saving…';
+        var dims = deskEditorGetCanvasDimensions();
+        var layoutJson = JSON.stringify({
+          items: deskEditorItems,
+          canvasWidth: dims.width,
+          canvasHeight: dims.height,
+          savedAt: new Date().toISOString()
+        });
+        google.script.run
+          .withSuccessHandler(deskEditorOnSaveSuccess)
+          .withFailureHandler(deskEditorOnSaveError)
+          .saveDeskLayout(layoutJson);
+      }
+
+      function deskEditorToast(message, type) {
+        var toast = document.createElement('div');
+        toast.className = 'fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-xl text-white z-[80] transition transform translate-y-4 opacity-0 ' + (type === 'error' ? 'bg-red-600' : 'bg-green-600');
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(function() {
+          toast.classList.remove('translate-y-4', 'opacity-0');
+        }, 10);
+        setTimeout(function() {
+          toast.classList.add('translate-y-4', 'opacity-0');
+          setTimeout(function() {
+            if (toast.parentNode) toast.parentNode.removeChild(toast);
+          }, 200);
+        }, 3000);
+      }
+
+      function deskEditorParseLayout(layoutJson) {
+        if (!layoutJson) return { hasSavedLayout: false, payload: null };
+        try {
+          var payload = typeof layoutJson === 'string' ? JSON.parse(layoutJson) : layoutJson;
+          if (Array.isArray(payload)) payload = { items: payload };
+          if (!payload || typeof payload !== 'object') return { hasSavedLayout: false, payload: null };
+          return { hasSavedLayout: true, payload: payload };
+        } catch (error) {
+          return { hasSavedLayout: false, payload: null };
+        }
+      }
+
+      function deskEditorGetSelectedDate() {
+        var datePicker = document.getElementById('desk-date-picker');
+        return datePicker && datePicker.value ? datePicker.value : new Date().toISOString().split('T')[0];
+      }
+
+      function deskEditorGetStatusForEmployee(email, dateStr) {
+        var employee = (appData.employees || []).find(function(entry) { return entry.email === email; });
+        if (!employee) {
+          var fallbackEmployee = findEmployeeByMapName(email);
+          email = fallbackEmployee ? fallbackEmployee.email : email;
+        }
+        var targetDate = new Date(dateStr + 'T12:00:00');
+        var booking = (appData.bookings || []).find(function(entry) {
+          if (entry.email !== email || entry.status !== 'Approved') return false;
+          var start = new Date(entry.startDate); start.setHours(0, 0, 0, 0);
+          var end = new Date(entry.endDate); end.setHours(0, 0, 0, 0);
+          var check = new Date(targetDate); check.setHours(0, 0, 0, 0);
+          return check >= start && check <= end;
+        });
+        if (booking) {
+          if (booking.type === 'WFH') return { nameClass: 'text-blue-600', badge: 'WFH', icon: 'house' };
+          if (booking.type === 'Office') return { nameClass: 'text-orange-600', badge: 'Office', icon: 'building' };
+          return { nameClass: 'text-red-600', badge: booking.type, icon: 'plane' };
+        }
+        var dayName = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][targetDate.getDay()];
+        var schedule = appData.schedules[email] || {};
+        var daySchedule = schedule[dayName];
+        if (daySchedule && daySchedule.type === 'WFH') return { nameClass: 'text-blue-600', badge: 'WFH', icon: 'house' };
+        if (daySchedule && daySchedule.type === 'None') return { nameClass: 'text-red-600', badge: 'Away', icon: 'ban' };
+        return { nameClass: 'text-green-600', badge: 'In', icon: 'circle-check' };
+      }
+
+      function deskEditorRenderLogsSection() {
+        var logsSection = document.getElementById('desk-plan-logs-section');
+        if (!logsSection) return;
+        if (!appData.currentUser || (appData.currentUser.role !== 'Admin' && appData.currentUser.role !== 'Manager')) {
+          logsSection.classList.add('hidden');
+          return;
+        }
+        logsSection.classList.remove('hidden');
+        var logsBody = document.getElementById('desk-plan-logs-body');
+        if (!logsBody) return;
+        logsBody.innerHTML = '';
+        var deskLogsToShow = window.localDeskLogs || [];
+        var backendDeskLogs = (appData.auditLogs || []).filter(function(log) {
+          return log.action && log.action.indexOf('Desk') !== -1;
+        });
+        if (deskLogsToShow.length === 0 && backendDeskLogs.length === 0) {
+          logsBody.innerHTML = '<tr><td class="p-3 text-gray-400 italic text-center">No manual desk adjustments made yet.</td></tr>';
+          return;
+        }
+        deskLogsToShow.forEach(function(log) {
+          logsBody.innerHTML += '<tr class="hover:bg-gray-50"><td class="p-2 text-gray-500 w-32">' + log.time + '</td><td class="p-2 text-blue-600 font-bold">' + log.actor + '</td><td class="p-2 text-gray-700 font-bold">For: ' + log.targetDate + '</td><td class="p-2 text-gray-600">' + log.details + '</td></tr>';
+        });
+        backendDeskLogs.slice(0, 20).forEach(function(log) {
+          var timeStr = new Date(log.timestamp).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+          logsBody.innerHTML += '<tr class="hover:bg-gray-50 bg-gray-50"><td class="p-2 text-gray-400 w-32">' + timeStr + '</td><td class="p-2 text-blue-500 font-bold">' + log.actor + '</td><td class="p-2 text-gray-500 font-bold">' + log.action + '</td><td class="p-2 text-gray-500">' + log.details + '</td></tr>';
+        });
+      }
+
+      function deskEditorIsUnavailableValue(value) {
+        return /^(n\/a|-|_|x|other|unavailable|dark|trade planning|merch)$/i.test(String(value || '').trim());
+      }
+
+      function deskEditorIsAvailableValue(value) {
+        return !value || /^(available|free|empty)$/i.test(String(value || '').trim());
+      }
+
+      function deskEditorGetItemOverride(item, dateStr) {
+        var overrides = (window.dailyOverrides || {})[dateStr] || {};
+        return overrides['item_' + item.id];
+      }
+
+      function deskEditorRenderReadOnlyLayout(layoutJson) {
+        var parsed = deskEditorParseLayout(layoutJson);
+        if (!parsed.hasSavedLayout) return false;
+        var payload = parsed.payload || {};
+        var container = document.getElementById('desk-map-container');
+        if (!container) return false;
+        var dateStr = deskEditorGetSelectedDate();
+        var targetDate = new Date(dateStr + 'T12:00:00');
+        var selectedDay = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][targetDate.getDay()];
+
+        container.innerHTML = '';
+        if (selectedDay === 'Sunday' || selectedDay === 'Saturday') {
+          container.innerHTML = '<div class="text-xl text-gray-500 italic mt-10 text-center"><i class="fa-solid fa-mug-hot text-4xl mb-4 text-gray-300 block"></i>It is the weekend... sit where you like.</div>';
+          return true;
+        }
+
+        var wrap = document.createElement('div');
+        wrap.className = 'relative bg-slate-50 border border-slate-200 rounded-xl shadow-inner overflow-hidden';
+        wrap.style.width = ((payload.canvasWidth || 1200)) + 'px';
+        wrap.style.height = ((payload.canvasHeight || 800)) + 'px';
+        wrap.style.minWidth = ((payload.canvasWidth || 1200)) + 'px';
+
+        var items = Array.isArray(payload.items) ? payload.items.slice() : [];
+        window._deskPlanLayoutItems = items.slice();
+        items.sort(function(a, b) { return (a.type === 'zone' ? -1 : 1) - (b.type === 'zone' ? -1 : 1); });
+
+        items.forEach(function(item) {
+          var rawValue = deskEditorGetItemOverride(item, dateStr);
+          if (rawValue === undefined) rawValue = item.personEmail || '';
+          var element = document.createElement('div');
+          element.style.position = 'absolute';
+          element.style.left = (Number(item.x) || 0) + 'px';
+          element.style.top = (Number(item.y) || 0) + 'px';
+          element.style.width = (Number(item.w) || (item.type === 'zone' ? 260 : 100)) + 'px';
+          element.style.height = (Number(item.h) || (item.type === 'zone' ? 160 : 60)) + 'px';
+          element.style.transform = 'rotate(' + (Number(item.rotation) || 0) + 'deg)';
+          element.style.transformOrigin = 'center center';
+          element.setAttribute('data-item-id', item.id);
+
+          if (item.type === 'zone') {
+            element.className = 'zone-item';
+            element.innerHTML = '<div class="zone-label">' + escapeHtml(item.label || 'Zone') + '</div>';
+            wrap.appendChild(element);
+            return;
+          }
+
+          var contentHtml = '';
+          var canUseContext = deskEditorHasAccess();
+          if (deskEditorIsUnavailableValue(rawValue)) {
+            element.className = 'rounded-lg border-2 border-slate-400 bg-slate-300 text-slate-700 flex flex-col items-center justify-center shadow-sm';
+            contentHtml = '<i class="fa-solid fa-ban text-lg mb-1"></i><div class="text-[10px] font-bold uppercase">Unavailable</div>';
+          } else if (deskEditorIsAvailableValue(rawValue)) {
+            if (window.pendingOfficeBooking) {
+              element.className = 'rounded-lg border-2 border-green-500 bg-green-50 text-green-700 flex flex-col items-center justify-center shadow animate-pulse cursor-pointer';
+              element.onclick = function() { deskEditorCompletePendingOfficeBooking(item.id, item.label); };
+              contentHtml = '<i class="fa-solid fa-hand-pointer text-lg mb-1"></i><div class="text-[10px] font-bold uppercase">Select Desk</div>';
+            } else {
+              element.className = 'rounded-lg border-2 border-dashed border-slate-300 bg-white text-slate-400 flex flex-col items-center justify-center shadow-sm';
+              contentHtml = '<i class="fa-solid fa-chair text-lg mb-1"></i><div class="text-[10px] font-bold uppercase">Available</div>';
+            }
+          } else {
+            var employee = findEmployeeByMapName(rawValue);
+            if (employee || (window._deskEmployeeMap && window._deskEmployeeMap[rawValue])) {
+              var email = employee ? employee.email : rawValue;
+              var name = employee ? employee.name : deskEditorResolveName(rawValue);
+              var status = deskEditorGetStatusForEmployee(email, dateStr);
+              element.className = 'rounded-lg border border-slate-300 flex flex-col items-center justify-center shadow-sm px-2 text-center';
+              element.style.background = item.color || DESK_COLORS[0];
+              contentHtml = '<i class="fa-solid fa-desktop text-slate-600 text-lg mb-1"></i>' +
+                '<div class="text-[10px] font-bold text-slate-800 truncate w-full">' + escapeHtml(item.label || 'Desk') + '</div>' +
+                '<div class="text-[11px] font-bold truncate w-full ' + status.nameClass + '">' + escapeHtml(getFirstName(name)) + '</div>' +
+                '<div class="text-[9px] uppercase text-slate-500">' + escapeHtml(status.badge) + '</div>';
+            } else {
+              element.className = 'rounded-lg border border-slate-300 bg-white text-slate-600 flex flex-col items-center justify-center shadow-sm px-2 text-center';
+              contentHtml = '<i class="fa-solid fa-users text-slate-500 text-lg mb-1"></i>' +
+                '<div class="text-[10px] font-bold text-slate-800 truncate w-full">' + escapeHtml(item.label || 'Desk') + '</div>' +
+                '<div class="text-[10px] text-slate-500 truncate w-full">' + escapeHtml(rawValue) + '</div>';
+            }
+          }
+
+          if (canUseContext) {
+            element.addEventListener('contextmenu', function(event) {
+              showDeskContextMenu(event, 'item', item.id);
+            });
+          }
+          element.innerHTML = contentHtml;
+          wrap.appendChild(element);
+        });
+
+        if (!items.length) {
+          wrap.innerHTML = '<div class="absolute inset-0 flex items-center justify-center text-sm text-slate-400 italic">No desks or zones saved yet.</div>';
+        }
+
+        container.appendChild(wrap);
+
+        deskEditorRenderLogsSection();
+        return true;
+      }
+
+      function deskEditorCompletePendingOfficeBooking(itemId, itemLabel) {
+        var item = deskEditorGetLayoutItemById(itemId) || { label: itemLabel || 'Desk' };
+        var pb = window.pendingOfficeBooking;
+        if (!pb) return;
+        var targetDateStr = pb.datesToPick[pb.currentIndex];
+        pb.pickedSeats.push({ date: targetDateStr, itemId: itemId });
+
+        if (google && google.script && google.script.run && google.script.run.logAction) {
+          google.script.run.logAction(appData.currentUser.email, 'Desk Plan Override', 'Date: ' + targetDateStr + ', Desk: ' + (item.label || itemId) + ', Action: Requested Seat (Pending Approval)');
+        }
+
+        pb.currentIndex++;
+        if (pb.currentIndex < pb.datesToPick.length) {
+          var dp = document.getElementById('desk-date-picker');
+          if (dp) dp.value = pb.datesToPick[pb.currentIndex];
+          renderDeskPlan();
+          return;
+        }
+
+        var fd = { type: pb.type, startDate: pb.startDate, endDate: pb.endDate, hours: pb.hours, targetEmail: pb.email };
+        document.getElementById('desk-map-container').innerHTML = '<div class="text-green-600 italic mt-10 text-center text-xl"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Confirming seat(s) and booking...</div>';
+        google.script.run.withSuccessHandler(function(res) {
+          if (res.success === false) { alert(res.message); window.pendingOfficeBooking = null; renderDeskPlan(); return; }
+          var newB = { id: res.id, email: pb.email, type: fd.type, startDate: fd.startDate, endDate: fd.endDate, daysCount: res.daysCount, status: res.status, hours: fd.hours };
+          appData.bookings.push(newB);
+          window.pendingOfficeBooking = null;
+          refreshAllViews();
+          alert('Seat(s) requested and Office booking submitted successfully! It is now Pending Approval.');
+        }).withFailureHandler(function(err) {
+          window.pendingOfficeBooking = null;
+          handleServerError(err);
+          renderDeskPlan();
+        }).submitBooking(fd);
+      }
+
+      function deskEditorSaveOverridesAndLog(detailText) {
+        if (google && google.script && google.script.run) {
+          if (google.script.run.saveDeskOverrides) {
+            google.script.run.withFailureHandler(function(err) {
+              console.warn('Could not save desk overrides: ', err);
+            }).saveDeskOverrides(window.dailyOverrides, window.localDeskLogs);
+          }
+          if (google.script.run.logAction) {
+            google.script.run.withFailureHandler(function(err) {
+              console.warn('Could not log override: ', err);
+            }).logAction(appData.currentUser.email, 'Desk Plan Override', detailText);
+          }
+        }
+      }
+
+      window.updateDeskCell = function(action) {
+        if (currentDeskContext && currentDeskContext.r === 'item') {
+          var itemId = currentDeskContext.c;
+          var item = deskEditorGetLayoutItemById(itemId);
+          if (!item) return;
+          var targetDateStr = deskEditorGetSelectedDate();
+          if (!window.dailyOverrides[targetDateStr]) window.dailyOverrides[targetDateStr] = {};
+          var overrideKey = 'item_' + itemId;
+          var currentVal = window.dailyOverrides[targetDateStr][overrideKey] !== undefined ? window.dailyOverrides[targetDateStr][overrideKey] : (item.personEmail || '');
+
+          if (action === 'assign') {
+            showAssignColleagueModal(currentVal, function(chosenName) {
+              var chosenEmployee = findEmployeeByMapName(chosenName);
+              window.dailyOverrides[targetDateStr][overrideKey] = chosenEmployee ? chosenEmployee.email : chosenName;
+              if (!window.localDeskLogs) window.localDeskLogs = [];
+              window.localDeskLogs.unshift({
+                time: new Date().toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }),
+                actor: appData.currentUser.name,
+                targetDate: targetDateStr,
+                details: (item.label || 'Desk') + ': Assigned ' + chosenName
+              });
+              renderDeskPlan();
+              deskEditorSaveOverridesAndLog('Date: ' + targetDateStr + ', Desk: ' + (item.label || itemId) + ', Action: assign, Value: ' + chosenName);
+            });
+            return;
+          }
+
+          if (action === 'team') {
+            showTeamLabelModal(currentVal, function(chosenTeam) {
+              window.dailyOverrides[targetDateStr][overrideKey] = chosenTeam;
+              if (!window.localDeskLogs) window.localDeskLogs = [];
+              window.localDeskLogs.unshift({
+                time: new Date().toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }),
+                actor: appData.currentUser.name,
+                targetDate: targetDateStr,
+                details: (item.label || 'Desk') + ': Set Team ' + chosenTeam
+              });
+              renderDeskPlan();
+              deskEditorSaveOverridesAndLog('Date: ' + targetDateStr + ', Desk: ' + (item.label || itemId) + ', Action: team, Value: ' + chosenTeam);
+            });
+            return;
+          }
+
+          window.dailyOverrides[targetDateStr][overrideKey] = action === 'available' ? 'Available' : 'X';
+          if (!window.localDeskLogs) window.localDeskLogs = [];
+          window.localDeskLogs.unshift({
+            time: new Date().toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }),
+            actor: appData.currentUser.name,
+            targetDate: targetDateStr,
+            details: (item.label || 'Desk') + ': Marked ' + action
+          });
+          renderDeskPlan();
+          deskEditorSaveOverridesAndLog('Date: ' + targetDateStr + ', Desk: ' + (item.label || itemId) + ', Action: ' + action + ', Value: ' + window.dailyOverrides[targetDateStr][overrideKey]);
+          return;
+        }
+
+        return deskEditorLegacyUpdateDeskCell(action);
+      };
+
+      window.loadView = function(viewName) {
+        var editorView = document.getElementById('view-desk-plan-editor');
+        if (editorView && !editorView.classList.contains('hidden') && viewName !== 'desk-plan-editor' && deskEditorDirty) {
+          if (!confirm('You have unsaved changes. Leave anyway?')) return;
+        }
+        if (viewName === 'desk-plan-editor') {
+          if (!deskEditorHasAccess()) {
+            alert('Only admins and managers can edit the desk layout.');
+            return;
+          }
+          ['view-dashboard', 'view-team', 'view-admin', 'view-my-team', 'view-patterns', 'view-capacity-settings', 'view-desk-plan', 'view-desk-plan-editor'].forEach(function(id) {
+            var node = document.getElementById(id);
+            if (node) node.classList.add('hidden');
+          });
+          document.getElementById('view-desk-plan-editor').classList.remove('hidden');
+          initDeskEditor();
+          return;
+        }
+        if (editorView) editorView.classList.add('hidden');
+        deskEditorLegacyLoadView(viewName);
+      };
+
+      window.renderDeskPlan = function() {
+        var requestId = ++deskEditorLayoutRequestId;
+        var container = document.getElementById('desk-map-container');
+        if (!container) return;
+        if (!(google && google.script && google.script.run && google.script.run.getDeskLayout)) {
+          deskEditorLegacyRenderDeskPlan();
+          return;
+        }
+        container.innerHTML = '<div class="text-gray-500 italic mt-10">Loading desk plan...</div>';
+        google.script.run
+          .withSuccessHandler(function(layoutJson) {
+            if (requestId !== deskEditorLayoutRequestId) return;
+            var rendered = deskEditorRenderReadOnlyLayout(layoutJson);
+            if (!rendered) deskEditorLegacyRenderDeskPlan();
+          })
+          .withFailureHandler(function() {
+            if (requestId !== deskEditorLayoutRequestId) return;
+            deskEditorLegacyRenderDeskPlan();
+          })
+          .getDeskLayout();
+      };
+    </script>
+
   </body>
 </html>
