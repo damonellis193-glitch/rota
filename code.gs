@@ -660,7 +660,7 @@ function getDeskLayout() {
   }
 }
 
-function saveDeskLayout(layoutJson) {
+function saveDeskLayout(day, layoutJson) {
   try {
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     setupDatabase(ss);
@@ -677,10 +677,32 @@ function saveDeskLayout(layoutJson) {
       throw new Error('Only admins and managers can save desk layouts.');
     }
 
-    JSON.parse(layoutJson || '{}');
+    const dayNames = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+    if (!dayNames.includes(day)) {
+      throw new Error('Invalid day name: ' + day);
+    }
+
     const sheet = ss.getSheetByName('DeskLayouts');
-    sheet.getRange(2, 1).setValue(String(layoutJson || ''));
-    logAction(userEmail, 'Desk Layout Saved', 'Desk layout updated via editor');
+    const existing = String(sheet.getRange(2, 1).getValue() || '');
+    let allLayouts = {};
+    if (existing) {
+      try {
+        const parsed = JSON.parse(existing);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) &&
+            dayNames.some(function(d) { return Object.prototype.hasOwnProperty.call(parsed, d); })) {
+          allLayouts = parsed;
+        } else {
+          // Old flat-array or single-layout format — migrate to Monday
+          allLayouts = { Monday: parsed };
+        }
+      } catch (parseErr) {
+        allLayouts = {};
+      }
+    }
+
+    allLayouts[day] = JSON.parse(layoutJson || '[]');
+    sheet.getRange(2, 1).setValue(JSON.stringify(allLayouts));
+    logAction(userEmail, 'Desk Layout Saved', 'Desk layout updated for ' + day + ' via editor');
     return { success: true };
   } catch (e) {
     console.error('saveDeskLayout failed: ' + e.toString());
