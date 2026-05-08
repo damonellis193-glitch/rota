@@ -1613,20 +1613,15 @@
                     capacitySettings: {Monday:5, Tuesday:5, Wednesday:5, Thursday:5, Friday:5, Saturday:0, Sunday:0},
                     deskPlan: [
                       ['Monday'],
-                      ['', '-', 'Jade', 'Natalie', 'Available', 'Phil'],
-                      ['', 'skip', 'Will', 'Savaira', 'Madi', 'skip'],
+                      ['', 'Jade', 'Natalie', 'Available', 'Phil', 'Will', 'Savaira', 'Madi', 'Available'],
                       ['Tuesday'],
-                      ['', '-', 'Emma', 'Jade', 'Natalie', 'Phil'],
-                      ['', 'skip', 'Damon', 'Alex', 'Madi', 'skip'],
+                      ['', 'Emma', 'Jade', 'Natalie', 'Phil', 'Damon', 'Alex', 'Madi', 'Available'],
                       ['Wednesday'],
-                      ['', '-', 'Emma', 'Sami', 'Will', 'Teresa'],
-                      ['', 'skip', 'Rebecca', 'Savaira', 'Available', 'skip'],
+                      ['', 'Emma', 'Sami', 'Will', 'Teresa', 'Rebecca', 'Savaira', 'Available', 'Available'],
                       ['Thursday'],
-                      ['', '-', 'Emma', 'Jade', 'Natalie', 'Phil'],
-                      ['', 'skip', 'Rebecca', 'Will', 'Damon', 'skip'],
+                      ['', 'Emma', 'Jade', 'Natalie', 'Phil', 'Rebecca', 'Will', 'Damon', 'Available'],
                       ['Friday'],
-                      ['', '-', 'Damon', 'Alex', 'Natalie', 'Teresa'],
-                      ['', 'skip', 'Rebecca', 'Savaira', 'Madi', 'skip']
+                      ['', 'Damon', 'Alex', 'Natalie', 'Teresa', 'Rebecca', 'Savaira', 'Madi', 'Available']
                     ]
                   }); 
                 }, 500); 
@@ -2767,6 +2762,44 @@
         return firstName.charAt(0).toUpperCase() + firstName.slice(1);
       }
 
+      // Helper: count how many people are in (or booked into) the office on a given YYYY-MM-DD date string
+      function countInOfficeOnDate(dateStr) {
+          var targetDate = new Date(dateStr + 'T12:00:00');
+          targetDate.setHours(0, 0, 0, 0);
+          var dayName = targetDate.toLocaleDateString('en-US', { weekday: 'long' });
+          var count = 0;
+          appData.employees.forEach(function(emp) {
+              var schedule = appData.schedules[emp.email] || {};
+              var daySchedule = schedule[dayName];
+              var isInOfficeBySchedule = false;
+              if (daySchedule) {
+                  isInOfficeBySchedule = (daySchedule.type === 'Office');
+              } else if (Object.keys(schedule).length === 0) {
+                  var dow = targetDate.getDay();
+                  isInOfficeBySchedule = (dow >= 1 && dow <= 5);
+              }
+              var hasExclusionaryBooking = appData.bookings.some(function(b) {
+                  if (b.email !== emp.email || b.status !== 'Approved') return false;
+                  var s = new Date(b.startDate); s.setHours(0,0,0,0);
+                  var e = new Date(b.endDate); e.setHours(0,0,0,0);
+                  return targetDate >= s && targetDate <= e &&
+                         ['Holiday','Sickness','WFH','Travel','Maternity'].indexOf(b.type) !== -1;
+              });
+              var hasOfficeBooking = appData.bookings.some(function(b) {
+                  if (b.email !== emp.email) return false;
+                  if (b.status !== 'Approved' && b.status !== 'Pending') return false;
+                  var s = new Date(b.startDate); s.setHours(0,0,0,0);
+                  var e = new Date(b.endDate); e.setHours(0,0,0,0);
+                  return targetDate >= s && targetDate <= e && b.type === 'Office';
+              });
+              var isInOffice = hasOfficeBooking ? true
+                             : hasExclusionaryBooking ? false
+                             : isInOfficeBySchedule;
+              if (isInOffice) count++;
+          });
+          return count;
+      }
+
       // 2. Draw the visual desk map
       function renderDeskPlan() {
         var container = document.getElementById('desk-map-container');
@@ -2907,9 +2940,8 @@
             }
         }
 
-        // 5. Identify Available Seats Today AND Top-Bank Occupants
+        // 5. Identify Available Seats Today
         var availableSeats = [];
-        var topBankOccupants = [];
         
         for (var r3 = startRow + 1; r3 < endRow; r3++) {
             var rOffset = r3 - startRow; // Row 1-2 = Top Bank. Row 3-4 = Bottom Bank.
@@ -2956,49 +2988,14 @@
                             }
                         }
 
+                        // emp is in the office and already shown on the map — nothing to do if not away
                         if (isAway) {
                             availableSeats.push({ r: r3, c: c3, rOffset: rOffset, isExplicitlyEmpty: false });
-                        } else {
-                            // If they are mapped to the top bank but ARE in the office, queue them up!
-                            if (rOffset <= 2 && !isManualOverride) {
-                                topBankOccupants.push({ emp: emp2, r: r3, c: c3, rOffset: rOffset });
-                            }
                         }
                     }
                 }
             }
         }
-
-        // 5.5. FORCE DROP-DOWN: Uproot Top Bank occupants if there is space in the Bottom Bank!
-        topBankOccupants.forEach(function(occ) {
-            var bottomSeatIndex = availableSeats.findIndex(function(s) { return s.rOffset >= 3 && !s.claimed; });
-            if (bottomSeatIndex !== -1) {
-                // Claim the bottom seat so no one else takes it during this loop
-                availableSeats[bottomSeatIndex].claimed = true;
-                
-                // Tag them as shifted so they render blue instead of green!
-                occ.emp.isShifted = true;
-                
-                // Add the top-row person to the Needs-Seat queue to be moved down
-                peopleNeedingSeats.push(occ.emp);
-                
-                // Mark their old top-row seat as vacated so it renders empty instead of duplicating them
-                vacatedSeats[occ.r + "_" + occ.c] = true;
-                
-                // Make their old top-row seat available for someone else (like a random visitor)
-                availableSeats.push({ r: occ.r, c: occ.c, rOffset: occ.rOffset, isExplicitlyEmpty: true });
-                
-                // Erase their typical seat mapping so they don't get sucked back into the top row!
-                delete typicalSeats[occ.emp.email];
-                
-                // Remove from todaysMapEmails so the UI knows they moved
-                todaysMapEmails = todaysMapEmails.filter(function(em) { return em !== occ.emp.email; });
-            }
-        });
-        
-        // Cleanup the temporary claim flags
-        availableSeats.forEach(function(s) { delete s.claimed; });
-
         // SURGICAL PATCH 1: Sort people alphabetically by email so assignment order NEVER shifts based on approval timing
         peopleNeedingSeats.sort(function(a, b) {
             return a.email > b.email ? 1 : -1;
@@ -3066,7 +3063,7 @@
           var rowDiv = document.createElement('div');
           
           // Add a large gap after the 2nd row to separate top and bottom blocks
-          var rowGap = (rowCount === 2) ? 'mb-16 ' : 'mb-4 ';
+          var rowGap = 'mb-4 ';
           rowDiv.className = rowGap + 'flex gap-4 justify-center w-full min-w-max';
 
           for (var c = 0; c < rowData.length; c++) {
@@ -4035,6 +4032,25 @@
                 curDate.setDate(curDate.getDate() + 1);
             }
             
+            // --- NEW: Hard cap of 8 desks ---
+            var MAX_DESK_CAPACITY = 8;
+            var fullDays = datesToPick.filter(function(dateStr) {
+                return countInOfficeOnDate(dateStr) >= MAX_DESK_CAPACITY;
+            });
+            if (fullDays.length > 0) {
+                alert(
+                    'Sorry, the office is already at full capacity (' + MAX_DESK_CAPACITY + ' desks) on:\n\n' +
+                    fullDays.map(function(d) {
+                        return new Date(d + 'T12:00:00').toLocaleDateString('en-GB', {
+                            weekday: 'long', day: 'numeric', month: 'short'
+                        });
+                    }).join('\n') +
+                    '\n\nPlease choose different dates or speak to your manager.'
+                );
+                return;
+            }
+            // --- END NEW ---
+
             if (datesToPick.length > 0) {
                 var emp = appData.employees.find(function(em) { return em.email === targetEmail; });
                 var empName = emp ? emp.name : targetEmail;
