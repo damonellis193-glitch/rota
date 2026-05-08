@@ -69,6 +69,10 @@
       .zone-item { position: absolute; border: 2px dashed #94a3b8; background: rgba(148,163,184,0.08); border-radius: 8px; cursor: grab; box-sizing: border-box; }
       .zone-item.selected { border-color: #6366f1; background: rgba(99,102,241,0.08); }
       .zone-label { position: absolute; top: 4px; left: 6px; font-size: 10px; font-weight: 700; color: #64748b; pointer-events: none; }
+      /* Desk editor day tabs */
+      .desk-day-tab { background: transparent; color: #4f46e5; }
+      .desk-day-tab:hover { background: #e0e7ff; }
+      .desk-day-tab.active { background: #4f46e5; color: white; }
     </style>
   </head>
   <body class="bg-white text-gray-800 font-sans h-screen flex flex-col overflow-hidden">
@@ -379,6 +383,21 @@
           <div class="flex flex-wrap items-center gap-2 mb-3 shrink-0 bg-white rounded-xl shadow px-4 py-3 border border-gray-200">
             <h2 class="text-xl font-bold text-indigo-900 mr-3"><i class="fa-solid fa-pen-ruler mr-2"></i>Desk Plan Editor</h2>
             <div class="h-6 w-px bg-gray-300"></div>
+            <!-- Day of Week Tabs -->
+            <div class="flex items-center gap-1 bg-indigo-50 border border-indigo-200 rounded-lg p-1">
+              <span class="text-xs font-bold text-indigo-700 mr-1">Day:</span>
+              <button onclick="deskEditorSwitchDay('Monday')"    id="desk-day-tab-Monday"    class="desk-day-tab px-2 py-1 rounded text-xs font-bold transition">Mon</button>
+              <button onclick="deskEditorSwitchDay('Tuesday')"   id="desk-day-tab-Tuesday"   class="desk-day-tab px-2 py-1 rounded text-xs font-bold transition">Tue</button>
+              <button onclick="deskEditorSwitchDay('Wednesday')" id="desk-day-tab-Wednesday" class="desk-day-tab px-2 py-1 rounded text-xs font-bold transition">Wed</button>
+              <button onclick="deskEditorSwitchDay('Thursday')"  id="desk-day-tab-Thursday"  class="desk-day-tab px-2 py-1 rounded text-xs font-bold transition">Thu</button>
+              <button onclick="deskEditorSwitchDay('Friday')"    id="desk-day-tab-Friday"    class="desk-day-tab px-2 py-1 rounded text-xs font-bold transition">Fri</button>
+              <button onclick="deskEditorSwitchDay('Saturday')"  id="desk-day-tab-Saturday"  class="desk-day-tab px-2 py-1 rounded text-xs font-bold transition">Sat</button>
+              <button onclick="deskEditorSwitchDay('Sunday')"    id="desk-day-tab-Sunday"    class="desk-day-tab px-2 py-1 rounded text-xs font-bold transition">Sun</button>
+            </div>
+            <button onclick="openCopyDayModal()" class="flex items-center gap-1 bg-purple-100 hover:bg-purple-200 text-purple-700 text-xs font-bold px-3 py-2 rounded border border-purple-300 transition">
+              <i class="fa-solid fa-copy"></i> Copy from Day
+            </button>
+            <div class="h-6 w-px bg-gray-300"></div>
             <!-- Add items -->
             <button onclick="deskEditorAddDesk()" class="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded shadow transition">
               <i class="fa-solid fa-plus"></i> Add Desk
@@ -438,6 +457,7 @@
           <div class="shrink-0 mt-2 flex items-center gap-4 text-xs text-gray-500 px-1">
             <span id="desk-editor-item-count">0 items</span>
             <span id="desk-editor-selected-info" class="text-indigo-600 font-bold"></span>
+            <span class="text-indigo-500 font-bold">Editing: <span id="desk-editor-day-label">Monday</span></span>
             <span class="flex-1"></span>
             <span>Click to select · Drag to move · Use handles to rotate/delete/edit · Shift+click to multi-select</span>
           </div>
@@ -1112,6 +1132,28 @@
             <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded font-bold">Save</button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- Copy Day Layout Modal -->
+    <div id="modal-copy-day" class="hidden fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
+        <h3 class="text-lg font-bold mb-1 text-indigo-900"><i class="fa-solid fa-copy mr-2"></i>Copy Day Layout</h3>
+        <p class="text-sm text-gray-500 mb-4">Copy the layout from another day into <strong id="copy-day-target-label">Monday</strong>. This will replace the current layout for that day.</p>
+        <label class="text-xs font-bold uppercase text-gray-500 block mb-2">Copy from:</label>
+        <select id="copy-day-source-select" class="w-full border rounded p-2 mb-4 text-sm">
+          <option value="Monday">Monday</option>
+          <option value="Tuesday">Tuesday</option>
+          <option value="Wednesday">Wednesday</option>
+          <option value="Thursday">Thursday</option>
+          <option value="Friday">Friday</option>
+          <option value="Saturday">Saturday</option>
+          <option value="Sunday">Sunday</option>
+        </select>
+        <div class="flex justify-end gap-2">
+          <button type="button" onclick="closeModals()" class="px-4 py-2 text-gray-500 hover:text-gray-700">Cancel</button>
+          <button type="button" onclick="confirmCopyDay()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-5 py-2 rounded shadow">Copy Layout</button>
+        </div>
       </div>
     </div>
 
@@ -1821,9 +1863,29 @@
                 var self = this;
                 setTimeout(function() { if (self._s) self._s(window._mockDeskLayout || ''); }, 200);
               },
-              saveDeskLayout: function(layoutJson) {
+              saveDeskLayout: function(day, layoutJson) {
                 var self = this;
-                window._mockDeskLayout = layoutJson || '';
+                if (typeof day === 'string' && typeof layoutJson === 'string') {
+                  var existing = window._mockDeskLayout || '';
+                  var allLayouts = {};
+                  var DAY_NAMES = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+                  if (existing) {
+                    try {
+                      var ep = JSON.parse(existing);
+                      if (ep && typeof ep === 'object' && !Array.isArray(ep) &&
+                          DAY_NAMES.some(function(d){ return Object.prototype.hasOwnProperty.call(ep, d); })) {
+                        allLayouts = ep;
+                      } else {
+                        allLayouts = { Monday: ep };
+                      }
+                    } catch(e) { allLayouts = {}; }
+                  }
+                  allLayouts[day] = JSON.parse(layoutJson || '[]');
+                  window._mockDeskLayout = JSON.stringify(allLayouts);
+                } else {
+                  // Legacy single-arg call
+                  window._mockDeskLayout = day || '';
+                }
                 setTimeout(function() { if (self._s) self._s({success:true}); }, 200);
               },
               logAction: function() {
@@ -4434,7 +4496,7 @@
       }
 
       function closeModals() {
-        ['modal-booking','modal-employee','modal-schedule','modal-chaser','modal-carryover','modal-allowance-change'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
+        ['modal-booking','modal-employee','modal-schedule','modal-chaser','modal-carryover','modal-allowance-change','modal-copy-day'].forEach(function(id) { document.getElementById(id).classList.add('hidden'); });
       }
 
       function sendChaser() {
@@ -5717,6 +5779,8 @@
       var deskEditorCurrentColor = DESK_COLORS[0];
       var deskEditorLayoutRequestId = 0;
       var deskEditorSaveButtonOriginalHtml = '';
+      var deskEditorCurrentDay = 'Monday';
+      var deskEditorAllLayouts = {};
       var deskEditorLegacyRenderDeskPlan = window.renderDeskPlan;
       var deskEditorLegacyLoadView = window.loadView;
       var deskEditorLegacyUpdateDeskCell = window.updateDeskCell;
@@ -6013,6 +6077,7 @@
       }
 
       function deskEditorOnLoad(layoutJson) {
+        var DAY_NAMES = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
         var parsed = null;
         if (layoutJson) {
           try {
@@ -6021,9 +6086,39 @@
             parsed = null;
           }
         }
-        if (Array.isArray(parsed)) parsed = { items: parsed };
-        if (!parsed || typeof parsed !== 'object') parsed = { items: [], canvasWidth: 1200, canvasHeight: 800 };
-        deskEditorItems = Array.isArray(parsed.items) ? parsed.items : [];
+        // Detect per-day format: an object that has at least one day-name key
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) &&
+            DAY_NAMES.some(function(d) { return Object.prototype.hasOwnProperty.call(parsed, d); })) {
+          deskEditorAllLayouts = parsed;
+        } else if (parsed) {
+          // Old single-layout format — migrate to Monday
+          if (Array.isArray(parsed)) {
+            deskEditorAllLayouts = { Monday: parsed };
+          } else if (parsed.items) {
+            deskEditorAllLayouts = { Monday: parsed };
+          } else {
+            deskEditorAllLayouts = {};
+          }
+        } else {
+          deskEditorAllLayouts = {};
+        }
+        deskEditorCurrentDay = 'Monday';
+        deskEditorUpdateDayTabs();
+        deskEditorLoadDayToCanvas(deskEditorAllLayouts['Monday'] || null);
+      }
+
+      function deskEditorLoadDayToCanvas(dayData) {
+        var payload;
+        if (!dayData) {
+          payload = { items: [], canvasWidth: 1200, canvasHeight: 800 };
+        } else if (Array.isArray(dayData)) {
+          payload = { items: dayData, canvasWidth: 1200, canvasHeight: 800 };
+        } else if (typeof dayData === 'object' && dayData.items) {
+          payload = dayData;
+        } else {
+          payload = { items: [], canvasWidth: 1200, canvasHeight: 800 };
+        }
+        deskEditorItems = Array.isArray(payload.items) ? payload.items.slice() : [];
         deskEditorItems.forEach(function(item) {
           if (!item.id) item.id = deskEditorGenerateId(item.type || 'desk');
           if (!item.type) item.type = 'desk';
@@ -6034,12 +6129,72 @@
           item.x = Number(item.x) || 0;
           item.y = Number(item.y) || 0;
         });
-        deskEditorSetCanvasSize(parsed.canvasWidth || 1200, parsed.canvasHeight || 800);
+        deskEditorSetCanvasSize(payload.canvasWidth || 1200, payload.canvasHeight || 800);
         deskEditorSelectedIds = new Set();
         deskEditorUndoStack = [];
         deskEditorRedoStack = [];
         deskEditorDirty = false;
         deskEditorRender();
+      }
+
+      function deskEditorSaveCurrentDayToLayouts() {
+        var dims = deskEditorGetCanvasDimensions();
+        deskEditorAllLayouts[deskEditorCurrentDay] = {
+          items: deskEditorItems.slice(),
+          canvasWidth: dims.width,
+          canvasHeight: dims.height
+        };
+      }
+
+      function deskEditorUpdateDayTabs() {
+        var days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+        days.forEach(function(day) {
+          var tab = document.getElementById('desk-day-tab-' + day);
+          if (!tab) return;
+          if (day === deskEditorCurrentDay) {
+            tab.classList.add('active');
+          } else {
+            tab.classList.remove('active');
+          }
+        });
+        var statusSpan = document.getElementById('desk-editor-day-label');
+        if (statusSpan) statusSpan.textContent = deskEditorCurrentDay;
+      }
+
+      function deskEditorSwitchDay(day) {
+        if (day === deskEditorCurrentDay) return;
+        deskEditorSaveCurrentDayToLayouts();
+        deskEditorCurrentDay = day;
+        deskEditorUpdateDayTabs();
+        deskEditorLoadDayToCanvas(deskEditorAllLayouts[day] || null);
+      }
+
+      function openCopyDayModal() {
+        var label = document.getElementById('copy-day-target-label');
+        if (label) label.textContent = deskEditorCurrentDay;
+        var select = document.getElementById('copy-day-source-select');
+        if (select) {
+          var options = select.querySelectorAll('option');
+          options.forEach(function(opt) {
+            opt.style.display = opt.value === deskEditorCurrentDay ? 'none' : '';
+          });
+          // Reset selection to first visible option
+          var firstVisible = Array.prototype.find.call(options, function(opt) { return opt.value !== deskEditorCurrentDay; });
+          if (firstVisible) select.value = firstVisible.value;
+        }
+        document.getElementById('modal-copy-day').classList.remove('hidden');
+      }
+
+      function confirmCopyDay() {
+        var select = document.getElementById('copy-day-source-select');
+        var sourceDay = select ? select.value : null;
+        if (!sourceDay) return;
+        var source = deskEditorAllLayouts[sourceDay];
+        var cloned = source ? JSON.parse(JSON.stringify(source)) : null;
+        deskEditorAllLayouts[deskEditorCurrentDay] = cloned || { items: [], canvasWidth: 1200, canvasHeight: 800 };
+        deskEditorLoadDayToCanvas(deskEditorAllLayouts[deskEditorCurrentDay]);
+        closeModals();
+        deskEditorToast('Copied ' + sourceDay + ' layout to ' + deskEditorCurrentDay, 'success');
       }
 
       function deskEditorRender() {
@@ -6275,7 +6430,7 @@
           button.innerHTML = deskEditorSaveButtonOriginalHtml || '<i class="fa-solid fa-floppy-disk mr-1"></i> Save Layout';
         }
         deskEditorDirty = false;
-        deskEditorToast('Layout saved!', 'success');
+        deskEditorToast(deskEditorCurrentDay + ' layout saved!', 'success');
       }
 
       function deskEditorOnSaveError(error) {
@@ -6293,17 +6448,13 @@
         deskEditorSaveButtonOriginalHtml = button.innerHTML;
         button.disabled = true;
         button.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>Saving…';
-        var dims = deskEditorGetCanvasDimensions();
-        var layoutJson = JSON.stringify({
-          items: deskEditorItems,
-          canvasWidth: dims.width,
-          canvasHeight: dims.height,
-          savedAt: new Date().toISOString()
-        });
+        deskEditorSaveCurrentDayToLayouts();
+        var dayData = deskEditorAllLayouts[deskEditorCurrentDay] || { items: [], canvasWidth: 1200, canvasHeight: 800 };
+        var layoutJson = JSON.stringify(dayData);
         google.script.run
           .withSuccessHandler(deskEditorOnSaveSuccess)
           .withFailureHandler(deskEditorOnSaveError)
-          .saveDeskLayout(layoutJson);
+          .saveDeskLayout(deskEditorCurrentDay, layoutJson);
       }
 
       function deskEditorToast(message, type) {
@@ -6408,9 +6559,15 @@
       }
 
       function deskEditorRenderReadOnlyLayout(layoutJson) {
-        var parsed = deskEditorParseLayout(layoutJson);
-        if (!parsed.hasSavedLayout) return false;
-        var payload = parsed.payload || {};
+        var DAY_NAMES = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+        var rawParsed = null;
+        if (layoutJson) {
+          try {
+            rawParsed = typeof layoutJson === 'string' ? JSON.parse(layoutJson) : layoutJson;
+          } catch (e) {
+            rawParsed = null;
+          }
+        }
         var container = document.getElementById('desk-map-container');
         if (!container) return false;
         var dateStr = deskEditorGetSelectedDate();
@@ -6421,6 +6578,34 @@
         if (selectedDay === 'Sunday' || selectedDay === 'Saturday') {
           container.innerHTML = '<div class="text-xl text-gray-500 italic mt-10 text-center"><i class="fa-solid fa-mug-hot text-4xl mb-4 text-gray-300 block"></i>It is the weekend... sit where you like.</div>';
           return true;
+        }
+
+        // Resolve payload for the selected day
+        var payload = null;
+        if (rawParsed && typeof rawParsed === 'object' && !Array.isArray(rawParsed) &&
+            DAY_NAMES.some(function(d) { return Object.prototype.hasOwnProperty.call(rawParsed, d); })) {
+          // Per-day format
+          var dayData = rawParsed[selectedDay];
+          if (!dayData) {
+            container.innerHTML = '<div class="text-sm text-gray-400 italic mt-10 text-center">No layout saved for ' + selectedDay + ' yet.</div>';
+            return true;
+          }
+          if (Array.isArray(dayData)) {
+            payload = { items: dayData, canvasWidth: 1200, canvasHeight: 800 };
+          } else {
+            payload = dayData;
+          }
+        } else if (rawParsed) {
+          // Old flat-array or single-layout format
+          if (Array.isArray(rawParsed)) {
+            payload = { items: rawParsed, canvasWidth: 1200, canvasHeight: 800 };
+          } else if (rawParsed.items) {
+            payload = rawParsed;
+          }
+        }
+
+        if (!payload || !Array.isArray(payload.items)) {
+          return false;
         }
 
         var wrap = document.createElement('div');
