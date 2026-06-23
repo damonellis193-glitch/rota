@@ -1258,6 +1258,22 @@
       </div>
     </div>
 
+    <!-- Logged Out Screen -->
+    <div id="logout-screen" class="hidden fixed inset-0 bg-gray-900 bg-opacity-95 flex items-center justify-center z-[70] backdrop-blur-sm">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 border-4 border-red-500">
+        <div class="text-center">
+          <div class="mb-4">
+            <i class="fa-solid fa-right-from-bracket text-red-500 text-6xl"></i>
+          </div>
+          <h3 class="text-2xl font-bold mb-3 text-gray-900">Logged out</h3>
+          <p class="text-gray-700 mb-6">You have been logged out due to inactivity.</p>
+          <button onclick="logBackIn()" class="btn-primary px-6 py-3 rounded-lg font-bold text-lg w-full">
+            <i class="fa-solid fa-arrow-right-to-bracket mr-2"></i> Log back in
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- NEW: Desk Context Menu -->
     <div id="desk-context-menu" class="hidden fixed bg-white rounded-lg shadow-xl border border-gray-200 z-[100] w-48 py-1 text-sm">
        <button class="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700" onclick="updateDeskCell('assign')"><i class="fa-solid fa-user mr-2 text-blue-500"></i> Assign Colleague</button>
@@ -5822,10 +5838,22 @@
         // Clear all timers
         clearTimeout(inactivityTimer);
         clearTimeout(warningTimer);
-        clearTimeout(countdownTimer);
+        clearInterval(countdownTimer);
         
-        // Reload the page which will require re-authentication
-        alert('You have been logged out due to inactivity.');
+        // Hide the inactivity warning modal if visible
+        var warningModal = document.getElementById('modal-inactivity-warning');
+        if (warningModal) {
+          warningModal.classList.add('hidden');
+        }
+
+        // Show the logged-out screen
+        var logoutScreen = document.getElementById('logout-screen');
+        if (logoutScreen) {
+          logoutScreen.classList.remove('hidden');
+        }
+      }
+
+      function logBackIn() {
         window.location.reload();
       }
 
